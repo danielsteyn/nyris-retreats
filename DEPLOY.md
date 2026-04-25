@@ -79,26 +79,38 @@ To unlock multi-device admin sync and admin-managed API keys, add these env vars
 
 ### Automated price sync (every 15 minutes)
 
-`vercel.json` declares a cron job at `*/15 * * * *` that calls `/api/cron/sync-pricelabs`. On each run it:
+The endpoint `/api/cron/sync-pricelabs` does the work. On each run it:
 
 1. Reads your saved Pricelabs↔Nyris property mapping
 2. Calls PriceLabs `listing_prices` for every mapped property (today → +90 days)
 3. Upserts the daily prices into the `daily_prices` table in Turso
 4. Logs the run to `sync_log` (visible in the admin → PriceLabs tab → "Auto-sync" panel)
 
-**Required for cron to work:**
+**Required to run at all:**
 - Turso must be configured (cron has nowhere else to read the API key or store prices)
 - The PriceLabs API key must be saved server-side — either via the admin UI (with Turso connected) or as `PRICELABS_API_KEY` env var. Browser-stored keys are not accessible to a scheduled job.
-- `CRON_SECRET` env var must be set (Vercel uses it to authenticate the cron request)
+- `CRON_SECRET` env var must be set (used to authenticate the cron request)
 
-**Plan requirements:**
-- Vercel **Hobby**: 2 cron jobs allowed; sub-daily schedules (`*/15`) are supported on current Hobby tier
-- Vercel **Pro / Enterprise**: full cron expression support
+**Two scheduler options** — pick one:
 
-If you want a different schedule, edit `vercel.json` `crons[].schedule` and redeploy. Some examples:
-- `*/30 * * * *` — every 30 minutes
-- `0 */2 * * *` — every 2 hours, on the hour
-- `0 6 * * *` — once daily at 06:00 UTC
+**Option A — GitHub Actions (recommended on Vercel Hobby).** A workflow at `.github/workflows/sync-prices.yml` calls the endpoint every 15 minutes from GitHub's free runners. Setup:
+
+1. Push the project to GitHub (the workflow is committed already)
+2. In your GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
+   - `SITE_URL` = `https://nyris-retreats.vercel.app` (or your deployed URL)
+   - `CRON_SECRET` = same value as the `CRON_SECRET` env var in Vercel
+3. Open the **Actions** tab — the "PriceLabs price sync" workflow should appear. The first run will fire on the next 15-minute mark.
+4. Manual trigger anytime via Actions → workflow → "Run workflow"
+
+Free for this use case (≤3,000 runs/month, well within GitHub's 2,000 free minutes since each run takes ~5s).
+
+**Option B — Vercel Cron (requires Pro plan for sub-daily).** `vercel.json` ships with a daily backstop (`0 6 * * *`). On Vercel Pro you can change it to `*/15 * * * *` and remove the GitHub workflow:
+
+```json
+"crons": [{ "path": "/api/cron/sync-pricelabs", "schedule": "*/15 * * * *" }]
+```
+
+Other example schedules: `*/30 * * * *` (every 30 min) · `0 */2 * * *` (every 2 hours) · `0 6 * * *` (daily at 06:00 UTC).
 
 ### Setting up Turso (1 minute)
 
