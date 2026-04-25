@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>FAQ — Nyris Retreats</title>
+<meta name="description" content="Common questions about Nyris Retreats — direct booking, cancellation, pets, group bookings, and more."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+<script>window.__activeNav = "faq";</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <section style="background: var(--color-cream-dark); padding: 5rem 1.5rem 3rem;">
+    <div class="container-narrow reveal" style="text-align:center;">
+      <span class="section-eyebrow">Help center</span>
+      <h1 style="font-size: clamp(2.4rem, 5vw, 3.6rem); margin: 0 0 1rem;">Frequently asked.</h1>
+      <p style="font-size: 1.1rem; color: var(--color-stone);">Can't find your answer? Reach out — we usually respond within minutes.</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="container-narrow" id="faqList"></div>
+    <div class="container-narrow" style="text-align:center; margin-top: 3rem;">
+      <a href="/contact.html" class="btn btn-primary">Contact us</a>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(function() {
+  const list = document.getElementById('faqList');
+  list.innerHTML = NYRIS.faqs.map((f, i) => `
+    <div class="faq-item ${i === 0 ? 'open' : ''}">
+      <button class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+        <span>${escapeHtml(f.q)}</span>
+        <span class="icon">${ICON.plus}</span>
+      </button>
+      <div class="faq-a"><div><p>${escapeHtml(f.a)}</p></div></div>
+    </div>`).join('');
+})();
+</script>
+</body>
+</html>

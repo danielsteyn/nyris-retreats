@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Nyris Retreats — Top 1% Guest Favorite Vacation Homes</title>
+<meta name="description" content="Direct booking site for Nyris Retreats — Superhost-managed vacation homes across the Gulf Coast, Texas, and Broken Bow. Top 1% Guest Favorite. Book direct, skip the platform fees."/>
+<meta property="og:title" content="Nyris Retreats — Curated Vacation Homes, Top 1% Guest Favorite"/>
+<meta property="og:description" content="Superhost-managed beach, lake, and cabin retreats. 5.0 average across 200+ stays. Direct booking only — no platform fees."/>
+<meta property="og:type" content="website"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+<script>window.__activeNav = "home";</script>
+</head>
+<body>
+
+<header id="site-header"></header>
+
+<main>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-img" id="heroImg" style="background-image: url('https://assets.hospitable.com/property_images/1597444/Lm15xbpAlhpFK2m1TVqQMu9kKk5JXukcSaaWLfEP.jpg');"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content reveal">
+    <span class="hero-eyebrow" id="heroEyebrow">Top 1% Guest Favorite · Superhost-managed</span>
+    <h1 id="heroTitle">Stay where the reviews don't lie.</h1>
+    <p class="lead" id="heroSubtitle">Hand-picked vacation homes across the Gulf Coast, Texas Hill Country, and Broken Bow. 5.0 stars across 200+ stays. Book direct — skip the platform fees.</p>
+    <form class="search-bar" onsubmit="goSearch(event)" role="search">
+      <label class="search-field">
+        <span>Where</span>
+        <select name="dest" id="searchDest">
+          <option value="">Anywhere on our list</option>
+        </select>
+      </label>
+      <label class="search-field">
+        <span>Check in</span>
+        <input type="date" name="checkin" id="searchCheckin"/>
+      </label>
+      <label class="search-field">
+        <span>Check out</span>
+        <input type="date" name="checkout" id="searchCheckout"/>
+      </label>
+      <label class="search-field">
+        <span>Guests</span>
+        <input type="number" name="guests" id="searchGuests" min="1" max="13" placeholder="Add guests"/>
+      </label>
+      <button class="search-submit" type="submit" aria-label="Search stays">
+        <span id="searchIcon"></span>
+        <span>Search</span>
+      </button>
+    </form>
+    <div style="margin-top: 1.25rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; font-size: 0.86rem; color: rgba(255,255,255,0.8);">
+      <span>★ 5.0 average rating</span>
+      <span>·</span>
+      <span>200+ five-star stays</span>
+      <span>·</span>
+      <span>No service fees</span>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP -->
+<section class="trust-strip">
+  <div class="trust-strip-grid reveal-stagger">
+    <div class="trust-item">
+      <span class="trust-num" id="statRating">5.0</span>
+      <span class="trust-label">Average rating across all properties</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num" id="statReviews">200+</span>
+      <span class="trust-label">Five-star reviews and counting</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num">Top 1%</span>
+      <span class="trust-label">Guest Favorite homes — Airbnb's elite tier</span>
+    </div>
+    <div class="trust-item">
+      <span class="trust-num">2024</span>
+      <span class="trust-label">Superhost since first eligible quarter</span>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED -->
+<section class="section" id="featured">
+  <div class="container">
+    <div class="reveal" style="display: flex; align-items: end; justify-content: space-between; margin-bottom: 3rem; gap: 2rem; flex-wrap: wrap;">
+      <div>
+        <span class="section-eyebrow">Our portfolio</span>
+        <h2 class="section-title">Every stay, a Guest Favorite.</h2>
+        <p class="section-subtitle">Six homes. Four destinations. One promise — every property is in the top 1% for ratings, reliability, and the kind of details that turn a stay into a memory.</p>
+      </div>
+      <a href="/search.html" class="btn btn-outline">View all stays →</a>
+    </div>
+    <div class="props-grid reveal-stagger" id="featuredGrid"></div>
+  </div>
+</section>
+
+<!-- DESTINATIONS -->
+<section class="section" id="destinations" style="background: var(--color-cream-dark);">
+  <div class="container">
+    <div class="reveal" style="text-align:center; margin-bottom: 3rem;">
+      <span class="section-eyebrow">Where we host</span>
+      <h2 class="section-title">Four destinations, hand-curated.</h2>
+      <p class="section-subtitle" style="margin: 0 auto;">From sugar-white sand to pine-shaded cabin trails — pick a vibe.</p>
+    </div>
+    <div class="dest-grid reveal-stagger" id="destGrid"></div>
+  </div>
+</section>
+
+<!-- VALUE PROPS -->
+<section class="section">
+  <div class="container">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items:center;" class="vp-wrap">
+      <div class="reveal">
+        <span class="section-eyebrow">Why book direct</span>
+        <h2 class="section-title">Same homes. Better stay. Lower price.</h2>
+        <ul style="list-style:none; padding:0; margin: 2rem 0 0;">
+          <li style="display:flex; gap:1rem; padding: 1rem 0; border-bottom: 1px solid var(--color-line);">
+            <div style="flex-shrink:0; width:36px; height:36px; border-radius:999px; background: var(--color-primary); color: var(--color-cream); display:inline-flex; align-items:center; justify-content:center;" id="iconCheck1"></div>
+            <div>
+              <strong>Skip the platform fees.</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0;">Save 14–18% versus Airbnb or Vrbo. Same homes, same Superhost — the savings come back to you.</p>
+            </div>
+          </li>
+          <li style="display:flex; gap:1rem; padding: 1rem 0; border-bottom: 1px solid var(--color-line);">
+            <div style="flex-shrink:0; width:36px; height:36px; border-radius:999px; background: var(--color-primary); color: var(--color-cream); display:inline-flex; align-items:center; justify-content:center;" id="iconCheck2"></div>
+            <div>
+              <strong>Direct line to your host.</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0;">Most messages answered within minutes. Real human, no chatbot escalation tree.</p>
+            </div>
+          </li>
+          <li style="display:flex; gap:1rem; padding: 1rem 0; border-bottom: 1px solid var(--color-line);">
+            <div style="flex-shrink:0; width:36px; height:36px; border-radius:999px; background: var(--color-primary); color: var(--color-cream); display:inline-flex; align-items:center; justify-content:center;" id="iconCheck3"></div>
+            <div>
+              <strong>Flexible check-in when we can.</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0;">Direct guests get first dibs on early arrival or late checkout — just ask.</p>
+            </div>
+          </li>
+          <li style="display:flex; gap:1rem; padding: 1rem 0;">
+            <div style="flex-shrink:0; width:36px; height:36px; border-radius:999px; background: var(--color-primary); color: var(--color-cream); display:inline-flex; align-items:center; justify-content:center;" id="iconCheck4"></div>
+            <div>
+              <strong>Best-rate guarantee.</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0;">See the same home cheaper elsewhere? We'll match it. No fine print.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="reveal" style="position:relative;">
+        <div style="border-radius: 24px; overflow: hidden; aspect-ratio: 4/5;">
+          <img src="https://assets.hospitable.com/property_images/1605954/0nHIh9LmL4RykThYVcEetYU1C6Fm43PrGrZGHKJx.jpg" alt="A Nyris Retreats property" style="width:100%; height:100%; object-fit:cover;"/>
+        </div>
+        <div style="position:absolute; bottom:-20px; right:-20px; background: var(--color-cream); padding: 1.25rem 1.5rem; border-radius: 16px; box-shadow: var(--shadow-lg); max-width: 240px;">
+          <div style="font-family: var(--font-display); font-size: 1.4rem; line-height: 1.2; color: var(--color-charcoal);">"Cleanest Airbnb I've rented to date."</div>
+          <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--color-stone);">★ 5.0 · Spring break family · Apr 2026</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SUPERHOST -->
+<section class="section" style="background: var(--color-primary); color: var(--color-cream);">
+  <div class="container" style="display:grid; grid-template-columns: 1fr 1.4fr; gap: 4rem; align-items:center;">
+    <div class="reveal" style="border-radius: 24px; overflow: hidden; aspect-ratio: 4/5;">
+      <img src="https://assets.hospitable.com/property_images/1574508/J4AWxWdNVx0riannl63U4j8SZgj4dWjTlS3fmQZo.jpg" alt="Sheena, Superhost behind Nyris Retreats" style="width:100%; height:100%; object-fit:cover;"/>
+    </div>
+    <div class="reveal">
+      <span class="section-eyebrow" style="color: var(--color-accent);">Meet your host</span>
+      <h2 class="section-title" style="color: var(--color-cream);">Sheena. Superhost. Sweat-the-details host.</h2>
+      <p style="font-size: 1.05rem; line-height: 1.7; opacity: 0.92; margin: 1.5rem 0;">Every Nyris Retreats home is personally managed by Sheena — an experienced Superhost whose calendar across the portfolio reads like a five-star streak. Coffee stocked. Beach toys waiting. Local tips sent before you arrive. The kind of hosting where reviews start with <em>"This was the cleanest stay we've ever had"</em> and end with <em>"We're already planning to come back."</em></p>
+      <p style="font-size: 1.05rem; line-height: 1.7; opacity: 0.92; margin: 0 0 2rem;">She doesn't outsource it. That's why every property is a Top 1% Guest Favorite — Airbnb's elite tier — and why direct guests get answers in minutes, not hours.</p>
+      <a href="/about.html" class="btn btn-accent">Read our story</a>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS CAROUSEL -->
+<section class="section">
+  <div class="container">
+    <div class="reveal" style="text-align:center; margin-bottom: 3rem;">
+      <span class="section-eyebrow">In their own words</span>
+      <h2 class="section-title">208 stays. Every one a 5.</h2>
+      <p class="section-subtitle" style="margin: 0 auto;">Real, unedited reviews from actual guests across our six properties.</p>
+    </div>
+    <div class="reveal" id="reviewMarquee" style="overflow:hidden; mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);">
+      <div id="reviewTrack" style="display:flex; gap: 1.25rem; animation: scrollReviews 40s linear infinite;"></div>
+    </div>
+  </div>
+</section>
+<style>
+@keyframes scrollReviews { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+#reviewTrack:hover { animation-play-state: paused; }
+.review-pill {
+  flex: 0 0 360px; background: white; border: 1px solid var(--color-line); border-radius: 14px;
+  padding: 1.5rem; box-shadow: var(--shadow-sm);
+}
+.vp-wrap { } @media (max-width: 960px) { .vp-wrap { grid-template-columns: 1fr !important; gap: 2.5rem !important; } }
+section[style*="grid-template-columns: 1fr 1.4fr"] { } @media (max-width: 960px) { section[style*="grid-template-columns: 1fr 1.4fr"] > .container { grid-template-columns: 1fr !important; } }
+</style>
+
+<!-- NEWSLETTER -->
+<section class="section">
+  <div class="container">
+    <div class="newsletter reveal">
+      <span class="section-eyebrow">Stay in the loop</span>
+      <h2 class="section-title" style="margin-bottom: 0.5rem;">Get a Nyris postcard, monthly.</h2>
+      <p style="color: var(--color-stone); max-width: 540px; margin: 0 auto;">A short, slow newsletter — new properties, last-minute openings, and what to do near each home this season. No spam, ever.</p>
+      <form onsubmit="newsletterSubmit(event)">
+        <input type="email" placeholder="Your email address" required/>
+        <button class="btn btn-primary" type="submit">Subscribe</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ TEASER -->
+<section class="section" style="background: var(--color-cream-dark);">
+  <div class="container-narrow">
+    <div class="reveal" style="text-align:center; margin-bottom: 2.5rem;">
+      <span class="section-eyebrow">Good to know</span>
+      <h2 class="section-title">A few quick answers.</h2>
+    </div>
+    <div id="faqTeaser" class="reveal"></div>
+    <div style="text-align:center; margin-top: 2.5rem;">
+      <a href="/faq.html" class="btn btn-outline">Read all FAQs</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/home.js"></script>
+</body>
+</html>

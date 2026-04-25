@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Contact — Nyris Retreats</title>
+<meta name="description" content="Get in touch with Nyris Retreats. Group inquiries, custom experiences, long stays, and direct booking questions."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <section class="section" style="padding-top: 5rem;">
+    <div class="container" style="display:grid; grid-template-columns: 1.1fr 1fr; gap: 4rem;" id="contactGrid">
+      <div class="reveal">
+        <span class="section-eyebrow">Get in touch</span>
+        <h1 style="font-size: clamp(2.2rem, 4vw, 3rem); margin: 0 0 1rem;">Let's plan something memorable.</h1>
+        <p style="color: var(--color-stone); font-size: 1.05rem; line-height: 1.65; margin: 0 0 2rem;">Group bookings, multi-property reservations, custom experiences, long stays, gift cards — Sheena handles every inquiry personally. Most messages answered within minutes during business hours.</p>
+
+        <div style="margin: 2rem 0; padding: 1.5rem; background: var(--color-cream-dark); border-radius: 14px;">
+          <strong style="display:block; margin-bottom: 0.5rem;">Direct contact</strong>
+          <p style="margin: 0; line-height: 1.8;">
+            <span id="emailLine"></span><br/>
+            <span id="phoneLine"></span><br/>
+            <span style="color: var(--color-stone);">Mon–Sun, 7am–10pm CT</span>
+          </p>
+        </div>
+
+        <strong style="display:block; margin-bottom: 0.75rem;">Response promise</strong>
+        <ul style="color: var(--color-stone); padding-left: 1.25rem; margin: 0; line-height: 1.8;">
+          <li>Most messages: under 5 minutes</li>
+          <li>After-hours: by 8am the next morning</li>
+          <li>Group inquiries: same-day with custom quote</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <form onsubmit="contactSubmit(event)" style="background: white; padding: 2rem; border-radius: 18px; box-shadow: var(--shadow-md); border: 1px solid var(--color-line);">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div><label class="form-label">First name</label><input class="form-control" required name="first"/></div>
+            <div><label class="form-label">Last name</label><input class="form-control" required name="last"/></div>
+          </div>
+          <div style="margin-top: 1rem;"><label class="form-label">Email</label><input class="form-control" required type="email" name="email"/></div>
+          <div style="margin-top: 1rem;"><label class="form-label">Phone (optional)</label><input class="form-control" type="tel" name="phone"/></div>
+          <div style="margin-top: 1rem;"><label class="form-label">What's this about?</label>
+            <select class="form-control" name="topic" id="topicSel">
+              <option value="general">General question</option>
+              <option value="group">Group / multi-property booking</option>
+              <option value="long-stay">Long stay (7+ nights)</option>
+              <option value="experiences">Custom experiences</option>
+              <option value="gift">Gift cards</option>
+              <option value="property">Question about a specific property</option>
+            </select>
+          </div>
+          <div style="margin-top: 1rem;"><label class="form-label">Message</label><textarea class="form-control" required name="msg" rows="5" style="resize: vertical;"></textarea></div>
+          <button class="btn btn-primary" type="submit" style="width: 100%; margin-top: 1.5rem;">Send message</button>
+          <p style="text-align:center; font-size: 0.82rem; color: var(--color-stone); margin: 1rem 0 0;">We'll never share your info. Unsubscribe anytime.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<style>@media (max-width: 960px) { #contactGrid { grid-template-columns: 1fr !important; } }</style>
+
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+document.getElementById('emailLine').textContent = NYRIS.brand.email;
+document.getElementById('phoneLine').textContent = NYRIS.brand.phone;
+const params = new URLSearchParams(window.location.search);
+if (params.get('topic')) document.getElementById('topicSel').value = params.get('topic');
+function contactSubmit(e) {
+  e.preventDefault();
+  toast("Got it — Sheena will reply within minutes.");
+  setTimeout(() => { e.target.reset(); }, 600);
+}
+</script>
+</body>
+</html>

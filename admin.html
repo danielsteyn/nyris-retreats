@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Host admin — Nyris Retreats</title>
+<meta name="robots" content="noindex"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+
+<!-- Login screen -->
+<section class="section" id="loginScreen" style="min-height: calc(100vh - 80px); display:flex; align-items:center; justify-content:center;">
+  <div style="max-width: 440px; width: 100%; padding: 3rem 2.5rem; background: white; border: 1px solid var(--color-line); border-radius: 20px; box-shadow: var(--shadow-lg);">
+    <div style="text-align:center; margin-bottom: 2rem;">
+      <div style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-primary); font-family: var(--font-display); font-size: 1.6rem; font-weight: 600;">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:28px; height:28px;"><path d="M4 26 L16 6 L28 26 Z"/><path d="M10 26 L16 14 L22 26"/><circle cx="16" cy="22" r="1.2" fill="currentColor"/></svg>
+        Nyris Retreats
+      </div>
+      <h1 style="font-size: 1.6rem; margin: 1rem 0 0.5rem;">Host admin</h1>
+      <p style="color: var(--color-stone); margin: 0; font-size: 0.92rem;">Sign in to customize your direct-booking site.</p>
+    </div>
+    <form onsubmit="adminLogin(event)">
+      <div style="margin-bottom: 1rem;"><label class="form-label">Email</label><input class="form-control" type="email" id="loginEmail" required value="sheena@nyrisretreats.com"/></div>
+      <div style="margin-bottom: 1.5rem;"><label class="form-label">Password</label><input class="form-control" type="password" id="loginPass" required placeholder="••••••••"/></div>
+      <button class="btn btn-primary" type="submit" style="width:100%;">Sign in</button>
+    </form>
+    <div style="margin-top: 1.5rem; padding: 1rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.85rem; color: var(--color-stone);">
+      <strong style="color: var(--color-charcoal);">Demo credentials:</strong><br/>
+      Email: <code>sheena@nyrisretreats.com</code><br/>
+      Password: <code>nyris2026</code>
+    </div>
+  </div>
+</section>
+
+<!-- Dashboard -->
+<section class="section" id="dashboard" style="display:none;">
+  <div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <span class="section-eyebrow">Host dashboard</span>
+        <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 0;">Welcome back, Sheena.</h1>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <button class="btn btn-ghost btn-sm" onclick="resetAll()">Reset to defaults</button>
+        <button class="btn btn-outline btn-sm" onclick="adminLogout()">Sign out</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 3rem;" class="stats-grid">
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Properties</div>
+        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stProps">—</div>
+        <div style="font-size: 0.85rem; color: var(--color-stone);">Live on direct site</div>
+      </div>
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Avg rating</div>
+        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stRating">—</div>
+        <div style="font-size: 0.85rem; color: var(--color-stone);">Across portfolio</div>
+      </div>
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Reviews</div>
+        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stReviews">—</div>
+        <div style="font-size: 0.85rem; color: var(--color-stone);">All five-star</div>
+      </div>
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Guest favorites</div>
+        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stFavs">—</div>
+        <div style="font-size: 0.85rem; color: var(--color-stone);">Top 1% homes</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="border-bottom: 1px solid var(--color-line); margin-bottom: 2rem; display:flex; gap: 0.5rem;">
+      <button class="tab-btn active" onclick="showTab('hero', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Homepage hero</button>
+      <button class="tab-btn" onclick="showTab('order', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Featured order</button>
+      <button class="tab-btn" onclick="showTab('properties', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Property overrides</button>
+      <button class="tab-btn" onclick="showTab('preview', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Preview site</button>
+    </div>
+
+    <!-- Hero tab -->
+    <div class="tab-panel" id="tab-hero">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="hero-grid">
+        <div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">Customize the homepage hero</h2>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Eyebrow text</label>
+            <input class="form-control" id="aHEyebrow"/>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Headline</label>
+            <input class="form-control" id="aHTitle"/>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Subtitle</label>
+            <textarea class="form-control" id="aHSub" rows="3" style="resize: vertical;"></textarea>
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+            <label class="form-label">Hero background image URL</label>
+            <input class="form-control" id="aHImg"/>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Tip: copy a URL from one of your property images for instant brand consistency.</p>
+          </div>
+          <div style="display:flex; gap: 0.75rem;">
+            <button class="btn btn-primary" onclick="saveHero()">Save changes</button>
+            <button class="btn btn-ghost" onclick="resetHero()">Reset</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Live preview</label>
+          <div id="heroPreview" style="position:relative; aspect-ratio: 4/3; border-radius: 16px; overflow:hidden; background-size:cover; background-position:center;">
+            <div style="position:absolute; inset:0; background: linear-gradient(180deg, rgba(20,30,25,0.4), rgba(20,30,25,0.7));"></div>
+            <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 2rem; text-align:center; color:white;">
+              <span id="phEyebrow" style="font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.3rem 0.75rem; border-radius: 999px; background: rgba(255,255,255,0.15); margin-bottom: 1rem;"></span>
+              <h2 id="phTitle" style="color:white; font-size: clamp(1.2rem, 2.5vw, 1.8rem); margin: 0 0 0.5rem;"></h2>
+              <p id="phSub" style="color: rgba(255,255,255,0.9); font-size: 0.85rem; margin: 0; max-width: 380px;"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order tab -->
+    <div class="tab-panel" id="tab-order" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Featured property order</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Drag to reorder how properties appear in the homepage "Featured" grid.</p>
+      <ul id="orderList" style="list-style:none; padding:0; margin:0;"></ul>
+      <button class="btn btn-primary" onclick="saveOrder()" style="margin-top: 1.5rem;">Save order</button>
+    </div>
+
+    <!-- Properties tab -->
+    <div class="tab-panel" id="tab-properties" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Property overrides</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Override property names, taglines, or starting prices without changing the source data. Leave blank to keep Hospitable's default.</p>
+      <div id="propOverrides"></div>
+    </div>
+
+    <!-- Preview tab -->
+    <div class="tab-panel" id="tab-preview" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Site preview</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Open any page to verify your changes look right.</p>
+      <div style="display:flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a class="btn btn-outline" href="/" target="_blank">Home</a>
+        <a class="btn btn-outline" href="/search.html" target="_blank">All stays</a>
+        <a class="btn btn-outline" href="/experiences.html" target="_blank">Experiences</a>
+        <a class="btn btn-outline" href="/about.html" target="_blank">About</a>
+        <a class="btn btn-outline" href="/faq.html" target="_blank">FAQ</a>
+        <a class="btn btn-outline" href="/contact.html" target="_blank">Contact</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer id="site-footer"></footer>
+
+<style>
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary) !important; }
+@media (max-width: 960px) {
+  .stats-grid { grid-template-columns: 1fr 1fr !important; }
+  .hero-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

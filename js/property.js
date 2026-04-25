@@ -1,0 +1,332 @@
+// Property detail page logic
+
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get('slug');
+  const p = NYRIS.properties.find(x => x.slug === slug);
+  const root = document.getElementById('propRoot');
+
+  if (!p) {
+    root.innerHTML = `<div style="text-align:center; padding: 6rem 0;">
+      <h1>Property not found</h1>
+      <p style="margin-top: 1rem;"><a href="/search.html" class="btn btn-primary">View all stays</a></p>
+    </div>`;
+    return;
+  }
+
+  document.title = `${p.name} — ${p.city}, ${p.state} | Nyris Retreats`;
+  RecentlyViewed.add(p.id);
+
+  // Build the page
+  root.innerHTML = `
+    <!-- Title row -->
+    <div class="reveal" style="margin-bottom: 1.5rem;">
+      <h1 style="font-size: clamp(1.85rem, 3.5vw, 2.6rem); margin: 0 0 0.4rem;">${escapeHtml(p.name)}</h1>
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap: 0.85rem; font-size: 0.92rem; color: var(--color-charcoal);">
+        <span style="display:inline-flex; align-items:center; gap:0.3rem;">${ICON.star} <strong>${p.rating.toFixed(1)}</strong></span>
+        <span style="color: var(--color-stone);">·</span>
+        <span style="text-decoration: underline;">${p.reviewCount} review${p.reviewCount===1?'':'s'}</span>
+        <span style="color: var(--color-stone);">·</span>
+        <span>${p.city}, ${p.state}</span>
+        ${p.isGuestFavorite ? `<span style="color: var(--color-stone);">·</span><span class="badge badge-favorite">${ICON.badge.replace('<svg','<svg width="11" height="11"')} Guest Favorite</span>` : ''}
+        <div style="margin-left:auto; display:flex; gap: 0.5rem;">
+          <button class="btn btn-ghost btn-sm" onclick="shareProperty()">${ICON.share} Share</button>
+          <button class="btn btn-ghost btn-sm" id="saveBtn" onclick="toggleSave()">${ICON.heart.replace('<svg','<svg width="16" height="16" stroke="currentColor" fill="none"')} <span>Save</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gallery -->
+    <div class="detail-gallery reveal" id="detailGallery">
+      ${p.images.slice(0, 5).map((src, i) => `
+        <div data-idx="${i}"><img src="${src}" alt="${escapeHtml(p.name)} photo ${i+1}" loading="${i<2?'eager':'lazy'}"/></div>
+      `).join('')}
+      <button class="show-all" onclick="Lightbox.open(window.__propImages, 0)">Show all ${p.images.length} photos</button>
+    </div>
+
+    <!-- Body grid -->
+    <div style="display:grid; grid-template-columns: 1.6fr 1fr; gap: 4rem; margin-top: 3rem;" class="detail-grid">
+      <!-- Left -->
+      <div>
+        <!-- Quick info -->
+        <div style="display:flex; justify-content:space-between; align-items: start; gap: 1rem; padding-bottom: 2rem; border-bottom: 1px solid var(--color-line);">
+          <div>
+            <h2 style="font-size: 1.5rem; margin:0;">${p.type} hosted by Sheena</h2>
+            <p style="color: var(--color-stone); margin: 0.4rem 0 0;">${p.capacity.guests} guests · ${p.capacity.bedrooms} bedrooms · ${p.capacity.beds} beds · ${p.capacity.bathrooms} baths</p>
+          </div>
+          <div style="width: 56px; height: 56px; border-radius: 999px; background: var(--color-primary); color: var(--color-cream); display: inline-flex; align-items:center; justify-content:center; font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; flex-shrink:0;">S</div>
+        </div>
+
+        <!-- Trust bullets -->
+        <div style="padding: 2rem 0; border-bottom: 1px solid var(--color-line);">
+          <div style="display:flex; gap: 1.25rem; align-items: start;">
+            <div style="flex-shrink:0; color: var(--color-accent);">${ICON.badge.replace('<svg','<svg width="28" height="28"')}</div>
+            <div>
+              <strong style="font-size: 1.02rem;">One of the most loved homes on Airbnb</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0; font-size: 0.92rem;">A Top 1% Guest Favorite — based on ratings, reviews, and reliability data from past stays.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap: 1.25rem; align-items: start; margin-top: 1.5rem;">
+            <div style="flex-shrink:0; color: var(--color-accent);">${ICON.spark.replace('<svg','<svg width="28" height="28"')}</div>
+            <div>
+              <strong style="font-size: 1.02rem;">Superhost</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0; font-size: 0.92rem;">Sheena is a Superhost — experienced, highly rated, and committed to providing great stays.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap: 1.25rem; align-items: start; margin-top: 1.5rem;">
+            <div style="flex-shrink:0; color: var(--color-accent);">${ICON.pin.replace('<svg','<svg width="28" height="28"')}</div>
+            <div>
+              <strong style="font-size: 1.02rem;">Great location</strong>
+              <p style="color: var(--color-stone); margin: 0.25rem 0 0; font-size: 0.92rem;">100% of recent guests gave the location a 5-star rating.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div style="padding: 2rem 0; border-bottom: 1px solid var(--color-line);">
+          <h2 style="font-size: 1.4rem; margin: 0 0 1rem;">About this stay</h2>
+          <p style="line-height: 1.75; font-size: 1rem; color: var(--color-charcoal); margin: 0;">${escapeHtml(p.summary)}</p>
+        </div>
+
+        <!-- Highlights -->
+        ${p.highlights && p.highlights.length ? `
+        <div style="padding: 2rem 0; border-bottom: 1px solid var(--color-line);">
+          <h2 style="font-size: 1.4rem; margin: 0 0 1rem;">What makes this stay special</h2>
+          <ul style="list-style:none; padding:0; margin:0;">
+            ${p.highlights.map(h => `<li style="display:flex; gap:0.75rem; padding:0.5rem 0;"><span style="color: var(--color-primary);">${ICON.check.replace('<svg','<svg width="18" height="18"')}</span><span>${escapeHtml(h)}</span></li>`).join('')}
+          </ul>
+        </div>` : ''}
+
+        <!-- Experiences -->
+        ${p.experiences && p.experiences.length ? `
+        <div style="padding: 2rem 0; border-bottom: 1px solid var(--color-line);">
+          <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Experiences nearby</h2>
+          <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Curated favorites from Sheena and past guests.</p>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+            ${p.experiences.map(e => `
+              <div style="padding: 1rem 1.25rem; border: 1px solid var(--color-line); border-radius: 14px; background: white; transition: box-shadow 0.2s; font-size: 0.95rem;">
+                <span style="display:inline-flex; align-items:center; gap: 0.4rem; color: var(--color-accent); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; margin-bottom: 0.4rem;">${ICON.spark.replace('<svg','<svg width="14" height="14"')} Local pick</span>
+                <p style="margin: 0; line-height: 1.5;">${escapeHtml(e)}</p>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Amenities -->
+        <div style="padding: 2rem 0; border-bottom: 1px solid var(--color-line);">
+          <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">What this place offers</h2>
+          <div class="amenity-grid">
+            ${p.amenities.slice(0, 12).map(a => `
+              <div class="amenity-item">
+                ${ICON.check}
+                <span>${escapeHtml(a)}</span>
+              </div>`).join('')}
+          </div>
+          ${p.amenities.length > 12 ? `<button class="btn btn-outline btn-sm" style="margin-top: 1.5rem;" onclick="document.getElementById('allAmenities').style.display='block'; this.style.display='none';">Show all ${p.amenities.length} amenities</button>
+          <div id="allAmenities" style="display:none; margin-top: 1.5rem;" class="amenity-grid">
+            ${p.amenities.slice(12).map(a => `<div class="amenity-item">${ICON.check}<span>${escapeHtml(a)}</span></div>`).join('')}
+          </div>` : ''}
+        </div>
+
+        <!-- Map -->
+        <div style="padding: 2rem 0; border-bottom: 1px solid var(--color-line);">
+          <h2 style="font-size: 1.4rem; margin: 0 0 1rem;">Where you'll be</h2>
+          <p style="color: var(--color-stone); margin: 0 0 1rem;">${escapeHtml(p.city)}, ${escapeHtml(p.state)}</p>
+          <a href="https://www.google.com/maps/search/?api=1&query=${p.coords.lat},${p.coords.lng}" target="_blank" rel="noopener" class="map-static" style="display:block; background-image: linear-gradient(135deg, #C8D5C0 0%, #9DB096 50%, #7B8F75 100%);">
+            <div class="map-pin">${ICON.pin}</div>
+            <div style="position:absolute; bottom: 16px; right: 16px; background: white; padding: 0.5rem 0.85rem; border-radius: 8px; font-size: 0.85rem; box-shadow: var(--shadow-sm);">Open in Google Maps →</div>
+          </a>
+        </div>
+
+        <!-- Reviews -->
+        <div style="padding: 2rem 0;" id="reviewsSection">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+            <h2 style="font-size: 1.4rem; margin: 0; display:inline-flex; align-items: center; gap: 0.5rem;">${ICON.star.replace('width="14" height="14"','width="22" height="22"')} ${p.rating.toFixed(1)} · ${p.reviewCount} review${p.reviewCount===1?'':'s'}</h2>
+          </div>
+
+          ${p.reviewCount > 0 ? `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding: 2rem 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); margin-bottom: 2rem;">
+            <div>
+              <div class="rating-bar"><span class="label">Cleanliness</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
+              <div class="rating-bar"><span class="label">Communication</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
+              <div class="rating-bar"><span class="label">Check-in</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
+            </div>
+            <div>
+              <div class="rating-bar"><span class="label">Accuracy</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
+              <div class="rating-bar"><span class="label">Location</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
+              <div class="rating-bar"><span class="label">Value</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" class="review-grid">
+            ${p.reviews.map(r => `
+              <div class="review-card">
+                <div style="display:flex; align-items:center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                  <div style="width: 38px; height: 38px; border-radius: 999px; background: var(--color-sand); display:inline-flex; align-items:center; justify-content:center; font-weight:600; color: var(--color-primary); font-size: 0.95rem;">${escapeHtml(r.author[0])}</div>
+                  <div>
+                    <strong style="font-size: 0.92rem;">${escapeHtml(r.author)}</strong>
+                    <div style="font-size: 0.8rem; color: var(--color-stone);">${escapeHtml(r.date)}</div>
+                  </div>
+                </div>
+                <div class="stars">★★★★★</div>
+                <p class="review-text">"${escapeHtml(r.text)}"</p>
+              </div>
+            `).join('')}
+          </div>` : `
+          <div style="text-align:center; padding: 2rem; background: var(--color-cream-dark); border-radius: 16px;">
+            <strong style="font-size: 1.1rem;">A brand new listing — and the next 5-star streak waiting to happen.</strong>
+            <p style="color: var(--color-stone); margin: 0.5rem 0 0;">Sheena's portfolio holds a 5.0 average across 200+ stays. Be among the first to book this one.</p>
+          </div>`}
+        </div>
+
+      </div>
+
+      <!-- Right: booking widget -->
+      <aside>
+        <div class="booking-widget">
+          <div class="price-row">
+            <span class="price">$${p.basePrice}</span>
+            <span class="per">/ night</span>
+          </div>
+          <form class="booking-form" onsubmit="bookSubmit(event, '${p.slug}')">
+            <div class="row">
+              <label class="field"><label>Check-in</label><input type="date" id="bkCheckin" required min="${isoToday()}"/></label>
+              <label class="field"><label>Checkout</label><input type="date" id="bkCheckout" required min="${isoToday(1)}"/></label>
+            </div>
+            <div class="row">
+              <label class="field" style="grid-column: 1/-1;"><label>Guests</label>
+                <select id="bkGuests">
+                  ${Array.from({length: p.capacity.guests}, (_, i) => `<option value="${i+1}">${i+1} guest${i+1>1?'s':''}</option>`).join('')}
+                </select>
+              </label>
+            </div>
+          </form>
+          <button class="btn btn-accent" style="width: 100%; margin-top: 1rem;" onclick="document.querySelector('.booking-form').requestSubmit()">Reserve</button>
+          <p style="text-align:center; font-size: 0.85rem; color: var(--color-stone); margin: 0.85rem 0 0;">You won't be charged yet</p>
+          <div id="priceBreakdown" style="margin-top: 1.25rem;"></div>
+        </div>
+
+        <!-- Direct booking advantage -->
+        <div style="margin-top: 1.25rem; padding: 1.25rem; background: var(--color-sand); border-radius: 14px; font-size: 0.88rem;">
+          <strong style="display:block; margin-bottom: 0.4rem; color: var(--color-primary);">Direct-booking perks</strong>
+          <ul style="list-style:none; padding:0; margin:0; line-height: 1.7;">
+            <li>★ No platform service fees</li>
+            <li>★ Direct line to your Superhost</li>
+            <li>★ Best-rate guarantee — match elsewhere</li>
+            <li>★ Priority on early check-in</li>
+          </ul>
+        </div>
+
+        <!-- Compare button -->
+        <button class="btn btn-outline" id="compareBtn" style="width: 100%; margin-top: 1rem;" onclick="toggleCompare('${p.id}')">+ Add to compare</button>
+
+        <!-- Group inquiry -->
+        <div style="margin-top: 1.25rem; padding: 1.25rem; border: 1px dashed var(--color-line); border-radius: 14px; font-size: 0.88rem;">
+          <strong style="display:block; margin-bottom: 0.4rem;">Booking 7+ nights or for a group?</strong>
+          <p style="color: var(--color-stone); margin: 0 0 0.75rem;">Direct guests get up to 20% off long stays. Reach out for custom rates.</p>
+          <a href="/contact.html?property=${p.slug}" class="btn btn-ghost btn-sm" style="padding-left: 0;">Inquire about long stays →</a>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Recently viewed / similar -->
+    <div style="margin-top: 5rem; padding-top: 4rem; border-top: 1px solid var(--color-line);" class="reveal">
+      <h2 style="font-size: 1.7rem; margin: 0 0 0.5rem;">More Nyris stays you might love</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2.5rem;">Other Top 1% Guest Favorite homes from our portfolio.</p>
+      <div class="props-grid" id="similarGrid"></div>
+    </div>
+  `;
+
+  // Bind gallery thumbnails to lightbox
+  window.__propImages = p.images;
+  document.querySelectorAll('.detail-gallery > div').forEach((d, i) => {
+    d.onclick = () => Lightbox.open(p.images, i);
+  });
+
+  // Mobile CTA
+  document.getElementById('mctaPrice').textContent = `$${p.basePrice}`;
+  document.getElementById('mctaSub').textContent = `per night · ${p.capacity.bedrooms} BR`;
+
+  // Save state
+  syncSaveBtn();
+
+  // Compare button state
+  syncCompareBtn();
+  document.addEventListener('compare:changed', syncCompareBtn);
+
+  // Similar properties (different slugs, prefer same destination, then guest favorites)
+  const similar = [
+    ...NYRIS.properties.filter(x => x.slug !== p.slug && x.destination === p.destination),
+    ...NYRIS.properties.filter(x => x.slug !== p.slug && x.destination !== p.destination && x.isGuestFavorite)
+  ].slice(0, 4);
+  const sg = document.getElementById('similarGrid');
+  sg.innerHTML = similar.map(s => propertyCard(s)).join('');
+  bindPropertyCards(sg);
+
+  // Bind booking date inputs
+  document.getElementById('bkCheckin').addEventListener('change', updatePriceBreakdown);
+  document.getElementById('bkCheckout').addEventListener('change', updatePriceBreakdown);
+  document.getElementById('bkGuests').addEventListener('change', updatePriceBreakdown);
+
+  // Pre-fill from URL
+  const params2 = new URLSearchParams(window.location.search);
+  if (params2.get('checkin')) document.getElementById('bkCheckin').value = params2.get('checkin');
+  if (params2.get('checkout')) document.getElementById('bkCheckout').value = params2.get('checkout');
+  if (params2.get('guests')) document.getElementById('bkGuests').value = params2.get('guests');
+  updatePriceBreakdown();
+
+  function syncSaveBtn() {
+    const btn = document.getElementById('saveBtn');
+    if (!btn) return;
+    const on = Wishlist.has(p.id);
+    btn.querySelector('span').textContent = on ? 'Saved' : 'Save';
+    btn.querySelector('svg').setAttribute('fill', on ? 'var(--color-danger)' : 'none');
+    btn.querySelector('svg').setAttribute('stroke', on ? 'var(--color-danger)' : 'currentColor');
+  }
+  window.toggleSave = () => { Wishlist.toggle(p.id); syncSaveBtn(); toast(Wishlist.has(p.id) ? "Saved to wishlist" : "Removed"); };
+
+  function syncCompareBtn() {
+    const btn = document.getElementById('compareBtn');
+    if (!btn) return;
+    btn.textContent = Compare.has(p.id) ? '✓ Added to compare' : '+ Add to compare';
+  }
+  window.toggleCompare = (id) => { Compare.toggle(id); };
+
+  function updatePriceBreakdown() {
+    const ci = document.getElementById('bkCheckin').value;
+    const co = document.getElementById('bkCheckout').value;
+    const breakdown = document.getElementById('priceBreakdown');
+    const nights = nightsBetween(ci, co);
+    if (!nights) { breakdown.innerHTML = ''; return; }
+    const subtotal = nights * p.basePrice;
+    const discountPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
+    const discount = Math.round(subtotal * discountPct);
+    const cleaning = 165;
+    const taxes = Math.round((subtotal - discount + cleaning) * 0.11);
+    const total = subtotal - discount + cleaning + taxes;
+    breakdown.innerHTML = `
+      <div class="booking-line"><span>$${p.basePrice} × ${nights} night${nights>1?'s':''}</span><span>$${subtotal.toLocaleString()}</span></div>
+      ${discount ? `<div class="booking-line"><span>${(discountPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${discount.toLocaleString()}</span></div>` : ''}
+      <div class="booking-line"><span>Cleaning fee</span><span>$${cleaning}</span></div>
+      <div class="booking-line"><span>Occupancy taxes</span><span>$${taxes}</span></div>
+      <div class="booking-total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
+  }
+})();
+
+function bookSubmit(e, slug) {
+  e.preventDefault();
+  const ci = document.getElementById('bkCheckin').value;
+  const co = document.getElementById('bkCheckout').value;
+  const g = document.getElementById('bkGuests').value;
+  if (!ci || !co) { toast("Please pick check-in and checkout dates"); return; }
+  if (new Date(co) <= new Date(ci)) { toast("Checkout must be after check-in"); return; }
+  // Demo: redirect to a "booking" confirmation flow
+  window.location.href = `/book.html?slug=${slug}&checkin=${ci}&checkout=${co}&guests=${g}`;
+}
+
+function shareProperty() {
+  const url = window.location.href;
+  if (navigator.share) {
+    navigator.share({ title: document.title, url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url).then(() => toast("Link copied to clipboard"));
+  }
+}

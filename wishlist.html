@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Your wishlist — Nyris Retreats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+</head>
+<body>
+<header id="site-header"></header>
+<main>
+  <section class="section">
+    <div class="container">
+      <h1 style="font-size: clamp(2rem, 3.5vw, 2.6rem); margin: 0 0 0.5rem;">Your wishlist</h1>
+      <p style="color: var(--color-stone); margin: 0 0 3rem;" id="wlSub">—</p>
+      <div class="props-grid" id="wlGrid"></div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(function() {
+  function render() {
+    const ids = Wishlist.get();
+    const items = NYRIS.properties.filter(p => ids.includes(p.id));
+    const sub = document.getElementById('wlSub');
+    const grid = document.getElementById('wlGrid');
+    if (items.length === 0) {
+      sub.textContent = "You haven't saved anything yet.";
+      grid.innerHTML = `<div style="grid-column: 1/-1; padding: 4rem 2rem; text-align:center; background: var(--color-cream-dark); border-radius: 18px;">
+        <h3 style="margin: 0 0 0.5rem;">Heart the homes you love.</h3>
+        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Tap the heart on any property to save it here for later.</p>
+        <a href="/search.html" class="btn btn-primary">Browse all stays</a>
+      </div>`;
+      return;
+    }
+    sub.textContent = `${items.length} saved ${items.length === 1 ? 'property' : 'properties'}`;
+    grid.innerHTML = items.map(p => propertyCard(p)).join('');
+    bindPropertyCards(grid);
+  }
+  document.addEventListener('wishlist:changed', render);
+  render();
+})();
+</script>
+</body>
+</html>

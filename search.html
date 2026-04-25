@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>All stays — Nyris Retreats</title>
+<meta name="description" content="Browse and filter all Nyris Retreats vacation homes. Top 1% Guest Favorite. Direct booking only."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+<script>window.__activeNav = "stays";</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <section style="background: var(--color-cream-dark); padding: 2.5rem 1.5rem 1.5rem;">
+    <div class="container">
+      <h1 style="font-size: clamp(1.6rem, 2.6vw, 2.2rem); margin: 0 0 0.5rem;">Find your Nyris stay</h1>
+      <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Six properties. All Top 1% Guest Favorites. All Superhost-managed.</p>
+      <form class="search-bar" onsubmit="applySearch(event)" style="margin: 0; box-shadow: var(--shadow-md);">
+        <label class="search-field">
+          <span>Where</span>
+          <select id="fDest"><option value="">Anywhere</option></select>
+        </label>
+        <label class="search-field"><span>Check in</span><input type="date" id="fCheckin"/></label>
+        <label class="search-field"><span>Check out</span><input type="date" id="fCheckout"/></label>
+        <label class="search-field"><span>Guests</span><input type="number" id="fGuests" min="1" max="13" placeholder="Any"/></label>
+        <button class="search-submit" type="submit">Search</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top: 2.5rem;">
+    <div class="container">
+      <div style="display:grid; grid-template-columns: 260px 1fr; gap: 3rem;" class="search-grid">
+        <aside>
+          <h3 style="font-size: 1rem; margin: 0 0 1rem;">Filters</h3>
+
+          <div style="border-top: 1px solid var(--color-line); padding: 1.25rem 0;">
+            <strong style="font-size: 0.92rem; display:block; margin-bottom: 0.75rem;">Property type</strong>
+            <div id="fType" style="display:flex; flex-direction:column; gap: 0.5rem;"></div>
+          </div>
+
+          <div style="border-top: 1px solid var(--color-line); padding: 1.25rem 0;">
+            <strong style="font-size: 0.92rem; display:block; margin-bottom: 0.75rem;">Price per night</strong>
+            <div style="display:flex; gap: 0.5rem; align-items:center;">
+              <input type="number" class="form-control" id="fMinPrice" placeholder="Min" min="0" style="padding: 0.5rem 0.75rem;"/>
+              <span>—</span>
+              <input type="number" class="form-control" id="fMaxPrice" placeholder="Max" min="0" style="padding: 0.5rem 0.75rem;"/>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--color-line); padding: 1.25rem 0;">
+            <strong style="font-size: 0.92rem; display:block; margin-bottom: 0.75rem;">Beds</strong>
+            <div id="fBeds" style="display:flex; gap: 0.4rem; flex-wrap:wrap;"></div>
+          </div>
+
+          <div style="border-top: 1px solid var(--color-line); padding: 1.25rem 0;">
+            <strong style="font-size: 0.92rem; display:block; margin-bottom: 0.75rem;">Top amenities</strong>
+            <div id="fAmenities" style="display:flex; flex-direction:column; gap: 0.5rem;"></div>
+          </div>
+
+          <div style="border-top: 1px solid var(--color-line); padding: 1.25rem 0;">
+            <label style="display:flex; align-items:center; gap: 0.5rem; font-size: 0.92rem;"><input type="checkbox" id="fPets"/> Pet friendly</label>
+            <label style="display:flex; align-items:center; gap: 0.5rem; font-size: 0.92rem; margin-top: 0.5rem;"><input type="checkbox" id="fFav"/> Guest Favorite only</label>
+          </div>
+
+          <button class="btn btn-ghost btn-sm" onclick="clearFilters()" style="margin-top: 0.5rem;">Clear all filters</button>
+        </aside>
+
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.5rem; gap:1rem; flex-wrap:wrap;">
+            <p id="resultsCount" style="margin:0; color: var(--color-stone);"></p>
+            <select id="sortBy" class="form-control" style="width:auto; padding: 0.55rem 0.85rem; font-size: 0.9rem;">
+              <option value="featured">Sort: Featured</option>
+              <option value="rating">Sort: Top rated</option>
+              <option value="reviews">Sort: Most reviewed</option>
+              <option value="priceLow">Sort: Price (low to high)</option>
+              <option value="priceHigh">Sort: Price (high to low)</option>
+              <option value="capacity">Sort: Sleeps the most</option>
+            </select>
+          </div>
+          <div class="props-grid" id="resultsGrid"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<style>
+@media (max-width: 960px) {
+  .search-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/search.js"></script>
+</body>
+</html>

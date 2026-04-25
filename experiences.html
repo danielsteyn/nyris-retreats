@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Experiences — Nyris Retreats</title>
+<meta name="description" content="Curated local experiences near every Nyris Retreats property. From sunset paddles on Eagle Mountain Lake to dolphin-watch balconies in Gulf Shores."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+<script>window.__activeNav = "experiences";</script>
+</head>
+<body>
+<header id="site-header"></header>
+
+<main>
+  <section style="background: var(--color-cream-dark); padding: 5rem 1.5rem 3rem;">
+    <div class="container-narrow reveal" style="text-align:center;">
+      <span class="section-eyebrow">Beyond the property</span>
+      <h1 style="font-size: clamp(2.4rem, 5vw, 3.6rem); margin: 0 0 1rem;">A trip is more than the bed.</h1>
+      <p style="font-size: 1.1rem; color: var(--color-stone); max-width: 640px; margin: 0 auto;">Every Nyris property comes with Sheena's personal recommendations — the spots she'd send her own family. Here's a region-by-region preview.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container" id="expRoot"></div>
+  </section>
+
+  <section class="section" style="background: var(--color-sand); border-radius: 24px; max-width: 1320px; margin: 2rem auto;">
+    <div class="container reveal" style="text-align:center;">
+      <h2 class="section-title">Want something custom?</h2>
+      <p class="section-subtitle" style="margin: 0 auto 2rem;">Sheena coordinates everything from chef-prepared welcome dinners to private yoga, surf lessons, and boat charters. Just ask.</p>
+      <a href="/contact.html?topic=experiences" class="btn btn-primary">Request a custom experience</a>
+    </div>
+  </section>
+</main>
+
+<footer id="site-footer"></footer>
+
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(function() {
+  const root = document.getElementById('expRoot');
+  const byDest = {};
+  for (const p of NYRIS.properties) {
+    byDest[p.destination] = byDest[p.destination] || [];
+    byDest[p.destination].push(p);
+  }
+  root.innerHTML = NYRIS.destinations.map(d => {
+    const props = byDest[d.slug] || [];
+    const allExp = [...new Set(props.flatMap(p => p.experiences || []))];
+    return `
+    <div class="reveal" style="display:grid; grid-template-columns: 1fr 1.4fr; gap: 3rem; align-items: center; padding: 3rem 0; border-bottom: 1px solid var(--color-line);">
+      <div style="border-radius: 18px; overflow:hidden; aspect-ratio: 4/5;">
+        <img src="${d.image}" alt="${d.name}" style="width:100%; height:100%; object-fit:cover;"/>
+      </div>
+      <div>
+        <span class="section-eyebrow">${d.name}, ${d.state}</span>
+        <h2 class="section-title" style="font-size: clamp(1.6rem, 2.6vw, 2.2rem);">${d.tagline}</h2>
+        <p style="color: var(--color-stone); margin: 0.5rem 0 1.5rem;">Properties: ${props.map(p => `<a href="/property.html?slug=${p.slug}" style="color: var(--color-primary); text-decoration: underline;">${escapeHtml(p.name)}</a>`).join(', ')}</p>
+        <ul style="list-style:none; padding:0; margin:0;">
+          ${allExp.map(e => `<li style="padding: 0.85rem 0; border-top: 1px solid var(--color-line); display:flex; gap: 0.75rem;">${ICON.spark.replace('<svg','<svg width="18" height="18" style="flex-shrink:0; color: var(--color-accent); margin-top: 2px;"')}<span>${escapeHtml(e)}</span></li>`).join('')}
+        </ul>
+      </div>
+    </div>`;
+  }).join('');
+  // Mobile responsive
+  const s = document.createElement('style');
+  s.textContent = '@media (max-width: 960px) { #expRoot > div { grid-template-columns: 1fr !important; gap: 2rem !important; } }';
+  document.head.appendChild(s);
+})();
+</script>
+</body>
+</html>

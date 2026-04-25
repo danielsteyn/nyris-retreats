@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Compare stays — Nyris Retreats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+</head>
+<body>
+<header id="site-header"></header>
+<main>
+  <section class="section">
+    <div class="container">
+      <h1 style="font-size: clamp(2rem, 3.5vw, 2.6rem); margin: 0 0 0.5rem;">Compare stays</h1>
+      <p style="color: var(--color-stone); margin: 0 0 2.5rem;">Side-by-side details for the properties you're weighing.</p>
+      <div id="compareWrap" style="overflow-x: auto;"></div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(function() {
+  const root = document.getElementById('compareWrap');
+  function render() {
+    const ids = Compare.get();
+    const props = NYRIS.properties.filter(p => ids.includes(p.id));
+    if (props.length === 0) {
+      root.innerHTML = `<div style="padding: 4rem 2rem; text-align:center; background: var(--color-cream-dark); border-radius: 18px;">
+        <h3 style="margin: 0 0 0.5rem;">Nothing to compare yet.</h3>
+        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Tap "Add to compare" on any property to start.</p>
+        <a href="/search.html" class="btn btn-primary">Browse all stays</a>
+      </div>`;
+      return;
+    }
+    const rows = [
+      ['Type', p => p.type],
+      ['Location', p => `${p.city}, ${p.state}`],
+      ['Sleeps', p => p.capacity.guests + ' guests'],
+      ['Bedrooms', p => p.capacity.bedrooms],
+      ['Beds', p => p.capacity.beds],
+      ['Bathrooms', p => p.capacity.bathrooms],
+      ['Pets allowed', p => p.petsAllowed ? 'Yes' : 'No'],
+      ['Rating', p => `★ ${p.rating.toFixed(1)} (${p.reviewCount})`],
+      ['Guest Favorite', p => p.isGuestFavorite ? 'Yes' : '—'],
+      ['Starting price', p => '$' + p.basePrice + ' / night'],
+      ['Top amenities', p => p.amenities.slice(0, 5).join(' · ')]
+    ];
+    let html = `<table style="width:100%; border-collapse: collapse; min-width: ${200 + props.length * 240}px;">`;
+    html += `<thead><tr><th></th>` + props.map(p => `<th style="padding: 1rem; text-align: left; vertical-align: top; min-width: 240px;">
+      <div style="aspect-ratio: 4/3; border-radius: 12px; overflow:hidden; margin-bottom: 0.75rem;">
+        <img src="${p.images[0]}" alt="${escapeHtml(p.name)}" style="width:100%; height:100%; object-fit:cover;"/>
+      </div>
+      <h3 style="font-family: var(--font-body); font-size: 1rem; font-weight: 600; margin: 0 0 0.4rem;">${escapeHtml(p.name)}</h3>
+      <a href="/property.html?slug=${p.slug}" class="btn btn-outline btn-sm" style="margin-right: 0.4rem;">View</a>
+      <button class="btn btn-ghost btn-sm" onclick="Compare.toggle('${p.id}')">Remove</button>
+    </th>`).join('') + `</tr></thead><tbody>`;
+    for (const [label, fn] of rows) {
+      html += `<tr style="border-top: 1px solid var(--color-line);"><td style="padding: 0.85rem 1rem; font-weight: 600; color: var(--color-charcoal); vertical-align: top;">${label}</td>`;
+      for (const p of props) html += `<td style="padding: 0.85rem 1rem; vertical-align: top; color: var(--color-charcoal);">${escapeHtml(String(fn(p)))}</td>`;
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    root.innerHTML = html;
+  }
+  document.addEventListener('compare:changed', render);
+  render();
+})();
+</script>
+</body>
+</html>

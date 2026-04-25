@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Gift cards — Nyris Retreats</title>
+<meta name="description" content="Give the gift of a Top 1% Guest Favorite stay. Nyris Retreats gift cards work toward any of our six Superhost-managed properties."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+</head>
+<body>
+<header id="site-header"></header>
+<main>
+  <section class="section">
+    <div class="container" style="display:grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items:center;" id="giftGrid">
+      <div class="reveal">
+        <span class="section-eyebrow">Gift cards</span>
+        <h1 style="font-size: clamp(2.2rem, 4vw, 3.2rem); margin: 0 0 1rem;">Give a getaway, not a thing.</h1>
+        <p style="font-size: 1.05rem; color: var(--color-stone); line-height: 1.7; margin: 0 0 2rem;">A Nyris Retreats gift card is good toward any of our six Top 1% Guest Favorite stays. Choose an amount, write a note, and we'll deliver a beautifully designed digital gift card — instantly, or scheduled for a specific date.</p>
+        <form onsubmit="event.preventDefault(); toast('Gift card request received — Sheena will follow up to confirm.');">
+          <label class="form-label">Amount</label>
+          <div style="display:flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+            <button type="button" class="btn btn-outline" onclick="selectAmt(this, 250)">$250</button>
+            <button type="button" class="btn btn-outline" onclick="selectAmt(this, 500)">$500</button>
+            <button type="button" class="btn btn-primary" onclick="selectAmt(this, 1000)">$1,000</button>
+            <button type="button" class="btn btn-outline" onclick="selectAmt(this, 2500)">$2,500</button>
+          </div>
+          <label class="form-label">Recipient name</label>
+          <input class="form-control" required style="margin-bottom: 1rem;"/>
+          <label class="form-label">Recipient email</label>
+          <input class="form-control" type="email" required style="margin-bottom: 1rem;"/>
+          <label class="form-label">Message (optional)</label>
+          <textarea class="form-control" rows="3" style="margin-bottom: 1.5rem; resize: vertical;"></textarea>
+          <button class="btn btn-primary" type="submit" style="width: 100%;">Continue to checkout</button>
+          <p style="text-align:center; font-size: 0.82rem; color: var(--color-stone); margin: 1rem 0 0;">Gift cards never expire. No platform fees. Refundable within 30 days.</p>
+        </form>
+      </div>
+      <div class="reveal">
+        <div style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%); padding: 3rem; border-radius: 24px; aspect-ratio: 7/5; color: var(--color-cream); position: relative; overflow:hidden; box-shadow: var(--shadow-xl);">
+          <div style="position:absolute; top: 0; right: 0; width: 60%; height: 100%; opacity: 0.15; background: url('https://assets.hospitable.com/property_images/1605954/0nHIh9LmL4RykThYVcEetYU1C6Fm43PrGrZGHKJx.jpg') center/cover;"></div>
+          <div style="position: relative; display:flex; flex-direction:column; height:100%; justify-content: space-between;">
+            <div>
+              <span style="font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.8;">Gift card</span>
+              <div style="font-family: var(--font-display); font-size: 2.2rem; margin-top: 0.5rem;">Nyris Retreats</div>
+            </div>
+            <div>
+              <div style="font-family: var(--font-display); font-size: 3.2rem; line-height: 1;" id="giftPreview">$1,000</div>
+              <div style="margin-top: 0.5rem; opacity: 0.8; font-size: 0.85rem;">Toward any Nyris stay · Never expires</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<style>@media (max-width: 960px) { #giftGrid { grid-template-columns: 1fr !important; } }</style>
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+function selectAmt(btn, amt) {
+  document.querySelectorAll('button.btn').forEach(b => {
+    if (b.textContent.startsWith('$')) { b.classList.remove('btn-primary'); b.classList.add('btn-outline'); }
+  });
+  btn.classList.remove('btn-outline'); btn.classList.add('btn-primary');
+  document.getElementById('giftPreview').textContent = '$' + amt.toLocaleString();
+}
+</script>
+</body>
+</html>

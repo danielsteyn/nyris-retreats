@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Confirm booking — Nyris Retreats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+</head>
+<body>
+<header id="site-header"></header>
+<main>
+  <section class="section">
+    <div class="container" style="display:grid; grid-template-columns: 1.4fr 1fr; gap: 4rem;" id="bookGrid">
+      <div id="bookLeft"></div>
+      <div id="bookRight"></div>
+    </div>
+  </section>
+</main>
+<footer id="site-footer"></footer>
+<style>@media (max-width: 960px) { #bookGrid { grid-template-columns: 1fr !important; } }</style>
+<script src="/js/data.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get('slug');
+  const ci = params.get('checkin') || isoToday(7);
+  const co = params.get('checkout') || isoToday(10);
+  const guests = parseInt(params.get('guests') || '2', 10);
+  const p = NYRIS.properties.find(x => x.slug === slug);
+  const left = document.getElementById('bookLeft');
+  const right = document.getElementById('bookRight');
+  if (!p) { left.innerHTML = '<h1>Property not found</h1>'; return; }
+
+  const nights = nightsBetween(ci, co);
+  const subtotal = nights * p.basePrice;
+  const discountPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
+  const discount = Math.round(subtotal * discountPct);
+  const cleaning = 165;
+  const taxes = Math.round((subtotal - discount + cleaning) * 0.11);
+  const total = subtotal - discount + cleaning + taxes;
+  const dueNow = Math.round(total * 0.5);
+  const dueLater = total - dueNow;
+
+  left.innerHTML = `
+    <a href="/property.html?slug=${slug}" style="font-size: 0.88rem; color: var(--color-stone);">← Back to property</a>
+    <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 1rem 0 2rem;">Confirm and pay</h1>
+
+    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Your trip</h2>
+      <div style="display:flex; justify-content: space-between; align-items: start; padding: 0.5rem 0;">
+        <div>
+          <strong>Dates</strong>
+          <div style="color: var(--color-stone); font-size: 0.92rem;">${ci} → ${co} · ${nights} night${nights > 1 ? 's' : ''}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.history.back()">Edit</button>
+      </div>
+      <div style="display:flex; justify-content: space-between; align-items: start; padding: 0.5rem 0; border-top: 1px solid var(--color-line);">
+        <div>
+          <strong>Guests</strong>
+          <div style="color: var(--color-stone); font-size: 0.92rem;">${guests} guest${guests > 1 ? 's' : ''}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.history.back()">Edit</button>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Choose payment timing</h2>
+      <label style="display:flex; gap: 0.85rem; padding: 1rem; border: 2px solid var(--color-primary); border-radius: 12px; cursor: pointer; margin-bottom: 0.75rem;">
+        <input type="radio" name="pay" checked/>
+        <div>
+          <strong>Pay 50% now, 50% later</strong>
+          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.25rem 0 0;">$${dueNow.toLocaleString()} now, $${dueLater.toLocaleString()} 14 days before check-in.</p>
+        </div>
+      </label>
+      <label style="display:flex; gap: 0.85rem; padding: 1rem; border: 1px solid var(--color-line); border-radius: 12px; cursor: pointer;">
+        <input type="radio" name="pay"/>
+        <div>
+          <strong>Pay full amount now</strong>
+          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.25rem 0 0;">$${total.toLocaleString()} charged today.</p>
+        </div>
+      </label>
+    </div>
+
+    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Your details</h2>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div><label class="form-label">First name</label><input class="form-control"/></div>
+        <div><label class="form-label">Last name</label><input class="form-control"/></div>
+      </div>
+      <div style="margin-top: 1rem;"><label class="form-label">Email</label><input class="form-control" type="email"/></div>
+      <div style="margin-top: 1rem;"><label class="form-label">Phone</label><input class="form-control" type="tel"/></div>
+    </div>
+
+    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Payment</h2>
+      <p style="color: var(--color-stone); margin: 0 0 1rem;">Demo checkout — connect Stripe in production. <strong>No real payment will be taken.</strong></p>
+      <div><label class="form-label">Card number</label><input class="form-control" placeholder="1234 1234 1234 1234"/></div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+        <div><label class="form-label">Expiry</label><input class="form-control" placeholder="MM/YY"/></div>
+        <div><label class="form-label">CVC</label><input class="form-control" placeholder="123"/></div>
+      </div>
+    </div>
+
+    <button class="btn btn-accent btn-lg" style="width: 100%;" onclick="confirmBooking()">Confirm and pay $${dueNow.toLocaleString()}</button>
+    <p style="text-align:center; font-size: 0.82rem; color: var(--color-stone); margin: 1rem 0 0;">By confirming, you agree to the host's house rules and our cancellation policy. Full refund up to 14 days before check-in.</p>
+  `;
+
+  right.innerHTML = `
+    <div class="booking-widget" style="position: sticky; top: 100px;">
+      <div style="display: flex; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-line); margin-bottom: 1.25rem;">
+        <img src="${p.images[0]}" alt="" style="width: 96px; height: 88px; object-fit: cover; border-radius: 10px;"/>
+        <div>
+          <strong style="display:block; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
+          <div style="color: var(--color-stone); font-size: 0.85rem;">${p.type} · ${p.city}, ${p.state}</div>
+          <div style="font-size: 0.85rem; margin-top: 0.3rem;">★ ${p.rating.toFixed(1)} (${p.reviewCount})</div>
+        </div>
+      </div>
+      <h3 style="font-size: 1.05rem; margin: 0 0 0.85rem;">Price details</h3>
+      <div class="booking-line"><span>$${p.basePrice} × ${nights} night${nights > 1 ? 's' : ''}</span><span>$${subtotal.toLocaleString()}</span></div>
+      ${discount ? `<div class="booking-line"><span>${(discountPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${discount.toLocaleString()}</span></div>` : ''}
+      <div class="booking-line"><span>Cleaning fee</span><span>$${cleaning}</span></div>
+      <div class="booking-line"><span>Occupancy taxes</span><span>$${taxes}</span></div>
+      <div class="booking-total"><span>Total (USD)</span><span>$${total.toLocaleString()}</span></div>
+      <div style="margin-top: 1.5rem; padding: 0.85rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.85rem; text-align:center; color: var(--color-primary);">
+        ★ You're saving ~$${Math.round(total * 0.16).toLocaleString()} versus Airbnb fees
+      </div>
+    </div>
+  `;
+})();
+
+function confirmBooking() {
+  toast("Booking confirmed! Check your email for details.", 3000);
+  setTimeout(() => { window.location.href = '/'; }, 2400);
+}
+</script>
+</body>
+</html>
