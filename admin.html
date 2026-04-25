@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="/css/styles.css"/>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
+<script src="/js/theme.js"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -20,12 +20,9 @@
 <section class="section" id="loginScreen" style="min-height: calc(100vh - 80px); display:flex; align-items:center; justify-content:center;">
   <div style="max-width: 440px; width: 100%; padding: 3rem 2.5rem; background: white; border: 1px solid var(--color-line); border-radius: 20px; box-shadow: var(--shadow-lg);">
     <div style="text-align:center; margin-bottom: 2rem;">
-      <div style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-primary); font-family: var(--font-display); font-size: 1.6rem; font-weight: 600;">
-        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:28px; height:28px;"><path d="M4 26 L16 6 L28 26 Z"/><path d="M10 26 L16 14 L22 26"/><circle cx="16" cy="22" r="1.2" fill="currentColor"/></svg>
-        Nyris Retreats
-      </div>
+      <div id="loginBrand" style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-primary); font-family: var(--font-display); font-size: 1.6rem; font-weight: 600;"></div>
       <h1 style="font-size: 1.6rem; margin: 1rem 0 0.5rem;">Host admin</h1>
-      <p style="color: var(--color-stone); margin: 0; font-size: 0.92rem;">Sign in to customize your direct-booking site.</p>
+      <p style="color: var(--color-stone); margin: 0; font-size: 0.92rem;">Sign in to manage your direct-booking site.</p>
     </div>
     <form onsubmit="adminLogin(event)">
       <div style="margin-bottom: 1rem;"><label class="form-label">Email</label><input class="form-control" type="email" id="loginEmail" required value="sheena@nyrisretreats.com"/></div>
@@ -49,64 +46,42 @@
         <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 0;">Welcome back, Sheena.</h1>
       </div>
       <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-ghost btn-sm" onclick="resetAll()">Reset to defaults</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetAll()">Reset all settings</button>
         <button class="btn btn-outline btn-sm" onclick="adminLogout()">Sign out</button>
       </div>
     </div>
 
     <!-- Stats -->
     <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 3rem;" class="stats-grid">
-      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
-        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Properties</div>
-        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stProps">—</div>
-        <div style="font-size: 0.85rem; color: var(--color-stone);">Live on direct site</div>
-      </div>
-      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
-        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Avg rating</div>
-        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stRating">—</div>
-        <div style="font-size: 0.85rem; color: var(--color-stone);">Across portfolio</div>
-      </div>
-      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
-        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Reviews</div>
-        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stReviews">—</div>
-        <div style="font-size: 0.85rem; color: var(--color-stone);">All five-star</div>
-      </div>
-      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
-        <div style="font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Guest favorites</div>
-        <div style="font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary);" id="stFavs">—</div>
-        <div style="font-size: 0.85rem; color: var(--color-stone);">Top 1% homes</div>
-      </div>
+      <div class="stat-card"><div class="lbl">Properties</div><div class="num" id="stProps">—</div><div class="sub">Live on direct site</div></div>
+      <div class="stat-card"><div class="lbl">Avg rating</div><div class="num" id="stRating">—</div><div class="sub">Across portfolio</div></div>
+      <div class="stat-card"><div class="lbl">Reviews</div><div class="num" id="stReviews">—</div><div class="sub">All five-star</div></div>
+      <div class="stat-card"><div class="lbl">Guest favorites</div><div class="num" id="stFavs">—</div><div class="sub">Top 1% homes</div></div>
     </div>
 
     <!-- Tabs -->
-    <div style="border-bottom: 1px solid var(--color-line); margin-bottom: 2rem; display:flex; gap: 0.5rem;">
-      <button class="tab-btn active" onclick="showTab('hero', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Homepage hero</button>
-      <button class="tab-btn" onclick="showTab('order', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Featured order</button>
-      <button class="tab-btn" onclick="showTab('properties', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Property overrides</button>
-      <button class="tab-btn" onclick="showTab('preview', this)" style="padding: 0.85rem 1.25rem; border-bottom: 2px solid transparent; font-weight: 500;">Preview site</button>
+    <div style="border-bottom: 1px solid var(--color-line); margin-bottom: 2rem; display:flex; gap: 0.25rem; overflow-x: auto;">
+      <button class="tab-btn active" data-tab="hero">Homepage</button>
+      <button class="tab-btn" data-tab="branding">Branding & theme</button>
+      <button class="tab-btn" data-tab="photos">Photos</button>
+      <button class="tab-btn" data-tab="properties">Property details</button>
+      <button class="tab-btn" data-tab="order">Featured order</button>
+      <button class="tab-btn" data-tab="hospitable">Hospitable API</button>
+      <button class="tab-btn" data-tab="pricelabs">PriceLabs</button>
     </div>
 
     <!-- Hero tab -->
     <div class="tab-panel" id="tab-hero">
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="hero-grid">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="two-col">
         <div>
-          <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">Customize the homepage hero</h2>
-          <div style="margin-bottom: 1.25rem;">
-            <label class="form-label">Eyebrow text</label>
-            <input class="form-control" id="aHEyebrow"/>
-          </div>
-          <div style="margin-bottom: 1.25rem;">
-            <label class="form-label">Headline</label>
-            <input class="form-control" id="aHTitle"/>
-          </div>
-          <div style="margin-bottom: 1.25rem;">
-            <label class="form-label">Subtitle</label>
-            <textarea class="form-control" id="aHSub" rows="3" style="resize: vertical;"></textarea>
-          </div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">Homepage hero</h2>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Eyebrow text</label><input class="form-control" id="aHEyebrow"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Headline</label><input class="form-control" id="aHTitle"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Subtitle</label><textarea class="form-control" id="aHSub" rows="3" style="resize: vertical;"></textarea></div>
           <div style="margin-bottom: 1.5rem;">
             <label class="form-label">Hero background image URL</label>
             <input class="form-control" id="aHImg"/>
-            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Tip: copy a URL from one of your property images for instant brand consistency.</p>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Tip: copy a URL from one of your property images.</p>
           </div>
           <div style="display:flex; gap: 0.75rem;">
             <button class="btn btn-primary" onclick="saveHero()">Save changes</button>
@@ -127,34 +102,166 @@
       </div>
     </div>
 
+    <!-- Branding tab -->
+    <div class="tab-panel" id="tab-branding" style="display:none;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="two-col">
+        <div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">Brand identity</h2>
+
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Brand name</label><input class="form-control" id="bBrandName"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Tagline</label><input class="form-control" id="bBrandTagline"/></div>
+
+          <h3 style="font-size: 1.05rem; margin: 2rem 0 1rem;">Logo</h3>
+          <div style="display:flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <button type="button" class="btn btn-outline btn-sm" id="logoModeDefault" onclick="setLogoMode('default')">Default mark</button>
+            <button type="button" class="btn btn-outline btn-sm" id="logoModeUrl" onclick="setLogoMode('url')">Image URL</button>
+            <button type="button" class="btn btn-outline btn-sm" id="logoModeSvg" onclick="setLogoMode('svg')">Inline SVG</button>
+          </div>
+          <div id="logoUrlField" style="display:none; margin-bottom: 1rem;">
+            <label class="form-label">Logo image URL (PNG, SVG, JPEG)</label>
+            <input class="form-control" id="bLogoUrl" placeholder="https://..."/>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Use a transparent PNG or SVG sized to ~28px tall.</p>
+          </div>
+          <div id="logoSvgField" style="display:none; margin-bottom: 1rem;">
+            <label class="form-label">Inline SVG markup</label>
+            <textarea class="form-control" id="bLogoSvg" rows="4" style="font-family: monospace; font-size: 0.85rem; resize: vertical;" placeholder="<svg viewBox=&quot;0 0 32 32&quot;>...</svg>"></textarea>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">SVG inherits brand color via <code>currentColor</code>.</p>
+          </div>
+
+          <h3 style="font-size: 1.05rem; margin: 2rem 0 1rem;">Typography</h3>
+          <div style="margin-bottom: 1rem;"><label class="form-label">Display font (brand wordmark + headlines)</label><select class="form-control" id="bFontDisplay"></select></div>
+          <div style="margin-bottom: 1rem;"><label class="form-label">Body font</label><select class="form-control" id="bFontBody"></select></div>
+
+          <h3 style="font-size: 1.05rem; margin: 2rem 0 1rem;">Color palette</h3>
+          <div style="margin-bottom: 1rem;">
+            <label class="form-label">Quick presets</label>
+            <select class="form-control" id="bPreset" onchange="applyPreset(this.value)">
+              <option value="">-- Apply preset --</option>
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+            <div><label class="form-label">Primary</label><div class="color-row"><input type="color" id="bColorPrimary"/><input class="form-control" id="bColorPrimaryHex" maxlength="7"/></div></div>
+            <div><label class="form-label">Primary dark</label><div class="color-row"><input type="color" id="bColorPrimaryDark"/><input class="form-control" id="bColorPrimaryDarkHex" maxlength="7"/></div></div>
+            <div><label class="form-label">Accent</label><div class="color-row"><input type="color" id="bColorAccent"/><input class="form-control" id="bColorAccentHex" maxlength="7"/></div></div>
+            <div><label class="form-label">Accent dark</label><div class="color-row"><input type="color" id="bColorAccentDark"/><input class="form-control" id="bColorAccentDarkHex" maxlength="7"/></div></div>
+            <div><label class="form-label">Cream (background)</label><div class="color-row"><input type="color" id="bColorCream"/><input class="form-control" id="bColorCreamHex" maxlength="7"/></div></div>
+            <div><label class="form-label">Sand (accents)</label><div class="color-row"><input type="color" id="bColorSand"/><input class="form-control" id="bColorSandHex" maxlength="7"/></div></div>
+          </div>
+
+          <div style="display:flex; gap: 0.75rem; margin-top: 2rem;">
+            <button class="btn btn-primary" onclick="saveBranding()">Save branding</button>
+            <button class="btn btn-ghost" onclick="resetBranding()">Reset to defaults</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Live preview</label>
+          <div id="brandPreview" style="background: var(--color-cream); border: 1px solid var(--color-line); border-radius: 18px; padding: 2rem; min-height: 480px; position: sticky; top: 90px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photos tab -->
+    <div class="tab-panel" id="tab-photos" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Photo management</h2>
+      <p style="color: var(--color-stone); margin: 0 0 1rem;">Choose a property to manage its photos. Drag to reorder, click to mark as cover, remove unwanted ones, or add custom URLs.</p>
+      <div style="display:flex; align-items: center; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+        <select class="form-control" id="photoPropSelect" style="max-width: 320px;"></select>
+        <button class="btn btn-outline btn-sm" onclick="syncPropertyPhotos()">Refresh from Hospitable</button>
+        <span id="photoSyncStatus" style="color: var(--color-stone); font-size: 0.85rem;"></span>
+      </div>
+      <div id="photoBoard"></div>
+    </div>
+
+    <!-- Property details tab -->
+    <div class="tab-panel" id="tab-properties" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Property overrides</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Override displayed names, taglines, or starting prices. Leave blank to keep the source-of-truth from Hospitable.</p>
+      <div id="propOverrides"></div>
+    </div>
+
     <!-- Order tab -->
     <div class="tab-panel" id="tab-order" style="display:none;">
       <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Featured property order</h2>
-      <p style="color: var(--color-stone); margin: 0 0 2rem;">Drag to reorder how properties appear in the homepage "Featured" grid.</p>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Drag to reorder how properties appear on the homepage and search.</p>
       <ul id="orderList" style="list-style:none; padding:0; margin:0;"></ul>
       <button class="btn btn-primary" onclick="saveOrder()" style="margin-top: 1.5rem;">Save order</button>
     </div>
 
-    <!-- Properties tab -->
-    <div class="tab-panel" id="tab-properties" style="display:none;">
-      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Property overrides</h2>
-      <p style="color: var(--color-stone); margin: 0 0 2rem;">Override property names, taglines, or starting prices without changing the source data. Leave blank to keep Hospitable's default.</p>
-      <div id="propOverrides"></div>
-    </div>
+    <!-- Hospitable tab -->
+    <div class="tab-panel" id="tab-hospitable" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Hospitable API integration</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Sync properties, photos, calendar availability, and dynamic pricing directly from your Hospitable account.</p>
 
-    <!-- Preview tab -->
-    <div class="tab-panel" id="tab-preview" style="display:none;">
-      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Site preview</h2>
-      <p style="color: var(--color-stone); margin: 0 0 2rem;">Open any page to verify your changes look right.</p>
-      <div style="display:flex; gap: 0.75rem; flex-wrap: wrap;">
-        <a class="btn btn-outline" href="/" target="_blank">Home</a>
-        <a class="btn btn-outline" href="/search.html" target="_blank">All stays</a>
-        <a class="btn btn-outline" href="/experiences.html" target="_blank">Experiences</a>
-        <a class="btn btn-outline" href="/about.html" target="_blank">About</a>
-        <a class="btn btn-outline" href="/faq.html" target="_blank">FAQ</a>
-        <a class="btn btn-outline" href="/contact.html" target="_blank">Contact</a>
+      <div id="hospitableConnection" style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;"></div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;" class="two-col">
+        <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+          <h3 style="font-size: 1.05rem; margin: 0 0 0.5rem;">Sync settings</h3>
+          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0 0 1rem;">What to pull on each sync.</p>
+          <label style="display:flex; align-items:center; gap:0.5rem; padding: 0.4rem 0;"><input type="checkbox" id="hSyncProps" checked/> Property metadata</label>
+          <label style="display:flex; align-items:center; gap:0.5rem; padding: 0.4rem 0;"><input type="checkbox" id="hSyncImages" checked/> Photos & captions</label>
+          <label style="display:flex; align-items:center; gap:0.5rem; padding: 0.4rem 0;"><input type="checkbox" id="hSyncReviews" checked/> Reviews & ratings</label>
+          <label style="display:flex; align-items:center; gap:0.5rem; padding: 0.4rem 0;"><input type="checkbox" id="hSyncCalendar" checked/> Calendar availability</label>
+          <label style="display:flex; align-items:center; gap:0.5rem; padding: 0.4rem 0;"><input type="checkbox" id="hSyncPricing" checked/> Dynamic nightly pricing</label>
+          <hr style="border: 0; border-top: 1px solid var(--color-line); margin: 1rem 0;"/>
+          <label class="form-label">Auto-sync frequency</label>
+          <select class="form-control" id="hAutoSync">
+            <option value="off">Off (manual only)</option>
+            <option value="hourly">Every hour</option>
+            <option value="daily" selected>Once daily</option>
+            <option value="weekly">Weekly</option>
+          </select>
+          <button class="btn btn-primary" style="width:100%; margin-top: 1rem;" onclick="saveHospitableSettings()">Save settings</button>
+        </div>
+        <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+          <h3 style="font-size: 1.05rem; margin: 0 0 0.5rem;">New property approvals</h3>
+          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0 0 1rem;">When Hospitable adds new properties, they go here for your review before going live on the booking site.</p>
+          <div id="pendingProperties"><p style="color: var(--color-stone); font-size: 0.9rem;">No pending properties.</p></div>
+        </div>
+      </div>
+
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+          <h3 style="font-size: 1.05rem; margin: 0;">Last sync activity</h3>
+          <button class="btn btn-accent" onclick="runHospitableSync()">Run sync now</button>
+        </div>
+        <div id="hospitableLog" style="background: var(--color-cream-dark); border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.85rem; min-height: 100px; white-space: pre-wrap; max-height: 280px; overflow-y: auto;"></div>
       </div>
     </div>
+
+    <!-- PriceLabs tab -->
+    <div class="tab-panel" id="tab-pricelabs" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">PriceLabs revenue management</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Connect PriceLabs for dynamic pricing recommendations based on demand, seasonality, and comp set.</p>
+
+      <div id="pricelabsConnection" style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;"></div>
+
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; margin: 0 0 0.5rem;">Listing mapping</h3>
+        <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0 0 1.25rem;">Match each Nyris property to its PriceLabs listing so prices flow through to your booking site.</p>
+        <div id="pricelabsMapping"></div>
+      </div>
+
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; margin: 0 0 1rem;">Pricing strategy</h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;" class="two-col">
+          <div><label class="form-label">Min price floor (% of base)</label><input class="form-control" type="number" id="plMinPct" value="70" min="50" max="100"/></div>
+          <div><label class="form-label">Max price ceiling (% of base)</label><input class="form-control" type="number" id="plMaxPct" value="200" min="100" max="500"/></div>
+        </div>
+        <label style="display:flex; align-items:center; gap:0.5rem; margin-top: 1rem;"><input type="checkbox" id="plAutoApply" checked/> Auto-apply PriceLabs recommendations to booking site</label>
+        <label style="display:flex; align-items:center; gap:0.5rem; margin-top: 0.5rem;"><input type="checkbox" id="plOrphanProtection"/> Enable orphan-night discounts (gap-day pricing)</label>
+        <button class="btn btn-primary" style="margin-top: 1.5rem;" onclick="savePricelabsSettings()">Save strategy</button>
+      </div>
+
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+          <h3 style="font-size: 1.05rem; margin: 0;">Sync activity</h3>
+          <button class="btn btn-accent" onclick="runPricelabsSync()">Sync now</button>
+        </div>
+        <div id="pricelabsLog" style="background: var(--color-cream-dark); border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.85rem; min-height: 100px; white-space: pre-wrap; max-height: 280px; overflow-y: auto;"></div>
+      </div>
+    </div>
+
   </div>
 </section>
 
@@ -163,10 +270,61 @@
 <footer id="site-footer"></footer>
 
 <style>
-.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary) !important; }
+.tab-btn {
+  padding: 0.85rem 1.25rem; font-weight: 500; font-size: 0.92rem;
+  border-bottom: 2px solid transparent; color: var(--color-stone);
+  white-space: nowrap; cursor: pointer; background: transparent;
+  font-family: inherit;
+}
+.tab-btn:hover { color: var(--color-charcoal); }
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.stat-card { background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; }
+.stat-card .lbl { font-size: 0.78rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase; }
+.stat-card .num { font-family: var(--font-display); font-size: 2.4rem; color: var(--color-primary); line-height: 1.1; }
+.stat-card .sub { font-size: 0.85rem; color: var(--color-stone); }
+.color-row { display:flex; gap: 0.5rem; align-items:center; }
+.color-row input[type="color"] { width: 44px; height: 38px; border: 1px solid var(--color-line); border-radius: 8px; padding: 0; cursor: pointer; background: white; }
+.color-row .form-control { flex: 1; padding: 0.5rem 0.75rem; font-family: monospace; font-size: 0.85rem; }
+.photo-tile {
+  position: relative; aspect-ratio: 4/3; border-radius: 12px; overflow:hidden;
+  background: var(--color-sand); cursor: grab; border: 2px solid transparent;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.photo-tile:hover { box-shadow: var(--shadow-md); }
+.photo-tile.cover { border-color: var(--color-accent); }
+.photo-tile img { width: 100%; height: 100%; object-fit: cover; }
+.photo-tile.dragging { opacity: 0.4; }
+.photo-tile .overlay {
+  position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6) 100%);
+  display: flex; flex-direction: column; justify-content: space-between; padding: 0.5rem;
+  opacity: 0; transition: opacity 0.2s;
+}
+.photo-tile:hover .overlay { opacity: 1; }
+.photo-tile .actions { display: flex; gap: 4px; align-self: flex-end; }
+.photo-tile .actions button {
+  width: 28px; height: 28px; border-radius: 999px; background: rgba(255,255,255,0.95);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--color-charcoal);
+}
+.photo-tile .cap {
+  color: white; font-size: 0.78rem; line-height: 1.3; padding: 0 0.25rem;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+}
+.photo-tile .cover-tag {
+  position: absolute; top: 8px; left: 8px; background: var(--color-accent); color: white;
+  padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em;
+  display: none;
+}
+.photo-tile.cover .cover-tag { display: inline-block; }
+.add-photo-tile {
+  aspect-ratio: 4/3; border: 2px dashed var(--color-line); border-radius: 12px;
+  display:flex; align-items:center; justify-content:center; flex-direction: column;
+  color: var(--color-stone); cursor: pointer; transition: border-color 0.2s, color 0.2s;
+}
+.add-photo-tile:hover { border-color: var(--color-primary); color: var(--color-primary); }
 @media (max-width: 960px) {
   .stats-grid { grid-template-columns: 1fr 1fr !important; }
-  .hero-grid { grid-template-columns: 1fr !important; }
+  .two-col { grid-template-columns: 1fr !important; }
 }
 </style>
 

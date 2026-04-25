@@ -58,7 +58,37 @@ Once deployed:
 3. Vercel gives you DNS records — point your registrar at them
 4. SSL provisions automatically; usually live within 5 minutes
 
-## 4. Production hardening (do before going live)
+## 4. Connect integrations (Hospitable, PriceLabs, Turso)
+
+The admin dashboard works out of the box with localStorage. To unlock live API integration and multi-device admin sync, add these environment variables in Vercel → Project → **Settings → Environment Variables** (set for Production, Preview, and Development):
+
+| Key | Where to get it | Used for |
+|---|---|---|
+| `HOSPITABLE_API_KEY` | [Hospitable → Settings → API](https://my.hospitable.com/settings/api) | Live property/photo/review/calendar/pricing sync |
+| `PRICELABS_API_KEY` | [PriceLabs → Account → Integrations](https://app.pricelabs.co/account/integrations) | Dynamic pricing recommendations |
+| `TURSO_DATABASE_URL` | [Turso dashboard](https://app.turso.tech) → DB → Show URL | Persistent admin overrides (multi-device) |
+| `TURSO_AUTH_TOKEN` | Turso dashboard → DB → Tokens → Create | Auth for the Turso DB |
+
+### Setting up Turso (1 minute)
+
+```bash
+# install once
+brew install tursodatabase/tap/turso
+# or: curl -sSfL https://get.tur.so/install.sh | bash
+
+turso auth signup            # or: turso auth login
+turso db create nyris-retreats
+turso db show nyris-retreats --url            # → TURSO_DATABASE_URL
+turso db tokens create nyris-retreats         # → TURSO_AUTH_TOKEN
+```
+
+Paste the URL and token into Vercel env vars. Schema migrations run automatically on first request — no manual DB setup needed.
+
+After adding any env var, redeploy: `vercel --prod` (or push to git if you've connected GitHub).
+
+In the admin dashboard, the **Hospitable API** and **PriceLabs** tabs show a green "Connected" indicator when the env vars are picked up.
+
+## 5. Production hardening (do before going live)
 
 The build is feature-complete but a few things should be swapped for production:
 
