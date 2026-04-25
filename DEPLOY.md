@@ -1,29 +1,24 @@
 # Deployment guide — Nyris Retreats
 
-The project is fully built and committed locally. Below is exactly what you need to run to push it to GitHub and deploy it on Vercel. Both flows take about 2 minutes total.
+The project is fully built and committed locally. The `gh` and `vercel` CLIs are already installed at `~/bin/` (added to your PATH via `~/.zshrc`). You only need to run a few commands — ~2 minutes total.
+
+> **Note**: open a fresh terminal so the new PATH takes effect, or run `export PATH="$HOME/bin:$PATH"` once.
 
 ## 1. Push to GitHub
 
-### Option A — using the GitHub CLI (`gh`)
-
-If you have the [GitHub CLI](https://cli.github.com/) installed:
+The `gh` CLI is installed (v2.91.0). The first command opens a browser to log into GitHub — that's the one step I couldn't do for you.
 
 ```bash
 cd /Users/claude/Desktop/Claude/nyris-retreats
-gh auth login                                     # if not already logged in
+gh auth login                                     # browser-based, one time
 gh repo create nyris-retreats --public --source=. --remote=origin --push
 ```
 
-That single command creates the repo on GitHub, sets it as `origin`, and pushes the initial commit.
+That creates the repo on GitHub, sets it as `origin`, and pushes the initial commit + DEPLOY.md commit.
 
-### Option B — using the GitHub website
+### Alternative — without `gh`
 
-1. Go to <https://github.com/new>
-2. Repository name: `nyris-retreats`
-3. Visibility: your choice (public is fine)
-4. **Do not** check "Initialize with README" — the project already has one
-5. Click **Create repository**
-6. Copy the URL it gives you, then run:
+If you'd rather not use `gh`, create a repo on the GitHub web UI then:
 
 ```bash
 cd /Users/claude/Desktop/Claude/nyris-retreats
@@ -33,25 +28,26 @@ git push -u origin main
 
 ## 2. Deploy to Vercel
 
-### Option A — easiest: import from GitHub
+The `vercel` CLI is installed (v52.0.0). Pick whichever path you prefer:
 
-1. Go to <https://vercel.com/new>
-2. Click **Import** next to the `nyris-retreats` repo (Vercel will list it after you grant access)
-3. Framework preset: **Other** (it's a static site, no build step)
-4. Build command: leave blank
-5. Output directory: leave blank (Vercel will serve from the root)
-6. Click **Deploy**
-
-Vercel will give you a URL like `nyris-retreats-xxxx.vercel.app` in 30 seconds. Your `vercel.json` is already configured for clean URLs, security headers, and asset caching — no extra config needed.
-
-### Option B — using the Vercel CLI
+### Option A — Vercel CLI (3 commands)
 
 ```bash
-npm install -g vercel
 cd /Users/claude/Desktop/Claude/nyris-retreats
-vercel              # follow prompts; defaults are correct
-vercel --prod       # promote to production
+vercel login           # browser-based, one time
+vercel                 # answer the prompts; defaults are correct
+vercel --prod          # promote to production — gives you the live URL
 ```
+
+### Option B — Vercel web UI (1-click after GitHub push)
+
+1. Go to <https://vercel.com/new>
+2. Click **Import** next to the `nyris-retreats` repo
+3. Framework preset: **Other** (it's a static site, no build step)
+4. Build command and output directory: leave blank
+5. Click **Deploy**
+
+Either way, Vercel returns a live URL like `nyris-retreats-xxxx.vercel.app` in ~30 seconds. `vercel.json` is preconfigured for clean URLs, security headers, and asset caching.
 
 ## 3. Add a custom domain (optional)
 
