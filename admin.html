@@ -253,9 +253,20 @@
         <button class="btn btn-primary" style="margin-top: 1.5rem;" onclick="savePricelabsSettings()">Save strategy</button>
       </div>
 
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div style="display:flex; justify-content:space-between; align-items:start; gap: 1rem; flex-wrap: wrap;">
+          <div>
+            <h3 style="font-size: 1.05rem; margin: 0 0 0.5rem;">Auto-sync (every 15 minutes)</h3>
+            <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">A Vercel cron job pulls daily prices from PriceLabs and updates the booking site automatically. Last 24 runs shown below.</p>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="refreshCronStatus()">Refresh</button>
+        </div>
+        <div id="cronStatus" style="margin-top: 1.25rem;"></div>
+      </div>
+
       <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
-          <h3 style="font-size: 1.05rem; margin: 0;">Sync activity</h3>
+          <h3 style="font-size: 1.05rem; margin: 0;">Manual sync</h3>
           <button class="btn btn-accent" onclick="runPricelabsSync()">Sync now</button>
         </div>
         <div id="pricelabsLog" style="background: var(--color-cream-dark); border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.85rem; min-height: 100px; white-space: pre-wrap; max-height: 280px; overflow-y: auto;"></div>

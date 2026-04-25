@@ -819,6 +819,142 @@ async function initPricelabsTab() {
   document.getElementById('plMaxPct').value = s.maxPct;
   document.getElementById('plAutoApply').checked = s.autoApply;
   document.getElementById('plOrphanProtection').checked = s.orphanProtection;
+
+  await refreshCronStatus();
+}
+
+// =============================================================================
+// PriceLabs cron status panel
+// =============================================================================
+async function refreshCronStatus() {
+  const wrap = document.getElementById("cronStatus");
+  if (!wrap) return;
+  wrap.innerHTML = `<div style="color: var(--color-stone); font-size: 0.9rem;">Checking cron status…</div>`;
+
+  // Probe Turso
+  let remoteOk = false;
+  try {
+    const r = await fetch("/api/admin/cron-status?source=pricelabs-cron");
+    const j = await r.json();
+    remoteOk = !!j.ok;
+
+    // Detect whether the key is reachable from cron context (server-side, no header)
+    let serverKeyOk = false;
+    try {
+      const r2 = await fetch("/api/admin/secrets");
+      const j2 = await r2.json();
+      if (j2.ok) {
+        const item = (j2.items || []).find(x => x.key === "pricelabs_api_key");
+        serverKeyOk = item && (item.source === "admin" || item.source === "env");
+      }
+    } catch {}
+
+    if (!remoteOk) {
+      wrap.innerHTML = renderCronWarning("Turso required for cron sync",
+        "Set up Turso (TURSO_DATABASE_URL + TURSO_AUTH_TOKEN env vars in Vercel) so the cron job has somewhere to read the API key and write daily prices. See <a href='/DEPLOY.md' target='_blank' style='text-decoration: underline;'>DEPLOY.md</a> for the 4-command setup.");
+      return;
+    }
+
+    if (!serverKeyOk) {
+      wrap.innerHTML = renderCronWarning(
+        "PriceLabs key needs server-side storage",
+        "Cron jobs run without your browser, so a key saved only in this browser's localStorage won't work. Save the key again now (Turso is connected, so it'll persist server-side), or set the <code>PRICELABS_API_KEY</code> env var in Vercel."
+      );
+      return;
+    }
+
+    const last = j.last;
+    const recent = j.recentRuns || [];
+    const priceRows = j.priceRowCount;
+
+    if (!last) {
+      wrap.innerHTML = `
+        <div style="padding: 1rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.9rem; color: var(--color-stone);">
+          Cron is configured. Waiting for the first run (typically within 15 minutes of deploy)…
+        </div>`;
+      return;
+    }
+
+    const ago = humanizeAgo(last.ran_at);
+    const statusColor = last.status === "success" ? "var(--color-success)"
+      : last.status === "partial" ? "var(--color-accent)" : "var(--color-danger)";
+    const statusLabel = last.status === "success" ? "OK" : last.status === "partial" ? "Partial" : last.status === "skipped" ? "Skipped" : "Error";
+
+    wrap.innerHTML = `
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+        <div style="padding: 0.85rem 1rem; background: var(--color-cream-dark); border-radius: 10px;">
+          <div style="font-size: 0.75rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Last run</div>
+          <div style="font-weight: 600; margin-top: 0.2rem;">${escapeHtml(ago)}</div>
+          <div style="font-size: 0.78rem; color: var(--color-stone); margin-top: 0.15rem;">${new Date(last.ran_at).toLocaleString()}</div>
+        </div>
+        <div style="padding: 0.85rem 1rem; background: var(--color-cream-dark); border-radius: 10px;">
+          <div style="font-size: 0.75rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Status</div>
+          <div style="font-weight: 600; margin-top: 0.2rem; color: ${statusColor};">${statusLabel}</div>
+          ${last.duration_ms ? `<div style="font-size: 0.78rem; color: var(--color-stone); margin-top: 0.15rem;">${last.duration_ms}ms</div>` : ""}
+        </div>
+        <div style="padding: 0.85rem 1rem; background: var(--color-cream-dark); border-radius: 10px;">
+          <div style="font-size: 0.75rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Prices stored</div>
+          <div style="font-weight: 600; margin-top: 0.2rem;">${priceRows == null ? "—" : priceRows.toLocaleString()}</div>
+          <div style="font-size: 0.78rem; color: var(--color-stone); margin-top: 0.15rem;">across all properties</div>
+        </div>
+        <div style="padding: 0.85rem 1rem; background: var(--color-cream-dark); border-radius: 10px;">
+          <div style="font-size: 0.75rem; color: var(--color-stone); letter-spacing: 0.06em; text-transform: uppercase;">Schedule</div>
+          <div style="font-weight: 600; margin-top: 0.2rem;">Every 15 min</div>
+          <div style="font-size: 0.78rem; color: var(--color-stone); margin-top: 0.15rem;">via Vercel Cron</div>
+        </div>
+      </div>
+      <div style="font-size: 0.85rem;">
+        <div style="margin-bottom: 0.5rem; color: var(--color-stone);">Last note: ${escapeHtml(last.message || "")}</div>
+        <details>
+          <summary style="cursor: pointer; color: var(--color-primary); font-weight: 500;">View recent runs (${recent.length})</summary>
+          <table style="width: 100%; margin-top: 0.75rem; border-collapse: collapse; font-size: 0.85rem;">
+            <thead><tr style="text-align: left; color: var(--color-stone);">
+              <th style="padding: 0.4rem 0.5rem; font-weight: 500;">When</th>
+              <th style="padding: 0.4rem 0.5rem; font-weight: 500;">Status</th>
+              <th style="padding: 0.4rem 0.5rem; font-weight: 500;">Note</th>
+              <th style="padding: 0.4rem 0.5rem; font-weight: 500; text-align: right;">Duration</th>
+            </tr></thead>
+            <tbody>
+              ${recent.map(row => `
+                <tr style="border-top: 1px solid var(--color-line);">
+                  <td style="padding: 0.5rem; vertical-align: top; color: var(--color-stone); font-size: 0.82rem; white-space: nowrap;">${new Date(row.ran_at).toLocaleString()}</td>
+                  <td style="padding: 0.5rem; vertical-align: top;"><span style="color: ${row.status === 'success' ? 'var(--color-success)' : row.status === 'partial' ? 'var(--color-accent)' : 'var(--color-danger)'}; font-weight: 500;">${escapeHtml(row.status)}</span></td>
+                  <td style="padding: 0.5rem; vertical-align: top;">${escapeHtml(row.message || "")}</td>
+                  <td style="padding: 0.5rem; vertical-align: top; text-align: right; color: var(--color-stone);">${row.duration_ms ? row.duration_ms + 'ms' : '—'}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </details>
+      </div>`;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color: var(--color-danger); font-size: 0.9rem;">Status fetch failed: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderCronWarning(title, body) {
+  return `
+    <div style="padding: 1rem 1.25rem; background: rgba(177, 74, 63, 0.06); border: 1px solid rgba(177, 74, 63, 0.25); border-radius: 10px;">
+      <div style="display: flex; gap: 0.75rem; align-items: start;">
+        <span style="width: 10px; height: 10px; background: var(--color-danger); border-radius: 999px; margin-top: 6px; flex-shrink: 0;"></span>
+        <div style="flex: 1;">
+          <strong style="color: var(--color-charcoal);">${escapeHtml(title)}</strong>
+          <p style="color: var(--color-stone); margin: 0.4rem 0 0; font-size: 0.9rem;">${body}</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+function humanizeAgo(iso) {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min${m === 1 ? "" : "s"} ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hr${h === 1 ? "" : "s"} ago`;
+  const d = Math.floor(h / 24);
+  return `${d} day${d === 1 ? "" : "s"} ago`;
 }
 
 async function refreshPricelabsStatus() {

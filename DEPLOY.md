@@ -75,6 +75,30 @@ To unlock multi-device admin sync and admin-managed API keys, add these env vars
 | `SECRETS_KEY` | Stronger encryption key for admin-saved API keys *(recommended)* | Generate with `openssl rand -base64 32` |
 | `HOSPITABLE_API_KEY` | *Optional* — only if you don't want to enter via admin UI | [Hospitable → Settings → API](https://my.hospitable.com/settings/api) |
 | `PRICELABS_API_KEY` | *Optional* — only if you don't want to enter via admin UI | [PriceLabs → Account → Integrations](https://app.pricelabs.co/account/integrations) |
+| `CRON_SECRET` | *Required for the 15-min PriceLabs price sync* | Generate with `openssl rand -base64 32` |
+
+### Automated price sync (every 15 minutes)
+
+`vercel.json` declares a cron job at `*/15 * * * *` that calls `/api/cron/sync-pricelabs`. On each run it:
+
+1. Reads your saved Pricelabs↔Nyris property mapping
+2. Calls PriceLabs `listing_prices` for every mapped property (today → +90 days)
+3. Upserts the daily prices into the `daily_prices` table in Turso
+4. Logs the run to `sync_log` (visible in the admin → PriceLabs tab → "Auto-sync" panel)
+
+**Required for cron to work:**
+- Turso must be configured (cron has nowhere else to read the API key or store prices)
+- The PriceLabs API key must be saved server-side — either via the admin UI (with Turso connected) or as `PRICELABS_API_KEY` env var. Browser-stored keys are not accessible to a scheduled job.
+- `CRON_SECRET` env var must be set (Vercel uses it to authenticate the cron request)
+
+**Plan requirements:**
+- Vercel **Hobby**: 2 cron jobs allowed; sub-daily schedules (`*/15`) are supported on current Hobby tier
+- Vercel **Pro / Enterprise**: full cron expression support
+
+If you want a different schedule, edit `vercel.json` `crons[].schedule` and redeploy. Some examples:
+- `*/30 * * * *` — every 30 minutes
+- `0 */2 * * *` — every 2 hours, on the hour
+- `0 6 * * *` — once daily at 06:00 UTC
 
 ### Setting up Turso (1 minute)
 
