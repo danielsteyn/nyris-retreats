@@ -1,15 +1,17 @@
 // /api/pricelabs/sync — pull listings + price recommendations from PriceLabs
-// Set PRICELABS_API_KEY in Vercel env vars.
+// API key resolution: admin-saved (Turso, encrypted) > PRICELABS_API_KEY env var.
+
+import { resolveApiKey } from "../../lib/db.js";
 
 const PRICELABS_BASE = "https://api.pricelabs.co/v1";
 
 export default async function handler(req, res) {
-  const key = process.env.PRICELABS_API_KEY;
+  const { key, source } = await resolveApiKey("pricelabs_api_key", "PRICELABS_API_KEY");
   if (!key) {
     return res.status(200).json({
       ok: false, mock: true,
-      error: "PRICELABS_API_KEY not set on Vercel",
-      hint: "Get your API key from PriceLabs → Account → Integrations, add to Vercel env vars."
+      error: "PriceLabs API key not configured",
+      hint: "Add it in the admin dashboard → PriceLabs tab, or set PRICELABS_API_KEY in Vercel env vars."
     });
   }
 
@@ -32,6 +34,7 @@ export default async function handler(req, res) {
         avg_price: l.avg_price,
         active: l.active !== false
       })),
+      keySource: source,
       fetchedAt: new Date().toISOString()
     });
   } catch (e) {

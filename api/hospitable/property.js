@@ -1,11 +1,13 @@
 // /api/hospitable/property?uuid=... — single property + images + reviews
+import { resolveApiKey } from "../../lib/db.js";
+
 const HOSPITABLE_BASE = "https://public.api.hospitable.com/v2";
 
 export default async function handler(req, res) {
-  const key = process.env.HOSPITABLE_API_KEY;
+  const { key } = await resolveApiKey("hospitable_api_key", "HOSPITABLE_API_KEY");
   const uuid = (req.query?.uuid || "").trim();
   if (!uuid) return res.status(400).json({ error: "uuid required" });
-  if (!key) return res.status(200).json({ ok: false, error: "HOSPITABLE_API_KEY not set", mock: true });
+  if (!key) return res.status(200).json({ ok: false, error: "Hospitable API key not configured", mock: true });
 
   try {
     const headers = { Authorization: `Bearer ${key}`, Accept: "application/json" };

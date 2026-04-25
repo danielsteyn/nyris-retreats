@@ -1,5 +1,7 @@
 // /api/hospitable/sync — proxies Hospitable get-properties + reviews + images.
-// Set HOSPITABLE_API_KEY in Vercel env vars (Settings → Environment Variables).
+// API key resolution order: admin-saved (Turso, encrypted) > HOSPITABLE_API_KEY env var.
+
+import { resolveApiKey } from "../../lib/db.js";
 
 const HOSPITABLE_BASE = "https://public.api.hospitable.com/v2";
 
@@ -7,12 +9,12 @@ export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-  const key = process.env.HOSPITABLE_API_KEY;
+  const { key, source } = await resolveApiKey("hospitable_api_key", "HOSPITABLE_API_KEY");
   if (!key) {
     return res.status(200).json({
       ok: false,
-      error: "HOSPITABLE_API_KEY not set on Vercel",
-      hint: "Set it under Vercel → Project → Settings → Environment Variables, then redeploy.",
+      error: "Hospitable API key not configured",
+      hint: "Add it in the admin dashboard → Hospitable API tab, or set HOSPITABLE_API_KEY in Vercel env vars.",
       mock: true,
       properties: []
     });
@@ -49,6 +51,7 @@ export default async function handler(req, res) {
       ok: true,
       properties,
       meta: data.meta,
+      keySource: source,
       fetchedAt: new Date().toISOString()
     });
   } catch (e) {

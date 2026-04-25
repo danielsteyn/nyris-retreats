@@ -1,11 +1,13 @@
 // /api/hospitable/calendar?uuid=...&start=YYYY-MM-DD&end=YYYY-MM-DD
+import { resolveApiKey } from "../../lib/db.js";
+
 const HOSPITABLE_BASE = "https://public.api.hospitable.com/v2";
 
 export default async function handler(req, res) {
-  const key = process.env.HOSPITABLE_API_KEY;
+  const { key } = await resolveApiKey("hospitable_api_key", "HOSPITABLE_API_KEY");
   const { uuid, start, end } = req.query || {};
   if (!uuid) return res.status(400).json({ error: "uuid required" });
-  if (!key) return res.status(200).json({ ok: false, error: "HOSPITABLE_API_KEY not set", mock: true, days: [] });
+  if (!key) return res.status(200).json({ ok: false, error: "Hospitable API key not configured", mock: true, days: [] });
 
   try {
     const startDate = start || new Date().toISOString().slice(0, 10);

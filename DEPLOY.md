@@ -60,14 +60,21 @@ Once deployed:
 
 ## 4. Connect integrations (Hospitable, PriceLabs, Turso)
 
-The admin dashboard works out of the box with localStorage. To unlock live API integration and multi-device admin sync, add these environment variables in Vercel → Project → **Settings → Environment Variables** (set for Production, Preview, and Development):
+There are **two ways** to provide the Hospitable and PriceLabs API keys:
 
-| Key | Where to get it | Used for |
+**A. From the admin dashboard (recommended)** — once Turso is connected, you can paste keys directly into the admin UI's Hospitable API and PriceLabs tabs. They're encrypted at rest (AES-256-GCM) before being stored, and the raw values are never returned to the browser. Replace or remove keys with one click.
+
+**B. Via Vercel env vars** — works without Turso, but you have to redeploy to update keys. Admin-saved keys (option A) take precedence over env vars when both are present.
+
+To unlock multi-device admin sync and admin-managed API keys, add these env vars in Vercel → Project → **Settings → Environment Variables** (set for Production, Preview, and Development):
+
+| Key | Required for | Where to get it |
 |---|---|---|
-| `HOSPITABLE_API_KEY` | [Hospitable → Settings → API](https://my.hospitable.com/settings/api) | Live property/photo/review/calendar/pricing sync |
-| `PRICELABS_API_KEY` | [PriceLabs → Account → Integrations](https://app.pricelabs.co/account/integrations) | Dynamic pricing recommendations |
-| `TURSO_DATABASE_URL` | [Turso dashboard](https://app.turso.tech) → DB → Show URL | Persistent admin overrides (multi-device) |
-| `TURSO_AUTH_TOKEN` | Turso dashboard → DB → Tokens → Create | Auth for the Turso DB |
+| `TURSO_DATABASE_URL` | Multi-device admin + admin-saved API keys | [Turso dashboard](https://app.turso.tech) → DB → Show URL |
+| `TURSO_AUTH_TOKEN` | Same as above | Turso dashboard → DB → Tokens → Create |
+| `SECRETS_KEY` | Stronger encryption key for admin-saved API keys *(recommended)* | Generate with `openssl rand -base64 32` |
+| `HOSPITABLE_API_KEY` | *Optional* — only if you don't want to enter via admin UI | [Hospitable → Settings → API](https://my.hospitable.com/settings/api) |
+| `PRICELABS_API_KEY` | *Optional* — only if you don't want to enter via admin UI | [PriceLabs → Account → Integrations](https://app.pricelabs.co/account/integrations) |
 
 ### Setting up Turso (1 minute)
 

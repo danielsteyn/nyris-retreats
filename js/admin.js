@@ -596,45 +596,18 @@ async function saveOrder() {
 // Hospitable integration tab
 // =============================================================================
 async function initHospitableTab() {
-  const conn = document.getElementById('hospitableConnection');
-  conn.innerHTML = `<div style="display:flex; align-items:center; gap: 0.75rem;"><div class="skel" style="width: 12px; height: 12px; border-radius: 999px;"></div> Checking connection...</div>`;
-  try {
-    const r = await fetch('/api/hospitable/sync');
-    const j = await r.json();
-    if (j.ok) {
-      conn.innerHTML = `
-        <div style="display:flex; align-items:center; gap: 1rem; flex-wrap:wrap;">
-          <span style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-success);">
-            <span style="width: 10px; height: 10px; background: var(--color-success); border-radius: 999px;"></span>
-            <strong>Connected to Hospitable</strong>
-          </span>
-          <span style="color: var(--color-stone); font-size: 0.9rem;">${j.properties.length} properties · last fetched ${new Date(j.fetchedAt).toLocaleString()}</span>
-        </div>`;
-      checkPendingProperties(j.properties);
-    } else {
-      conn.innerHTML = `
-        <div style="display:flex; align-items:start; gap: 1rem; flex-wrap:wrap;">
-          <span style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-danger);">
-            <span style="width: 10px; height: 10px; background: var(--color-danger); border-radius: 999px;"></span>
-            <strong>Not connected</strong>
-          </span>
-        </div>
-        <p style="color: var(--color-stone); font-size: 0.9rem; margin: 1rem 0 0;">${escapeHtml(j.error || '')}</p>
-        ${j.hint ? `<p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.5rem 0 0;">${escapeHtml(j.hint)}</p>` : ''}
-        <details style="margin-top: 1rem; font-size: 0.9rem;">
-          <summary style="cursor: pointer; font-weight: 500;">Setup instructions</summary>
-          <ol style="margin: 1rem 0 0; padding-left: 1.25rem; line-height: 1.7;">
-            <li>Get your Hospitable API key from <a href="https://my.hospitable.com/settings/api" target="_blank" style="color: var(--color-primary); text-decoration: underline;">Hospitable settings → API</a></li>
-            <li>In Vercel, open this project → <strong>Settings → Environment Variables</strong></li>
-            <li>Add <code>HOSPITABLE_API_KEY</code> with your token (set for Production + Preview + Development)</li>
-            <li>Redeploy: <code>vercel --prod</code> or push to git</li>
-            <li>Refresh this page</li>
-          </ol>
-        </details>`;
-    }
-  } catch (e) {
-    conn.innerHTML = `<span style="color: var(--color-danger);">Connection check failed: ${escapeHtml(e.message)}</span>`;
-  }
+  await renderApiKeyPanel('hospitable_api_key', 'hospitableConnection', {
+    label: 'Hospitable',
+    docsUrl: 'https://my.hospitable.com/settings/api',
+    docsLabel: 'Hospitable settings → API',
+    placeholder: 'eyJhbGciOi… (your Hospitable Personal Access Token)'
+  });
+
+  const statusBar = document.createElement('div');
+  statusBar.id = 'hospitableStatus';
+  statusBar.style.cssText = 'margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-line);';
+  document.getElementById('hospitableConnection').appendChild(statusBar);
+  await refreshHospitableStatus();
 
   // Load saved sync settings
   const o = await Store.getOverrides();
@@ -648,6 +621,37 @@ async function initHospitableTab() {
 
   // Render last sync log
   renderHospitableLog();
+}
+
+async function refreshHospitableStatus() {
+  const bar = document.getElementById('hospitableStatus');
+  if (!bar) return;
+  bar.innerHTML = `<div style="display:flex; align-items:center; gap: 0.75rem; color: var(--color-stone); font-size: 0.9rem;"><div class="skel" style="width: 10px; height: 10px; border-radius: 999px;"></div> Checking connection…</div>`;
+  try {
+    const r = await fetch('/api/hospitable/sync');
+    const j = await r.json();
+    if (j.ok) {
+      bar.innerHTML = `
+        <div style="display:flex; align-items:center; gap: 0.75rem; flex-wrap: wrap;">
+          <span style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-success); font-weight: 500;">
+            <span style="width: 10px; height: 10px; background: var(--color-success); border-radius: 999px;"></span>
+            Connected
+          </span>
+          <span style="color: var(--color-stone); font-size: 0.9rem;">${j.properties.length} properties · last fetched ${new Date(j.fetchedAt).toLocaleTimeString()}</span>
+          ${j.keySource ? `<span style="font-size: 0.78rem; color: var(--color-stone); border: 1px solid var(--color-line); padding: 0.15rem 0.5rem; border-radius: 999px;">key: ${j.keySource === 'admin' ? 'admin panel' : 'env var'}</span>` : ''}
+        </div>`;
+      checkPendingProperties(j.properties);
+    } else {
+      bar.innerHTML = `
+        <div style="display:flex; align-items:center; gap: 0.75rem; color: var(--color-danger); font-weight: 500;">
+          <span style="width: 10px; height: 10px; background: var(--color-danger); border-radius: 999px;"></span>
+          Not connected
+        </div>
+        <p style="color: var(--color-stone); font-size: 0.88rem; margin: 0.5rem 0 0;">${escapeHtml(j.error || '')}${j.hint ? ' · ' + escapeHtml(j.hint) : ''}</p>`;
+    }
+  } catch (e) {
+    bar.innerHTML = `<span style="color: var(--color-danger);">Status check failed: ${escapeHtml(e.message)}</span>`;
+  }
 }
 
 async function checkPendingProperties(remoteProps) {
@@ -746,44 +750,18 @@ function appendLog(el, line) {
 // PriceLabs integration tab
 // =============================================================================
 async function initPricelabsTab() {
-  const conn = document.getElementById('pricelabsConnection');
-  conn.innerHTML = `<div style="display:flex; align-items:center; gap: 0.75rem;"><div class="skel" style="width: 12px; height: 12px; border-radius: 999px;"></div> Checking connection...</div>`;
-  try {
-    const r = await fetch('/api/pricelabs/sync');
-    const j = await r.json();
-    if (j.ok) {
-      conn.innerHTML = `
-        <div style="display:flex; align-items:center; gap: 1rem; flex-wrap:wrap;">
-          <span style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-success);">
-            <span style="width: 10px; height: 10px; background: var(--color-success); border-radius: 999px;"></span>
-            <strong>Connected to PriceLabs</strong>
-          </span>
-          <span style="color: var(--color-stone); font-size: 0.9rem;">${j.listings.length} listings detected</span>
-        </div>`;
-      renderPricelabsMapping(j.listings);
-    } else {
-      conn.innerHTML = `
-        <div style="display:flex; align-items:start; gap: 1rem; flex-wrap:wrap;">
-          <span style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-danger);">
-            <span style="width: 10px; height: 10px; background: var(--color-danger); border-radius: 999px;"></span>
-            <strong>Not connected</strong>
-          </span>
-        </div>
-        <p style="color: var(--color-stone); font-size: 0.9rem; margin: 1rem 0 0;">${escapeHtml(j.error || '')}</p>
-        <details style="margin-top: 1rem; font-size: 0.9rem;">
-          <summary style="cursor: pointer; font-weight: 500;">Setup instructions</summary>
-          <ol style="margin: 1rem 0 0; padding-left: 1.25rem; line-height: 1.7;">
-            <li>Get your PriceLabs API key from <a href="https://app.pricelabs.co/account/integrations" target="_blank" style="color: var(--color-primary); text-decoration: underline;">PriceLabs → Account → Integrations</a></li>
-            <li>In Vercel, open this project → <strong>Settings → Environment Variables</strong></li>
-            <li>Add <code>PRICELABS_API_KEY</code> with your key</li>
-            <li>Redeploy and refresh this page</li>
-          </ol>
-        </details>
-        ${renderEmptyMapping()}`;
-    }
-  } catch (e) {
-    conn.innerHTML = `<span style="color: var(--color-danger);">Connection check failed: ${escapeHtml(e.message)}</span>`;
-  }
+  await renderApiKeyPanel('pricelabs_api_key', 'pricelabsConnection', {
+    label: 'PriceLabs',
+    docsUrl: 'https://app.pricelabs.co/account/integrations',
+    docsLabel: 'PriceLabs → Account → Integrations',
+    placeholder: 'pl_… (your PriceLabs API key)'
+  });
+
+  const statusBar = document.createElement('div');
+  statusBar.id = 'pricelabsStatus';
+  statusBar.style.cssText = 'margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--color-line);';
+  document.getElementById('pricelabsConnection').appendChild(statusBar);
+  await refreshPricelabsStatus();
 
   const o = await Store.getOverrides();
   const s = o.pricelabs || { minPct: 70, maxPct: 200, autoApply: true, orphanProtection: false };
@@ -793,11 +771,172 @@ async function initPricelabsTab() {
   document.getElementById('plOrphanProtection').checked = s.orphanProtection;
 }
 
-function renderEmptyMapping() {
-  // Used inside connection panel when not connected
-  const wrap = document.getElementById('pricelabsMapping');
-  if (wrap) wrap.innerHTML = `<p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">Connect PriceLabs to see your listings here.</p>`;
-  return '';
+async function refreshPricelabsStatus() {
+  const bar = document.getElementById('pricelabsStatus');
+  if (!bar) return;
+  bar.innerHTML = `<div style="display:flex; align-items:center; gap: 0.75rem; color: var(--color-stone); font-size: 0.9rem;"><div class="skel" style="width: 10px; height: 10px; border-radius: 999px;"></div> Checking connection…</div>`;
+  try {
+    const r = await fetch('/api/pricelabs/sync');
+    const j = await r.json();
+    const wrap = document.getElementById('pricelabsMapping');
+    if (j.ok) {
+      bar.innerHTML = `
+        <div style="display:flex; align-items:center; gap: 0.75rem; flex-wrap: wrap;">
+          <span style="display:inline-flex; align-items:center; gap: 0.5rem; color: var(--color-success); font-weight: 500;">
+            <span style="width: 10px; height: 10px; background: var(--color-success); border-radius: 999px;"></span>
+            Connected
+          </span>
+          <span style="color: var(--color-stone); font-size: 0.9rem;">${j.listings.length} listings detected</span>
+          ${j.keySource ? `<span style="font-size: 0.78rem; color: var(--color-stone); border: 1px solid var(--color-line); padding: 0.15rem 0.5rem; border-radius: 999px;">key: ${j.keySource === 'admin' ? 'admin panel' : 'env var'}</span>` : ''}
+        </div>`;
+      renderPricelabsMapping(j.listings);
+    } else {
+      bar.innerHTML = `
+        <div style="display:flex; align-items:center; gap: 0.75rem; color: var(--color-danger); font-weight: 500;">
+          <span style="width: 10px; height: 10px; background: var(--color-danger); border-radius: 999px;"></span>
+          Not connected
+        </div>
+        <p style="color: var(--color-stone); font-size: 0.88rem; margin: 0.5rem 0 0;">${escapeHtml(j.error || '')}</p>`;
+      if (wrap) wrap.innerHTML = `<p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">Save a PriceLabs API key above to see your listings here.</p>`;
+    }
+  } catch (e) {
+    bar.innerHTML = `<span style="color: var(--color-danger);">Status check failed: ${escapeHtml(e.message)}</span>`;
+  }
+}
+
+// =============================================================================
+// Reusable API key entry panel (for Hospitable + PriceLabs tabs)
+// =============================================================================
+async function renderApiKeyPanel(secretKey, mountId, opts) {
+  const mount = document.getElementById(mountId);
+  // Stash opts so saveSecret/removeSecret can find them without JSON-in-attribute escapes.
+  window._apiKeyOpts = window._apiKeyOpts || {};
+  window._apiKeyOpts[secretKey] = { ...opts, mountId };
+  // Try to fetch current state
+  let state = { source: 'none', last4: null, updatedAt: null, envFallback: false, encryption: 'db', remoteAvailable: false };
+  try {
+    const r = await fetch('/api/admin/secrets');
+    const j = await r.json();
+    if (j.ok) {
+      state.remoteAvailable = true;
+      const item = (j.items || []).find(x => x.key === secretKey);
+      if (item) {
+        state.source = item.source;
+        state.last4 = item.last4;
+        state.updatedAt = item.updatedAt;
+        state.envFallback = item.envFallback;
+      }
+      state.encryption = j.encryption;
+    } else {
+      state.error = j.error;
+    }
+  } catch (e) { state.error = e.message; }
+
+  if (!state.remoteAvailable) {
+    mount.innerHTML = `
+      <div style="display:flex; align-items: start; gap: 0.75rem;">
+        <div style="width: 10px; height: 10px; background: var(--color-stone); border-radius: 999px; margin-top: 6px; flex-shrink: 0;"></div>
+        <div style="flex: 1;">
+          <strong>${escapeHtml(opts.label)} API key — admin entry not available</strong>
+          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.4rem 0 0;">Connect Turso to enable saving keys from this admin panel. Until then, keys must be set as Vercel environment variables.</p>
+          <p style="color: var(--color-stone); font-size: 0.85rem; margin: 0.4rem 0 0;">${escapeHtml(state.error || 'Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN env vars in Vercel and redeploy.')}</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  let stateLine = '';
+  if (state.source === 'admin') {
+    stateLine = `
+      <div style="display:flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-success); font-weight: 500;">
+          <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 999px;"></span>
+          Saved
+        </span>
+        <code style="background: var(--color-cream-dark); padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">•••• ${escapeHtml(state.last4 || '')}</code>
+        <span style="color: var(--color-stone); font-size: 0.85rem;">updated ${state.updatedAt ? new Date(state.updatedAt).toLocaleString() : '—'}</span>
+      </div>`;
+  } else if (state.source === 'env') {
+    stateLine = `
+      <div style="display:flex; align-items: center; gap: 0.5rem;">
+        <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-charcoal); font-weight: 500;">
+          <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 999px;"></span>
+          Configured via Vercel env var
+        </span>
+      </div>
+      <p style="color: var(--color-stone); font-size: 0.85rem; margin: 0.4rem 0 0;">You can override it here — admin-saved keys take precedence over env vars.</p>`;
+  } else {
+    stateLine = `
+      <div style="display:flex; align-items: center; gap: 0.5rem;">
+        <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-stone); font-weight: 500;">
+          <span style="width: 8px; height: 8px; background: var(--color-stone); border-radius: 999px;"></span>
+          Not set
+        </span>
+      </div>`;
+  }
+
+  mount.innerHTML = `
+    <div style="margin-bottom: 1rem;">
+      <strong style="display:block; margin-bottom: 0.5rem;">${escapeHtml(opts.label)} API key</strong>
+      ${stateLine}
+    </div>
+    <div id="${secretKey}-form" style="margin-top: 1rem;">
+      <label class="form-label">${state.source === 'none' ? 'Enter your API key' : 'Replace with a new key'}</label>
+      <div style="display:flex; gap: 0.5rem; align-items: center;">
+        <input type="password" class="form-control" id="${secretKey}-input" placeholder="${escapeAttr(opts.placeholder)}" style="font-family: monospace; font-size: 0.9rem;" autocomplete="off"/>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="togglePeek('${secretKey}-input', this)" title="Show / hide">👁</button>
+      </div>
+      <div style="display:flex; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="saveSecret('${secretKey}')">Save key</button>
+        ${state.source === 'admin' ? `<button class="btn btn-ghost" onclick="removeSecret('${secretKey}')">Remove saved key</button>` : ''}
+      </div>
+      <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.85rem 0 0;">
+        Get your key from <a href="${escapeAttr(opts.docsUrl)}" target="_blank" style="color: var(--color-primary); text-decoration: underline;">${escapeHtml(opts.docsLabel)}</a>.
+        Stored encrypted (AES-256-GCM) in your Turso database${state.encryption === 'env' ? ' using a key from <code>SECRETS_KEY</code>' : ''}. The raw value is never returned to the browser after saving.
+      </p>
+    </div>`;
+}
+
+function togglePeek(inputId, btn) {
+  const i = document.getElementById(inputId);
+  if (!i) return;
+  i.type = i.type === 'password' ? 'text' : 'password';
+  btn.style.opacity = i.type === 'text' ? '1' : '0.6';
+}
+
+async function saveSecret(secretKey) {
+  const opts = (window._apiKeyOpts || {})[secretKey] || {};
+  const input = document.getElementById(`${secretKey}-input`);
+  const value = (input.value || '').trim();
+  if (!value) { toast("Paste an API key first."); return; }
+  if (value.length < 8) { toast("That looks too short to be a real key."); return; }
+  try {
+    const r = await fetch('/api/admin/secrets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: secretKey, value })
+    });
+    const j = await r.json();
+    if (!j.ok) { toast(j.error || "Save failed"); return; }
+    toast(`API key saved · last 4: ${j.last4}`);
+    input.value = '';
+    if (opts.mountId) await renderApiKeyPanel(secretKey, opts.mountId, opts);
+    if (secretKey === 'hospitable_api_key') await refreshHospitableStatus();
+    if (secretKey === 'pricelabs_api_key') await refreshPricelabsStatus();
+  } catch (e) {
+    toast(`Save failed: ${e.message}`);
+  }
+}
+
+async function removeSecret(secretKey) {
+  if (!confirm("Remove the saved API key? The integration will fall back to the env-var key (if set), or stop working.")) return;
+  const opts = (window._apiKeyOpts || {})[secretKey] || {};
+  const r = await fetch(`/api/admin/secrets?key=${encodeURIComponent(secretKey)}`, { method: 'DELETE' });
+  const j = await r.json();
+  if (!j.ok) { toast(j.error || "Remove failed"); return; }
+  toast("API key removed.");
+  if (opts.mountId) await renderApiKeyPanel(secretKey, opts.mountId, opts);
+  if (secretKey === 'hospitable_api_key') await refreshHospitableStatus();
+  if (secretKey === 'pricelabs_api_key') await refreshPricelabsStatus();
 }
 
 async function renderPricelabsMapping(listings) {

@@ -1,11 +1,13 @@
 // /api/pricelabs/prices?listing_id=...&start=...&end=... — daily price recommendations
+import { resolveApiKey } from "../../lib/db.js";
+
 const PRICELABS_BASE = "https://api.pricelabs.co/v1";
 
 export default async function handler(req, res) {
-  const key = process.env.PRICELABS_API_KEY;
+  const { key } = await resolveApiKey("pricelabs_api_key", "PRICELABS_API_KEY");
   const { listing_id, start, end } = req.query || {};
   if (!listing_id) return res.status(400).json({ error: "listing_id required" });
-  if (!key) return res.status(200).json({ ok: false, mock: true, error: "PRICELABS_API_KEY not set" });
+  if (!key) return res.status(200).json({ ok: false, mock: true, error: "PriceLabs API key not configured" });
 
   try {
     const startDate = start || new Date().toISOString().slice(0, 10);
