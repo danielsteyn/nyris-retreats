@@ -8,6 +8,56 @@ const ADMIN = {
 };
 
 // =============================================================================
+// Local API-key storage (used when server-side Turso isn't configured).
+// Keys live only in this admin browser. They are sent in headers per request
+// to the integration API routes (X-Hospitable-Api-Key / X-Pricelabs-Api-Key)
+// so the server never persists them.
+// =============================================================================
+const LocalKeys = {
+  storageKey: "nyris.localKeys",
+  metaKey: "nyris.localKeys.meta",
+  _all() { try { return JSON.parse(localStorage.getItem(this.storageKey) || "{}"); } catch { return {}; } },
+  _meta() { try { return JSON.parse(localStorage.getItem(this.metaKey) || "{}"); } catch { return {}; } },
+  get(name) { return this._all()[name] || null; },
+  getMeta(name) {
+    const v = this.get(name);
+    if (!v) return null;
+    return { last4: String(v).slice(-4), updatedAt: this._meta()[name] || null };
+  },
+  set(name, value) {
+    const all = this._all(); all[name] = value;
+    const m = this._meta(); m[name] = new Date().toISOString();
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(all));
+      localStorage.setItem(this.metaKey, JSON.stringify(m));
+    } catch {}
+  },
+  remove(name) {
+    const all = this._all(); delete all[name];
+    const m = this._meta(); delete m[name];
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(all));
+      localStorage.setItem(this.metaKey, JSON.stringify(m));
+    } catch {}
+  }
+};
+
+// fetch wrapper that auto-injects locally-stored API keys as headers.
+// Use for any call to /api/hospitable/* or /api/pricelabs/* from the admin.
+function apiFetch(url, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (url.startsWith("/api/hospitable/")) {
+    const k = LocalKeys.get("hospitable_api_key");
+    if (k) headers["X-Hospitable-Api-Key"] = k;
+  }
+  if (url.startsWith("/api/pricelabs/")) {
+    const k = LocalKeys.get("pricelabs_api_key");
+    if (k) headers["X-Pricelabs-Api-Key"] = k;
+  }
+  return fetch(url, { ...opts, headers });
+}
+
+// =============================================================================
 // Storage layer — Turso (remote) with localStorage fallback
 // =============================================================================
 const RemoteStore = {
@@ -628,7 +678,7 @@ async function refreshHospitableStatus() {
   if (!bar) return;
   bar.innerHTML = `<div style="display:flex; align-items:center; gap: 0.75rem; color: var(--color-stone); font-size: 0.9rem;"><div class="skel" style="width: 10px; height: 10px; border-radius: 999px;"></div> Checking connection…</div>`;
   try {
-    const r = await fetch('/api/hospitable/sync');
+    const r = await apiFetch('/api/hospitable/sync');
     const j = await r.json();
     if (j.ok) {
       bar.innerHTML = `
@@ -704,7 +754,7 @@ async function runHospitableSync() {
   appendLog(log, `[${new Date().toLocaleTimeString()}] Starting Hospitable sync…`);
   try {
     const t0 = Date.now();
-    const r = await fetch('/api/hospitable/sync');
+    const r = await apiFetch('/api/hospitable/sync');
     const j = await r.json();
     const dt = Date.now() - t0;
     if (j.ok) {
@@ -776,7 +826,7 @@ async function refreshPricelabsStatus() {
   if (!bar) return;
   bar.innerHTML = `<div style="display:flex; align-items:center; gap: 0.75rem; color: var(--color-stone); font-size: 0.9rem;"><div class="skel" style="width: 10px; height: 10px; border-radius: 999px;"></div> Checking connection…</div>`;
   try {
-    const r = await fetch('/api/pricelabs/sync');
+    const r = await apiFetch('/api/pricelabs/sync');
     const j = await r.json();
     const wrap = document.getElementById('pricelabsMapping');
     if (j.ok) {
@@ -809,64 +859,74 @@ async function refreshPricelabsStatus() {
 // =============================================================================
 async function renderApiKeyPanel(secretKey, mountId, opts) {
   const mount = document.getElementById(mountId);
-  // Stash opts so saveSecret/removeSecret can find them without JSON-in-attribute escapes.
+  // Stash opts so saveSecret/removeSecret can find them.
   window._apiKeyOpts = window._apiKeyOpts || {};
   window._apiKeyOpts[secretKey] = { ...opts, mountId };
-  // Try to fetch current state
-  let state = { source: 'none', last4: null, updatedAt: null, envFallback: false, encryption: 'db', remoteAvailable: false };
+
+  // Probe server (Turso) state
+  let server = { available: false, source: "none", last4: null, updatedAt: null, encryption: "db", error: null };
   try {
-    const r = await fetch('/api/admin/secrets');
+    const r = await fetch("/api/admin/secrets");
     const j = await r.json();
     if (j.ok) {
-      state.remoteAvailable = true;
+      server.available = true;
       const item = (j.items || []).find(x => x.key === secretKey);
-      if (item) {
-        state.source = item.source;
-        state.last4 = item.last4;
-        state.updatedAt = item.updatedAt;
-        state.envFallback = item.envFallback;
-      }
-      state.encryption = j.encryption;
+      if (item) Object.assign(server, { source: item.source, last4: item.last4, updatedAt: item.updatedAt });
+      server.encryption = j.encryption;
     } else {
-      state.error = j.error;
+      server.error = j.error;
     }
-  } catch (e) { state.error = e.message; }
+  } catch (e) { server.error = e.message; }
 
-  if (!state.remoteAvailable) {
-    mount.innerHTML = `
-      <div style="display:flex; align-items: start; gap: 0.75rem;">
-        <div style="width: 10px; height: 10px; background: var(--color-stone); border-radius: 999px; margin-top: 6px; flex-shrink: 0;"></div>
-        <div style="flex: 1;">
-          <strong>${escapeHtml(opts.label)} API key — admin entry not available</strong>
-          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.4rem 0 0;">Connect Turso to enable saving keys from this admin panel. Until then, keys must be set as Vercel environment variables.</p>
-          <p style="color: var(--color-stone); font-size: 0.85rem; margin: 0.4rem 0 0;">${escapeHtml(state.error || 'Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN env vars in Vercel and redeploy.')}</p>
-        </div>
-      </div>`;
-    return;
+  // Local browser storage
+  const localMeta = LocalKeys.getMeta(secretKey);
+
+  // Effective state: server-saved > local-saved > env-var > none
+  let displayState;
+  if (server.available && server.source === "admin") {
+    displayState = { kind: "server", last4: server.last4, updatedAt: server.updatedAt };
+  } else if (localMeta) {
+    displayState = { kind: "local", last4: localMeta.last4, updatedAt: localMeta.updatedAt };
+  } else if (server.available && server.source === "env") {
+    displayState = { kind: "env" };
+  } else {
+    displayState = { kind: "none" };
   }
 
-  let stateLine = '';
-  if (state.source === 'admin') {
-    stateLine = `
+  // Render the status badge
+  let stateBadge = "";
+  if (displayState.kind === "server") {
+    stateBadge = `
       <div style="display:flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
         <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-success); font-weight: 500;">
           <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 999px;"></span>
-          Saved
+          Saved · syncs across devices
         </span>
-        <code style="background: var(--color-cream-dark); padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">•••• ${escapeHtml(state.last4 || '')}</code>
-        <span style="color: var(--color-stone); font-size: 0.85rem;">updated ${state.updatedAt ? new Date(state.updatedAt).toLocaleString() : '—'}</span>
+        <code style="background: var(--color-cream-dark); padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">•••• ${escapeHtml(displayState.last4 || "")}</code>
+        <span style="color: var(--color-stone); font-size: 0.85rem;">updated ${displayState.updatedAt ? new Date(displayState.updatedAt).toLocaleString() : "—"}</span>
       </div>`;
-  } else if (state.source === 'env') {
-    stateLine = `
+  } else if (displayState.kind === "local") {
+    stateBadge = `
+      <div style="display:flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-success); font-weight: 500;">
+          <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 999px;"></span>
+          Saved on this browser
+        </span>
+        <code style="background: var(--color-cream-dark); padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">•••• ${escapeHtml(displayState.last4 || "")}</code>
+        <span style="color: var(--color-stone); font-size: 0.85rem;">updated ${displayState.updatedAt ? new Date(displayState.updatedAt).toLocaleString() : "—"}</span>
+      </div>
+      <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.4rem 0 0;">Stored only in this browser's localStorage. Connect Turso to sync this key across devices and store it encrypted server-side.</p>`;
+  } else if (displayState.kind === "env") {
+    stateBadge = `
       <div style="display:flex; align-items: center; gap: 0.5rem;">
         <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-charcoal); font-weight: 500;">
           <span style="width: 8px; height: 8px; background: var(--color-success); border-radius: 999px;"></span>
           Configured via Vercel env var
         </span>
       </div>
-      <p style="color: var(--color-stone); font-size: 0.85rem; margin: 0.4rem 0 0;">You can override it here — admin-saved keys take precedence over env vars.</p>`;
+      <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.4rem 0 0;">You can override it here — keys saved in the admin take precedence.</p>`;
   } else {
-    stateLine = `
+    stateBadge = `
       <div style="display:flex; align-items: center; gap: 0.5rem;">
         <span style="display:inline-flex; align-items: center; gap: 0.4rem; color: var(--color-stone); font-weight: 500;">
           <span style="width: 8px; height: 8px; background: var(--color-stone); border-radius: 999px;"></span>
@@ -875,24 +935,30 @@ async function renderApiKeyPanel(secretKey, mountId, opts) {
       </div>`;
   }
 
+  // Where new saves go
+  const willSaveTo = server.available ? "server" : "local";
+  const showRemove = displayState.kind === "server" || displayState.kind === "local";
+
   mount.innerHTML = `
     <div style="margin-bottom: 1rem;">
       <strong style="display:block; margin-bottom: 0.5rem;">${escapeHtml(opts.label)} API key</strong>
-      ${stateLine}
+      ${stateBadge}
     </div>
-    <div id="${secretKey}-form" style="margin-top: 1rem;">
-      <label class="form-label">${state.source === 'none' ? 'Enter your API key' : 'Replace with a new key'}</label>
+    <div style="margin-top: 1rem;">
+      <label class="form-label">${displayState.kind === "none" ? "Enter your API key" : "Replace with a new key"}</label>
       <div style="display:flex; gap: 0.5rem; align-items: center;">
         <input type="password" class="form-control" id="${secretKey}-input" placeholder="${escapeAttr(opts.placeholder)}" style="font-family: monospace; font-size: 0.9rem;" autocomplete="off"/>
         <button class="btn btn-ghost btn-sm" type="button" onclick="togglePeek('${secretKey}-input', this)" title="Show / hide">👁</button>
       </div>
       <div style="display:flex; gap: 0.5rem; margin-top: 0.85rem; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="saveSecret('${secretKey}')">Save key</button>
-        ${state.source === 'admin' ? `<button class="btn btn-ghost" onclick="removeSecret('${secretKey}')">Remove saved key</button>` : ''}
+        ${showRemove ? `<button class="btn btn-ghost" onclick="removeSecret('${secretKey}')">Remove saved key</button>` : ""}
       </div>
       <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.85rem 0 0;">
         Get your key from <a href="${escapeAttr(opts.docsUrl)}" target="_blank" style="color: var(--color-primary); text-decoration: underline;">${escapeHtml(opts.docsLabel)}</a>.
-        Stored encrypted (AES-256-GCM) in your Turso database${state.encryption === 'env' ? ' using a key from <code>SECRETS_KEY</code>' : ''}. The raw value is never returned to the browser after saving.
+        ${willSaveTo === "server"
+          ? `Will be saved <strong>encrypted (AES-256-GCM)</strong> to your Turso database${server.encryption === "env" ? " using <code>SECRETS_KEY</code>" : ""}. The raw value is never returned to the browser after saving.`
+          : `Will be saved to <strong>this browser's localStorage</strong> and sent to the server in a header per request. <a href="/DEPLOY.md" target="_blank" style="text-decoration: underline;">Connect Turso</a> to upgrade to encrypted server-side storage with multi-device sync.`}
       </p>
     </div>`;
 }
@@ -907,36 +973,54 @@ function togglePeek(inputId, btn) {
 async function saveSecret(secretKey) {
   const opts = (window._apiKeyOpts || {})[secretKey] || {};
   const input = document.getElementById(`${secretKey}-input`);
-  const value = (input.value || '').trim();
+  const value = (input.value || "").trim();
   if (!value) { toast("Paste an API key first."); return; }
   if (value.length < 8) { toast("That looks too short to be a real key."); return; }
+
+  let savedTo = null;
+
+  // 1. Try server-side (Turso)
   try {
-    const r = await fetch('/api/admin/secrets', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const r = await fetch("/api/admin/secrets", {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key: secretKey, value })
     });
     const j = await r.json();
-    if (!j.ok) { toast(j.error || "Save failed"); return; }
-    toast(`API key saved · last 4: ${j.last4}`);
-    input.value = '';
-    if (opts.mountId) await renderApiKeyPanel(secretKey, opts.mountId, opts);
-    if (secretKey === 'hospitable_api_key') await refreshHospitableStatus();
-    if (secretKey === 'pricelabs_api_key') await refreshPricelabsStatus();
+    if (j.ok) { savedTo = "server"; }
+    else if (/Turso/i.test(j.error || "")) {
+      // expected: Turso isn't configured. Fall through to local storage.
+    } else {
+      toast(j.error || "Save failed"); return;
+    }
   } catch (e) {
-    toast(`Save failed: ${e.message}`);
+    // Server unreachable — fall through to local
   }
+
+  // 2. Fall back to localStorage (this browser only)
+  if (!savedTo) {
+    LocalKeys.set(secretKey, value);
+    savedTo = "local";
+  }
+
+  toast(savedTo === "server" ? `Key saved to server · last 4: ${value.slice(-4)}` : `Key saved on this browser · last 4: ${value.slice(-4)}`);
+  input.value = "";
+  if (opts.mountId) await renderApiKeyPanel(secretKey, opts.mountId, opts);
+  if (secretKey === "hospitable_api_key") await refreshHospitableStatus();
+  if (secretKey === "pricelabs_api_key") await refreshPricelabsStatus();
 }
 
 async function removeSecret(secretKey) {
   if (!confirm("Remove the saved API key? The integration will fall back to the env-var key (if set), or stop working.")) return;
   const opts = (window._apiKeyOpts || {})[secretKey] || {};
-  const r = await fetch(`/api/admin/secrets?key=${encodeURIComponent(secretKey)}`, { method: 'DELETE' });
-  const j = await r.json();
-  if (!j.ok) { toast(j.error || "Remove failed"); return; }
+  // Remove from both storages (whichever has it)
+  LocalKeys.remove(secretKey);
+  try {
+    await fetch(`/api/admin/secrets?key=${encodeURIComponent(secretKey)}`, { method: "DELETE" });
+  } catch {}
   toast("API key removed.");
   if (opts.mountId) await renderApiKeyPanel(secretKey, opts.mountId, opts);
-  if (secretKey === 'hospitable_api_key') await refreshHospitableStatus();
-  if (secretKey === 'pricelabs_api_key') await refreshPricelabsStatus();
+  if (secretKey === "hospitable_api_key") await refreshHospitableStatus();
+  if (secretKey === "pricelabs_api_key") await refreshPricelabsStatus();
 }
 
 async function renderPricelabsMapping(listings) {
@@ -980,7 +1064,7 @@ async function runPricelabsSync() {
   appendLog(log, `[${new Date().toLocaleTimeString()}] Starting PriceLabs sync…`);
   try {
     const t0 = Date.now();
-    const r = await fetch('/api/pricelabs/sync');
+    const r = await apiFetch('/api/pricelabs/sync');
     const j = await r.json();
     const dt = Date.now() - t0;
     if (j.ok) {

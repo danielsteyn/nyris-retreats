@@ -6,7 +6,7 @@ import { resolveApiKey } from "../../lib/db.js";
 const PRICELABS_BASE = "https://api.pricelabs.co/v1";
 
 export default async function handler(req, res) {
-  const { key, source } = await resolveApiKey("pricelabs_api_key", "PRICELABS_API_KEY");
+  const { key, source } = await resolveApiKey(req, "pricelabs_api_key", "PRICELABS_API_KEY");
   if (!key) {
     return res.status(200).json({
       ok: false, mock: true,

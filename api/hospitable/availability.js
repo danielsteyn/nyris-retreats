@@ -5,7 +5,7 @@ const HOSPITABLE_BASE = "https://public.api.hospitable.com/v2";
 
 export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
-  const { key } = await resolveApiKey("hospitable_api_key", "HOSPITABLE_API_KEY");
+  const { key } = await resolveApiKey(req, "hospitable_api_key", "HOSPITABLE_API_KEY");
   const body = req.method === "POST" ? (req.body || {}) : (req.query || {});
   const { checkin, checkout, guests } = body;
   if (!checkin || !checkout) return res.status(400).json({ error: "checkin and checkout required" });

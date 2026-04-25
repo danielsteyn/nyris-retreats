@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-  const { key, source } = await resolveApiKey("hospitable_api_key", "HOSPITABLE_API_KEY");
+  const { key, source } = await resolveApiKey(req, "hospitable_api_key", "HOSPITABLE_API_KEY");
   if (!key) {
     return res.status(200).json({
       ok: false,
