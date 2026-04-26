@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   if (!db) {
     return res.status(200).json({
       ok: false,
-      error: "Discount codes require Turso (server-side storage). Connect Turso in admin first."
+      error: "Promo codes require Turso (server-side storage). Connect Turso in admin first."
     });
   }
   await ensureSchema();

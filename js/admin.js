@@ -198,7 +198,7 @@ async function showDashboard() {
 }
 
 // =============================================================================
-// Discount codes tab
+// Promo codes tab
 // =============================================================================
 let _dcType = "flat";
 function initDiscountsTab() {
@@ -212,7 +212,7 @@ function dcSetType(t) {
   _dcType = t;
   document.getElementById("dcTypeFlat").className = "btn btn-sm " + (t === "flat" ? "btn-primary" : "btn-outline");
   document.getElementById("dcTypePct").className = "btn btn-sm " + (t === "percent" ? "btn-primary" : "btn-outline");
-  document.getElementById("dcValueLabel").textContent = t === "flat" ? "Discount amount ($)" : "Discount percent (%)";
+  document.getElementById("dcValueLabel").textContent = t === "flat" ? "Amount off ($)" : "Percent off (%)";
   const v = document.getElementById("dcValue");
   v.placeholder = t === "flat" ? "50" : "15";
   v.max = t === "percent" ? "100" : "";

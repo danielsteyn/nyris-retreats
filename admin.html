@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=17"/>
-<script src="/js/theme.js?v=17"></script>
+<link rel="stylesheet" href="/css/styles.css?v=18"/>
+<script src="/js/theme.js?v=18"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -66,7 +66,7 @@
       <button class="tab-btn" data-tab="photos">Photos</button>
       <button class="tab-btn" data-tab="properties">Property details</button>
       <button class="tab-btn" data-tab="order">Featured order</button>
-      <button class="tab-btn" data-tab="discounts">Discount codes</button>
+      <button class="tab-btn" data-tab="discounts">Promo codes</button>
       <button class="tab-btn" data-tab="hospitable">Hospitable API</button>
       <button class="tab-btn" data-tab="pricelabs">PriceLabs</button>
     </div>
@@ -194,9 +194,9 @@
       <button class="btn btn-primary" onclick="saveOrder()" style="margin-top: 1.5rem;">Save order</button>
     </div>
 
-    <!-- Discount codes tab -->
+    <!-- Promo codes tab -->
     <div class="tab-panel" id="tab-discounts" style="display:none;">
-      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Discount codes</h2>
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Promo codes</h2>
       <p style="color: var(--color-stone); margin: 0 0 2rem;">Create flat-rate or percentage codes that guests can apply at checkout. Set a one-time-use limit, multi-use cap, or leave unlimited. Optional expiration.</p>
 
       <div style="display:grid; grid-template-columns: 1fr 1.4fr; gap: 2rem;" class="two-col">
@@ -218,7 +218,7 @@
           </div>
 
           <label class="form-label" style="margin-top: 1rem;">
-            <span id="dcValueLabel">Discount amount ($)</span>
+            <span id="dcValueLabel">Amount off ($)</span>
           </label>
           <input class="form-control" id="dcValue" type="number" min="0" step="1" placeholder="50"/>
 
@@ -422,7 +422,7 @@
   .two-col { grid-template-columns: 1fr !important; }
 }
 
-/* Discount codes list */
+/* Promo codes list */
 .dc-row {
   display: flex; align-items: start; justify-content: space-between; gap: 1rem;
   padding: 1rem 0; border-top: 1px solid var(--color-line);
@@ -442,8 +442,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=17"></script>
-<script src="/js/app.js?v=17"></script>
-<script src="/js/admin.js?v=17"></script>
+<script src="/js/data.js?v=18"></script>
+<script src="/js/app.js?v=18"></script>
+<script src="/js/admin.js?v=18"></script>
 </body>
 </html>
