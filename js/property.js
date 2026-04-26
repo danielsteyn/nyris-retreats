@@ -195,8 +195,14 @@
           <p class="price-from-note" id="bkPriceNote" style="font-size: 0.78rem; color: var(--color-stone); margin: -0.5rem 0 1rem;">Lowest nightly rate over the next 90 days. Pick dates for an exact total.</p>
           <form class="booking-form" onsubmit="bookSubmit(event, '${p.slug}')">
             <div class="row">
-              <label class="field"><label>Check-in</label><input type="date" id="bkCheckin" required min="${isoToday()}"/></label>
-              <label class="field"><label>Checkout</label><input type="date" id="bkCheckout" required min="${isoToday(1)}"/></label>
+              <button type="button" class="field date-trigger" id="bkCheckinBtn" onclick="openBookingCalendar('checkin')">
+                <label>Check-in</label>
+                <span class="date-display" id="bkCheckinDisplay">Add date</span>
+              </button>
+              <button type="button" class="field date-trigger" id="bkCheckoutBtn" onclick="openBookingCalendar('checkout')">
+                <label>Checkout</label>
+                <span class="date-display" id="bkCheckoutDisplay">Add date</span>
+              </button>
             </div>
             <div class="row">
               <label class="field" style="grid-column: 1/-1;"><label>Guests</label>
@@ -205,7 +211,10 @@
                 </select>
               </label>
             </div>
+            <input type="hidden" id="bkCheckin" required/>
+            <input type="hidden" id="bkCheckout" required/>
           </form>
+          <div id="bkCalendar" class="booking-calendar" hidden></div>
           <button class="btn btn-accent" style="width: 100%; margin-top: 1rem;" onclick="document.querySelector('.booking-form').requestSubmit()">Reserve</button>
           <p style="text-align:center; font-size: 0.85rem; color: var(--color-stone); margin: 0.85rem 0 0;">You won't be charged yet</p>
           <div id="priceBreakdown" style="margin-top: 1.25rem;"></div>
@@ -273,10 +282,18 @@
   document.getElementById('bkCheckout').addEventListener('change', updatePriceBreakdown);
   document.getElementById('bkGuests').addEventListener('change', updatePriceBreakdown);
 
+  // Wire calendar to this property
+  window.BkCal.propertyId = p.id;
+  window.BkCal.data = null; // force reload for this property
+
   // Pre-fill from URL
   const params2 = new URLSearchParams(window.location.search);
-  if (params2.get('checkin')) document.getElementById('bkCheckin').value = params2.get('checkin');
-  if (params2.get('checkout')) document.getElementById('bkCheckout').value = params2.get('checkout');
+  const urlCi = params2.get('checkin');
+  const urlCo = params2.get('checkout');
+  if (urlCi || urlCo) {
+    window.BkCal.range = { ci: urlCi || null, co: urlCo || null };
+    applyCalendarSelection();
+  }
   if (params2.get('guests')) document.getElementById('bkGuests').value = params2.get('guests');
   updatePriceBreakdown();
 
@@ -388,6 +405,251 @@
       <div class="booking-total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
   }
 })();
+
+// =============================================================================
+// Booking calendar: 2-month grid with per-night prices + blocked booked dates.
+// State lives on window so the inline onclick handlers can access it.
+// =============================================================================
+window.BkCal = {
+  propertyId: null,
+  data: null,           // map: 'YYYY-MM-DD' → { available, price, currency, minStay }
+  range: { ci: null, co: null }, // selected check-in / check-out, ISO strings
+  hover: null,          // hover-over date for range preview
+  monthAnchor: null,    // first day of the leftmost displayed month
+  pickFor: "checkin",   // which trigger initiated the open: 'checkin' | 'checkout'
+  loading: false
+};
+
+async function openBookingCalendar(pickFor) {
+  const cal = document.getElementById("bkCalendar");
+  if (!cal) return;
+  window.BkCal.pickFor = pickFor;
+  // If already open, just rerender (in case user clicks the other trigger)
+  if (!cal.hasAttribute("hidden")) { renderCalendar(); return; }
+  cal.removeAttribute("hidden");
+
+  // Lock month anchor to current month on open
+  if (!window.BkCal.monthAnchor) {
+    const t = new Date(); t.setUTCDate(1); t.setUTCHours(0,0,0,0);
+    window.BkCal.monthAnchor = t.toISOString().slice(0, 10);
+  }
+  // Load availability data once
+  if (!window.BkCal.data) await loadCalendarData();
+  renderCalendar();
+
+  // Click outside to close
+  setTimeout(() => {
+    document.addEventListener("click", outsideCalendarClose, { capture: true });
+  }, 0);
+}
+
+function closeBookingCalendar() {
+  const cal = document.getElementById("bkCalendar");
+  if (cal) cal.setAttribute("hidden", "");
+  document.removeEventListener("click", outsideCalendarClose, { capture: true });
+}
+
+function outsideCalendarClose(e) {
+  const cal = document.getElementById("bkCalendar");
+  if (!cal || cal.hasAttribute("hidden")) return;
+  if (cal.contains(e.target)) return;
+  if (e.target.closest(".date-trigger")) return; // toggling triggers, not closing
+  closeBookingCalendar();
+}
+
+async function loadCalendarData() {
+  const propertyId = window.BkCal.propertyId;
+  if (!propertyId) return;
+  window.BkCal.loading = true;
+  try {
+    const r = await fetch(`/api/availability?propertyId=${encodeURIComponent(propertyId)}&months=4`);
+    const j = await r.json();
+    if (j.ok) {
+      const m = {};
+      for (const d of (j.days || [])) m[d.date] = d;
+      window.BkCal.data = m;
+    }
+  } catch {}
+  window.BkCal.loading = false;
+}
+
+function renderCalendar() {
+  const cal = document.getElementById("bkCalendar");
+  if (!cal) return;
+  const anchor = new Date(window.BkCal.monthAnchor + "T00:00:00Z");
+  const m1 = monthGrid(anchor);
+  const next = new Date(anchor); next.setUTCMonth(next.getUTCMonth() + 1);
+  const m2 = monthGrid(next);
+
+  cal.innerHTML = `
+    <div class="bkcal-head">
+      <button type="button" class="bkcal-nav" onclick="bkcalNav(-1)" aria-label="Previous month">‹</button>
+      <div class="bkcal-titles"><span>${m1.title}</span><span>${m2.title}</span></div>
+      <button type="button" class="bkcal-nav" onclick="bkcalNav(1)" aria-label="Next month">›</button>
+      <button type="button" class="bkcal-close" onclick="closeBookingCalendar()" aria-label="Close">×</button>
+    </div>
+    <div class="bkcal-grids">
+      ${renderMonth(m1)}
+      ${renderMonth(m2)}
+    </div>
+    <div class="bkcal-foot">
+      <span class="bkcal-legend"><span class="dot booked"></span> Booked</span>
+      <span class="bkcal-legend"><span class="dot live"></span> Live PriceLabs rate</span>
+      <button type="button" class="bkcal-clear" onclick="bkcalClear()">Clear dates</button>
+    </div>`;
+
+  bindCalendarCells();
+}
+
+function bkcalNav(dir) {
+  const cur = new Date(window.BkCal.monthAnchor + "T00:00:00Z");
+  cur.setUTCMonth(cur.getUTCMonth() + dir);
+  // Don't go before this month
+  const today = new Date(); today.setUTCDate(1); today.setUTCHours(0,0,0,0);
+  if (cur < today) return;
+  window.BkCal.monthAnchor = cur.toISOString().slice(0, 10);
+  renderCalendar();
+}
+
+function bkcalClear() {
+  window.BkCal.range = { ci: null, co: null };
+  document.getElementById("bkCheckin").value = "";
+  document.getElementById("bkCheckout").value = "";
+  document.getElementById("bkCheckinDisplay").textContent = "Add date";
+  document.getElementById("bkCheckoutDisplay").textContent = "Add date";
+  renderCalendar();
+  if (typeof updatePriceBreakdown === "function") updatePriceBreakdown();
+}
+
+function monthGrid(date) {
+  const y = date.getUTCFullYear(), m = date.getUTCMonth();
+  const first = new Date(Date.UTC(y, m, 1));
+  const last = new Date(Date.UTC(y, m + 1, 0));
+  const startWeekday = first.getUTCDay(); // 0=Sun
+  const cells = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= last.getUTCDate(); d++) {
+    cells.push(new Date(Date.UTC(y, m, d)));
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+  return {
+    year: y, month: m,
+    title: first.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" }),
+    cells
+  };
+}
+
+function renderMonth(grid) {
+  const today = new Date(); today.setUTCHours(0,0,0,0);
+  const { ci, co } = window.BkCal.range;
+  const ciDate = ci ? new Date(ci + "T00:00:00Z") : null;
+  const coDate = co ? new Date(co + "T00:00:00Z") : null;
+  const data = window.BkCal.data || {};
+
+  const cellsHtml = grid.cells.map(d => {
+    if (!d) return `<div class="bkcal-cell empty"></div>`;
+    const iso = d.toISOString().slice(0, 10);
+    const day = d.getUTCDate();
+    const meta = data[iso] || { available: true, price: null };
+    const past = d < today;
+    const booked = meta.available === false;
+    const disabled = past || booked;
+    const isCi = ci && iso === ci;
+    const isCo = co && iso === co;
+    const inRange = ciDate && coDate && d > ciDate && d < coDate;
+    const hoverInRange = ci && !co && window.BkCal.hover &&
+      d > ciDate && d <= new Date(window.BkCal.hover + "T00:00:00Z");
+
+    const classes = [
+      "bkcal-cell",
+      past && "past",
+      booked && "booked",
+      disabled && "disabled",
+      isCi && "checkin",
+      isCo && "checkout",
+      (inRange || hoverInRange) && "in-range"
+    ].filter(Boolean).join(" ");
+
+    const priceLabel = meta.price ? `<span class="cell-price">$${meta.price >= 1000 ? Math.round(meta.price/100)/10 + 'k' : Math.round(meta.price)}</span>` : "";
+
+    return `<button type="button" class="${classes}" data-date="${iso}" ${disabled ? "disabled" : ""}>
+      <span class="cell-day">${day}</span>${priceLabel}
+    </button>`;
+  }).join("");
+
+  return `
+    <div class="bkcal-month">
+      <div class="bkcal-month-title">${grid.title}</div>
+      <div class="bkcal-dow">
+        ${["S","M","T","W","T","F","S"].map(c => `<span>${c}</span>`).join("")}
+      </div>
+      <div class="bkcal-cells">${cellsHtml}</div>
+    </div>`;
+}
+
+function bindCalendarCells() {
+  document.querySelectorAll(".bkcal-cell[data-date]").forEach(cell => {
+    if (cell.disabled) return;
+    cell.addEventListener("click", () => onCellClick(cell.dataset.date));
+    cell.addEventListener("mouseenter", () => {
+      if (window.BkCal.range.ci && !window.BkCal.range.co) {
+        window.BkCal.hover = cell.dataset.date;
+        renderCalendar();
+      }
+    });
+  });
+}
+
+function onCellClick(iso) {
+  const { ci, co } = window.BkCal.range;
+  if (!ci || (ci && co)) {
+    // Start a new range
+    window.BkCal.range = { ci: iso, co: null };
+  } else {
+    // Picking checkout
+    if (iso <= ci) {
+      // User clicked on or before existing checkin → restart with this as checkin
+      window.BkCal.range = { ci: iso, co: null };
+    } else if (rangeHasBlockedDay(ci, iso)) {
+      toast("Some dates in that range are already booked. Pick a different range.");
+      return;
+    } else {
+      window.BkCal.range = { ci, co: iso };
+    }
+  }
+  applyCalendarSelection();
+  renderCalendar();
+  if (window.BkCal.range.ci && window.BkCal.range.co) {
+    setTimeout(closeBookingCalendar, 200);
+  }
+}
+
+function rangeHasBlockedDay(ci, co) {
+  // Check if any date strictly between ci (inclusive) and co (exclusive) is unavailable.
+  // Note: standard calendar semantics — checkin counts as a stayed night, checkout doesn't.
+  const data = window.BkCal.data || {};
+  const start = new Date(ci + "T00:00:00Z");
+  const end = new Date(co + "T00:00:00Z");
+  for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
+    const iso = d.toISOString().slice(0, 10);
+    const meta = data[iso];
+    if (meta && meta.available === false) return true;
+  }
+  return false;
+}
+
+function applyCalendarSelection() {
+  const { ci, co } = window.BkCal.range;
+  document.getElementById("bkCheckin").value = ci || "";
+  document.getElementById("bkCheckout").value = co || "";
+  document.getElementById("bkCheckinDisplay").textContent = ci ? formatDateShort(ci) : "Add date";
+  document.getElementById("bkCheckoutDisplay").textContent = co ? formatDateShort(co) : "Add date";
+  if (typeof updatePriceBreakdown === "function") updatePriceBreakdown();
+}
+
+function formatDateShort(iso) {
+  return new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
 
 function bookSubmit(e, slug) {
   e.preventDefault();

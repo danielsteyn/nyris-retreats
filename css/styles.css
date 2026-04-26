@@ -397,7 +397,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-widget {
   border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem;
   background: white; box-shadow: var(--shadow-md); position: sticky; top: 100px;
+  z-index: 5;
 }
+.booking-widget .booking-form { position: relative; }
 .booking-widget .price-row { display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
 .booking-widget .price-row .price-from-label {
   font-size: 0.85rem; color: var(--color-stone); font-weight: 500;
@@ -419,6 +421,128 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-line { display: flex; justify-content: space-between; padding: 0.6rem 0; font-size: 0.92rem; color: var(--color-stone); }
 .booking-line + .booking-line { border-top: 1px solid var(--color-line); }
 .booking-total { display: flex; justify-content: space-between; padding-top: 0.85rem; margin-top: 0.5rem; border-top: 1px solid var(--color-line); font-weight: 600; color: var(--color-charcoal); font-size: 1.05rem; }
+
+/* === Booking calendar (custom, replaces native date inputs) === */
+.booking-form .date-trigger {
+  text-align: left; cursor: pointer; background: transparent; border: 0;
+  font-family: inherit; padding: 0.7rem 0.85rem; width: 100%;
+  display: flex; flex-direction: column; gap: 0.1rem;
+  font: inherit; color: inherit;
+  border-radius: 0;
+}
+.booking-form .date-trigger label {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--color-charcoal); display: block; margin: 0; cursor: pointer;
+}
+.booking-form .date-trigger .date-display {
+  font-size: 0.95rem; color: var(--color-charcoal); line-height: 1.3;
+}
+.booking-form .date-trigger:hover { background: rgba(31,61,43,0.04); }
+.booking-form .date-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+.booking-calendar {
+  position: absolute; z-index: 50;
+  background: white; border: 1px solid var(--color-line); border-radius: 16px;
+  box-shadow: var(--shadow-xl); padding: 1.25rem;
+  margin-top: 0.5rem;
+  width: min(680px, calc(100vw - 2rem));
+  right: 0;
+}
+.bkcal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; gap: 0.5rem;
+}
+.bkcal-titles {
+  display: flex; gap: 4rem; flex: 1; justify-content: center; font-weight: 600; font-size: 0.95rem;
+}
+.bkcal-titles span:nth-child(2) { display: none; }
+@media (min-width: 600px) {
+  .bkcal-titles span:nth-child(2) { display: inline; }
+}
+.bkcal-nav {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: transparent; color: var(--color-charcoal); font-size: 1.2rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.bkcal-nav:hover { background: rgba(31,61,43,0.06); }
+.bkcal-close {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: transparent; color: var(--color-charcoal); font-size: 1.4rem; line-height: 1;
+}
+.bkcal-close:hover { background: rgba(31,61,43,0.06); }
+
+.bkcal-grids {
+  display: grid; grid-template-columns: 1fr; gap: 1.5rem;
+}
+@media (min-width: 600px) {
+  .bkcal-grids { grid-template-columns: 1fr 1fr; }
+}
+.bkcal-month-title {
+  text-align: center; font-weight: 600; font-size: 0.95rem;
+  margin-bottom: 0.5rem; display: none;
+}
+@media (max-width: 599px) { .bkcal-month-title { display: block; } }
+.bkcal-dow {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  font-size: 0.7rem; color: var(--color-stone); text-align: center;
+  margin-bottom: 0.5rem; font-weight: 600; letter-spacing: 0.04em;
+}
+.bkcal-cells {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+}
+.bkcal-cell {
+  aspect-ratio: 1.05 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: transparent; border-radius: 8px;
+  font-family: inherit; font-size: 0.92rem; color: var(--color-charcoal);
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+  padding: 0; gap: 0;
+  position: relative;
+}
+.bkcal-cell .cell-day { font-size: 0.92rem; font-weight: 500; line-height: 1; }
+.bkcal-cell .cell-price {
+  font-size: 0.65rem; color: var(--color-stone); line-height: 1; margin-top: 2px;
+  font-feature-settings: "tnum";
+}
+.bkcal-cell.empty { cursor: default; }
+.bkcal-cell:not([disabled]):not(.empty):hover {
+  background: var(--color-cream-dark);
+}
+.bkcal-cell.checkin, .bkcal-cell.checkout {
+  background: var(--color-primary) !important; color: var(--color-cream) !important;
+}
+.bkcal-cell.checkin .cell-price, .bkcal-cell.checkout .cell-price {
+  color: rgba(250, 246, 238, 0.8) !important;
+}
+.bkcal-cell.in-range {
+  background: rgba(31, 61, 43, 0.10);
+}
+.bkcal-cell.disabled, .bkcal-cell.past, .bkcal-cell.booked {
+  color: var(--color-line);
+  cursor: not-allowed;
+  background: transparent !important;
+}
+.bkcal-cell.booked .cell-day { text-decoration: line-through; color: var(--color-stone); }
+.bkcal-cell.booked .cell-price { display: none; }
+.bkcal-cell.past .cell-price { display: none; }
+.bkcal-foot {
+  display: flex; align-items: center; gap: 1.25rem; margin-top: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--color-line);
+  font-size: 0.82rem; color: var(--color-stone); flex-wrap: wrap;
+}
+.bkcal-legend { display: inline-flex; align-items: center; gap: 0.4rem; }
+.bkcal-legend .dot {
+  width: 8px; height: 8px; border-radius: 999px; display: inline-block;
+}
+.bkcal-legend .dot.booked { background: var(--color-line); border: 1px solid var(--color-stone); }
+.bkcal-legend .dot.live { background: var(--color-success); }
+.bkcal-clear {
+  margin-left: auto; background: transparent; color: var(--color-primary);
+  font-weight: 500; font-size: 0.85rem; padding: 0.25rem 0.5rem;
+  text-decoration: underline;
+}
+.bkcal-clear:hover { color: var(--color-primary-dark); }
 
 /* === Reviews === */
 .review-card {

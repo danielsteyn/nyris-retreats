@@ -680,15 +680,23 @@ function setupPhotoDropzone() {
 }
 
 async function doPhotoUpload() {
-  const file = _selectedPhotoFile;
-  if (!file) return;
+  const original = _selectedPhotoFile;
+  if (!original) return;
   const caption = document.getElementById("phUploadCaption").value.trim();
   const status = document.getElementById("phUploadStatus");
   const btn = document.getElementById("phUploadBtn");
-  btn.disabled = true; btn.style.opacity = "0.5"; btn.textContent = "Uploading…";
-  status.style.color = "var(--color-stone)"; status.textContent = `Uploading ${file.name}…`;
+  btn.disabled = true; btn.style.opacity = "0.5"; btn.textContent = "Compressing…";
+  status.style.color = "var(--color-stone)"; status.textContent = `Compressing ${original.name}…`;
 
   try {
+    // Compress and resize client-side before upload.
+    // Caps long edge at 1920px and re-encodes as JPEG at q=0.86. Property
+    // photos rarely benefit from larger or PNG. Reduces typical 3-8 MB
+    // PNGs to 300-700 KB JPEGs that load reliably on any connection.
+    const file = await compressImage(original, { maxEdge: 1920, quality: 0.86 });
+    btn.textContent = "Uploading…";
+    status.textContent = `Uploading ${file.name} · ${(file.size / 1024).toFixed(0)} KB${original.size !== file.size ? ` (was ${(original.size / 1024 / 1024).toFixed(1)} MB)` : ""}…`;
+
     // Load the Vercel Blob client lib from a CDN. This avoids a build step.
     const { upload } = await import("https://esm.sh/@vercel/blob@2.3.3/client");
 
@@ -708,13 +716,56 @@ async function doPhotoUpload() {
     photos.push({ url: blob.url, caption: caption || "", source: "custom" });
     renderPhotoBoard(photos);
     document.getElementById("photoUploadDialog").remove();
-    toast(`Uploaded · ${(file.size / 1024).toFixed(0)} KB`);
+    const savedPct = original.size > file.size ? ` (saved ${Math.round((1 - file.size/original.size)*100)}%)` : "";
+    toast(`Uploaded · ${(file.size / 1024).toFixed(0)} KB${savedPct}`);
     _selectedPhotoFile = null;
     persistPhotos(photos);
   } catch (e) {
     status.style.color = "var(--color-danger)";
     status.innerHTML = `<strong>Upload error:</strong> ${escapeHtml(String(e.message || e))}`;
     btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "Upload";
+  }
+}
+
+// Compress + resize an image File client-side using a canvas. Returns a new
+// File with the compressed bytes. Falls back to the original if anything goes
+// wrong or if the image is already smaller than the target.
+async function compressImage(file, { maxEdge = 1920, quality = 0.86 } = {}) {
+  // GIF/SVG: don't touch (would lose animation / vector advantages)
+  if (/^image\/(gif|svg)/i.test(file.type)) return file;
+
+  try {
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result); r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i); i.onerror = rej;
+      i.src = dataUrl;
+    });
+
+    let { width, height } = { width: img.naturalWidth, height: img.naturalHeight };
+    const longEdge = Math.max(width, height);
+    const scale = longEdge > maxEdge ? maxEdge / longEdge : 1;
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, width, height);
+
+    const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file; // compression didn't help
+
+    // Build a new File with .jpg extension
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+  } catch {
+    return file;
   }
 }
 
