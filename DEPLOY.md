@@ -76,6 +76,16 @@ The Vercel token is **never stored** server-side — it's used in-flight only fo
 
 When the redeploy completes (~30 seconds), the cron and admin storage are live. Open the PriceLabs tab → Auto-sync panel to confirm.
 
+### Photo upload — Vercel Blob (one click)
+
+The admin → Photos tab has a "+ Add custom photo" button that opens a dialog with two tabs: **Upload from computer** (drag-drop or file picker) and **Paste URL**. Uploads go to Vercel Blob, which serves them from a global CDN.
+
+To enable: open your Vercel project → **Storage** → **Create Database** → **Blob** → **Connect to project**. Vercel auto-injects the `BLOB_READ_WRITE_TOKEN` env var. Free tier includes 1 GB storage + 1 GB bandwidth/month — far more than typical property photo libraries need.
+
+If Blob isn't configured, the upload button still works via the URL paste tab. The upload tab will show a clear inline message linking to the Storage setup page.
+
+Photo limits: JPEG/PNG/WebP/AVIF/GIF, up to 5 MB per file. For larger images, compress at [squoosh.app](https://squoosh.app) first.
+
 ### Manual path (alternative)
 
 If you'd rather set the env vars yourself, the dashboard route is:

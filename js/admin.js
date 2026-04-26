@@ -504,12 +504,173 @@ function hidePhoto(url) {
   renderPhotoBoard(photos);
 }
 function addCustomPhoto() {
-  const url = prompt("Image URL (must be publicly accessible):");
+  openPhotoUploadDialog();
+}
+
+// =============================================================================
+// Photo upload dialog (Upload from PC | Paste URL tabs)
+// =============================================================================
+function openPhotoUploadDialog() {
+  document.getElementById("photoUploadDialog")?.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "photoUploadDialog";
+  overlay.style.cssText = "position: fixed; inset: 0; background: rgba(20,30,25,0.55); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1.5rem;";
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background: var(--color-cream); border-radius: 18px; max-width: 540px; width: 100%; box-shadow: var(--shadow-xl); overflow: hidden;" onclick="event.stopPropagation()">
+      <div style="padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--color-line); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin: 0; font-size: 1.2rem;">Add a photo</h3>
+        <button class="icon-btn" onclick="document.getElementById('photoUploadDialog').remove()" aria-label="Close">${ICON.close.replace('width="22" height="22"','width="20" height="20"')}</button>
+      </div>
+      <div style="padding: 0; border-bottom: 1px solid var(--color-line); display:flex;">
+        <button id="phTabUpload" class="ph-tab" style="flex:1; padding: 0.85rem; font-weight: 500; border-bottom: 2px solid var(--color-primary); color: var(--color-primary);" onclick="switchPhotoDialogTab('upload')">Upload from computer</button>
+        <button id="phTabUrl" class="ph-tab" style="flex:1; padding: 0.85rem; font-weight: 500; border-bottom: 2px solid transparent; color: var(--color-stone);" onclick="switchPhotoDialogTab('url')">Paste URL</button>
+      </div>
+      <div id="phPanelUpload" style="padding: 1.75rem;">
+        <div id="phDropzone" style="border: 2px dashed var(--color-line); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s;">
+          <div style="font-size: 2.4rem; line-height: 1; margin-bottom: 0.5rem; color: var(--color-stone);">↑</div>
+          <strong style="display:block; margin-bottom: 0.25rem;">Drop an image here</strong>
+          <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 5 MB)</span>
+          <input type="file" id="phFileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" style="display:none"/>
+        </div>
+        <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
+        <input class="form-control" id="phUploadCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>
+        <div id="phUploadStatus" style="margin-top: 1rem; font-size: 0.9rem; min-height: 24px;"></div>
+        <div style="display:flex; gap: 0.5rem; margin-top: 1.25rem;">
+          <button class="btn btn-primary" id="phUploadBtn" onclick="doPhotoUpload()" disabled style="opacity: 0.5;">Upload</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('photoUploadDialog').remove()">Cancel</button>
+        </div>
+      </div>
+      <div id="phPanelUrl" style="padding: 1.75rem; display:none;">
+        <label class="form-label">Image URL</label>
+        <input class="form-control" id="phUrlInput" placeholder="https://...jpg" style="font-family: monospace; font-size: 0.9rem;"/>
+        <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.4rem 0 0;">Must be publicly accessible. Hospitable image URLs work directly (no auth required).</p>
+        <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
+        <input class="form-control" id="phUrlCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>
+        <div style="display:flex; gap: 0.5rem; margin-top: 1.5rem;">
+          <button class="btn btn-primary" onclick="doPhotoFromUrl()">Add photo</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('photoUploadDialog').remove()">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setupPhotoDropzone();
+}
+
+function switchPhotoDialogTab(tab) {
+  const isUpload = tab === "upload";
+  document.getElementById("phTabUpload").style.cssText = `flex:1; padding: 0.85rem; font-weight: 500; border-bottom: 2px solid ${isUpload ? "var(--color-primary)" : "transparent"}; color: ${isUpload ? "var(--color-primary)" : "var(--color-stone)"};`;
+  document.getElementById("phTabUrl").style.cssText = `flex:1; padding: 0.85rem; font-weight: 500; border-bottom: 2px solid ${!isUpload ? "var(--color-primary)" : "transparent"}; color: ${!isUpload ? "var(--color-primary)" : "var(--color-stone)"};`;
+  document.getElementById("phPanelUpload").style.display = isUpload ? "block" : "none";
+  document.getElementById("phPanelUrl").style.display = isUpload ? "none" : "block";
+}
+
+let _selectedPhotoFile = null;
+
+function setupPhotoDropzone() {
+  const zone = document.getElementById("phDropzone");
+  const input = document.getElementById("phFileInput");
+  const status = document.getElementById("phUploadStatus");
+  const btn = document.getElementById("phUploadBtn");
+
+  zone.addEventListener("click", () => input.click());
+  ["dragenter", "dragover"].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.style.borderColor = "var(--color-primary)"; zone.style.background = "rgba(31,61,43,0.04)";
+  }));
+  ["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => {
+    e.preventDefault(); zone.style.borderColor = "var(--color-line)"; zone.style.background = "transparent";
+  }));
+  zone.addEventListener("drop", e => {
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleSelectedFile(file);
+  });
+  input.addEventListener("change", e => {
+    const file = e.target.files?.[0];
+    if (file) handleSelectedFile(file);
+  });
+
+  function handleSelectedFile(file) {
+    if (!file.type.startsWith("image/")) {
+      status.style.color = "var(--color-danger)"; status.textContent = "Pick an image file (JPEG, PNG, WebP).";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      status.style.color = "var(--color-danger)";
+      status.textContent = `That's ${(file.size / 1024 / 1024).toFixed(1)} MB — max is 5 MB. Compress at squoosh.app and try again.`;
+      return;
+    }
+    _selectedPhotoFile = file;
+    status.style.color = "var(--color-charcoal)";
+    status.innerHTML = `<strong>${escapeHtml(file.name)}</strong> · ${(file.size / 1024 / 1024).toFixed(2)} MB · ${escapeHtml(file.type)} ready to upload`;
+    btn.disabled = false; btn.style.opacity = "1";
+    // Show inline preview
+    const reader = new FileReader();
+    reader.onload = () => {
+      zone.innerHTML = `<img src="${reader.result}" alt="" style="max-height: 180px; max-width: 100%; border-radius: 8px;"/>
+        <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--color-stone);">Click upload below or drop a different image to replace</div>`;
+      // Re-bind drop on the new content
+      zone.addEventListener("click", () => input.click());
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+async function doPhotoUpload() {
+  const file = _selectedPhotoFile;
+  if (!file) return;
+  const caption = document.getElementById("phUploadCaption").value.trim();
+  const status = document.getElementById("phUploadStatus");
+  const btn = document.getElementById("phUploadBtn");
+  btn.disabled = true; btn.style.opacity = "0.5"; btn.textContent = "Uploading…";
+  status.style.color = "var(--color-stone)"; status.textContent = `Uploading ${file.name}…`;
+
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result); r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    const r = await fetch("/api/admin/upload", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dataUrl, filename: file.name, propertyId: _currentPhotoProperty, caption
+      })
+    });
+    const j = await r.json();
+
+    if (!j.ok) {
+      status.style.color = "var(--color-danger)";
+      status.innerHTML = `<strong>Upload failed:</strong> ${escapeHtml(j.error)}`
+        + (j.hint ? `<div style="margin-top: 0.4rem; color: var(--color-stone); font-size: 0.85rem;">${escapeHtml(j.hint)}</div>` : "")
+        + (j.setupUrl ? `<a href="${j.setupUrl}" target="_blank" style="color: var(--color-primary); text-decoration: underline;">Open Vercel Storage settings →</a>` : "");
+      btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "Upload";
+      return;
+    }
+
+    // Success — add to current property's photos
+    const photos = getCurrentPhotos();
+    photos.push({ url: j.url, caption: caption || "", source: "custom" });
+    renderPhotoBoard(photos);
+    document.getElementById("photoUploadDialog").remove();
+    toast(`Uploaded · ${(j.size / 1024).toFixed(0)} KB`);
+    _selectedPhotoFile = null;
+  } catch (e) {
+    status.style.color = "var(--color-danger)";
+    status.textContent = `Upload error: ${e.message}`;
+    btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "Upload";
+  }
+}
+
+function doPhotoFromUrl() {
+  const url = document.getElementById("phUrlInput").value.trim();
+  const caption = document.getElementById("phUrlCaption").value.trim();
   if (!url || !/^https?:\/\//.test(url)) { toast("Enter a valid URL starting with http(s)://"); return; }
-  const caption = prompt("Caption (optional):") || "";
   const photos = getCurrentPhotos();
-  photos.push({ url, caption, source: 'custom' });
+  photos.push({ url, caption, source: "custom" });
   renderPhotoBoard(photos);
+  document.getElementById("photoUploadDialog").remove();
+  toast("Photo added");
 }
 async function savePhotoChanges() {
   const photos = getCurrentPhotos();

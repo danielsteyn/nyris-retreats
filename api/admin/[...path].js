@@ -6,6 +6,7 @@ import overrides from "./_overrides.js";
 import photos from "./_photos.js";
 import secrets from "./_secrets.js";
 import syncLog from "./_sync-log.js";
+import upload from "./_upload.js";
 import setupActivate from "./setup/_activate.js";
 import setupTursoTest from "./setup/_turso-test.js";
 import setupVercel from "./setup/_vercel.js";
@@ -16,9 +17,17 @@ const ROUTES = {
   "photos": photos,
   "secrets": secrets,
   "sync-log": syncLog,
+  "upload": upload,
   "setup/activate": setupActivate,
   "setup/turso-test": setupTursoTest,
   "setup/vercel": setupVercel
+};
+
+// /api/admin/upload accepts ~6MB JSON bodies for base64-encoded photos
+export const config = {
+  api: {
+    bodyParser: { sizeLimit: "6mb" }
+  }
 };
 
 export default async function handler(req, res) {
