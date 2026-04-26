@@ -188,9 +188,11 @@
       <aside>
         <div class="booking-widget">
           <div class="price-row">
-            <span class="price">$${p.basePrice}</span>
+            <span class="price-from-label">from</span>
+            <span class="price" id="bkHeadlinePrice">$${p.basePrice}</span>
             <span class="per">/ night</span>
           </div>
+          <p class="price-from-note" id="bkPriceNote" style="font-size: 0.78rem; color: var(--color-stone); margin: -0.5rem 0 1rem;">Lowest nightly rate over the next 90 days. Pick dates for an exact total.</p>
           <form class="booking-form" onsubmit="bookSubmit(event, '${p.slug}')">
             <div class="row">
               <label class="field"><label>Check-in</label><input type="date" id="bkCheckin" required min="${isoToday()}"/></label>
@@ -277,6 +279,26 @@
   if (params2.get('checkout')) document.getElementById('bkCheckout').value = params2.get('checkout');
   if (params2.get('guests')) document.getElementById('bkGuests').value = params2.get('guests');
   updatePriceBreakdown();
+
+  // Fetch the actual minimum nightly rate from PriceLabs (over the next 90 days)
+  // and update the headline price + note. Falls back silently to base price.
+  fetch(`/api/pricing?propertyId=${encodeURIComponent(p.id)}&basePrice=${p.basePrice}`)
+    .then(r => r.json())
+    .then(j => {
+      if (!j.ok || j.mode !== "summary") return;
+      const headline = document.getElementById("bkHeadlinePrice");
+      const note = document.getElementById("bkPriceNote");
+      if (!headline || !note) return;
+      headline.textContent = `$${j.min.toLocaleString()}`;
+      if (j.source === "pricelabs" && j.min !== j.max) {
+        note.textContent = `Lowest nightly rate over the next 90 days (rates range $${j.min.toLocaleString()}–$${j.max.toLocaleString()}). Pick dates for an exact total.`;
+      } else if (j.source === "pricelabs") {
+        note.textContent = `Live PriceLabs rate. Pick dates for an exact total.`;
+      } else {
+        note.textContent = `Starting rate — pick dates for live pricing.`;
+      }
+    })
+    .catch(() => {});
 
   function syncSaveBtn() {
     const btn = document.getElementById('saveBtn');

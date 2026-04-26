@@ -8,7 +8,45 @@ import { getDb, ensureSchema } from "../lib/db.js";
 export default async function handler(req, res) {
   const { propertyId, checkin, checkout, basePrice } = req.query || {};
   if (!propertyId) return res.status(400).json({ ok: false, error: "propertyId required" });
-  if (!checkin || !checkout) return res.status(400).json({ ok: false, error: "checkin and checkout required" });
+
+  // Summary mode: no checkin/checkout supplied → return min/avg/max over the
+  // next 90 days for the headline "from $X / night" badge on property pages.
+  if (!checkin || !checkout) {
+    const fallback = Number(basePrice) || 0;
+    const db = getDb();
+    if (!db) {
+      return res.status(200).json({
+        ok: true, mode: "summary", source: "fallback",
+        min: fallback, max: fallback, avg: fallback, currency: "USD"
+      });
+    }
+    await ensureSchema();
+    const today = new Date().toISOString().slice(0, 10);
+    const horizon = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+    const r = await db.execute({
+      sql: `SELECT MIN(price) as min_p, MAX(price) as max_p, AVG(price) as avg_p, COUNT(*) as n, currency
+            FROM daily_prices
+            WHERE property_id = ? AND date >= ? AND date <= ?
+            GROUP BY currency`,
+      args: [propertyId, today, horizon]
+    });
+    if (!r.rows.length) {
+      return res.status(200).json({
+        ok: true, mode: "summary", source: "fallback",
+        min: fallback, max: fallback, avg: fallback, currency: "USD",
+        coverage: 0
+      });
+    }
+    const row = r.rows[0];
+    return res.status(200).json({
+      ok: true, mode: "summary", source: "pricelabs",
+      min: Math.round(Number(row.min_p)),
+      max: Math.round(Number(row.max_p)),
+      avg: Math.round(Number(row.avg_p)),
+      currency: row.currency || "USD",
+      coverage: Number(row.n)
+    });
+  }
 
   const ci = new Date(checkin);
   const co = new Date(checkout);
