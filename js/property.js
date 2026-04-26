@@ -290,20 +290,71 @@
   }
   window.toggleCompare = (id) => { Compare.toggle(id); };
 
-  function updatePriceBreakdown() {
+  let _priceReqId = 0;
+  async function updatePriceBreakdown() {
     const ci = document.getElementById('bkCheckin').value;
     const co = document.getElementById('bkCheckout').value;
     const breakdown = document.getElementById('priceBreakdown');
-    const nights = nightsBetween(ci, co);
-    if (!nights) { breakdown.innerHTML = ''; return; }
-    const subtotal = nights * p.basePrice;
-    const discountPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
+    const nightCount = nightsBetween(ci, co);
+    if (!nightCount) { breakdown.innerHTML = ''; return; }
+
+    // Optimistic render with base price while we fetch live prices
+    const reqId = ++_priceReqId;
+    renderBreakdown(breakdown, {
+      perNight: Array(nightCount).fill(p.basePrice),
+      avgNightly: p.basePrice,
+      subtotal: nightCount * p.basePrice,
+      nightCount, source: 'fallback', loading: true
+    });
+
+    try {
+      const url = `/api/pricing?propertyId=${encodeURIComponent(p.id)}&checkin=${ci}&checkout=${co}&basePrice=${p.basePrice}`;
+      const r = await fetch(url);
+      const j = await r.json();
+      if (reqId !== _priceReqId) return; // a newer request superseded this
+      if (j.ok) {
+        renderBreakdown(breakdown, {
+          perNight: j.nights.map(n => n.price),
+          avgNightly: j.avgNightly,
+          subtotal: j.total,
+          nightCount, source: j.source, coverage: j.coverage, coveragePct: j.coveragePct
+        });
+      }
+    } catch (e) {
+      // Already showed fallback — leave it
+    }
+  }
+
+  function renderBreakdown(el, ctx) {
+    const { nightCount, perNight, avgNightly, subtotal, source, coverage, coveragePct, loading } = ctx;
+    const discountPct = nightCount >= 28 ? 0.20 : nightCount >= 7 ? 0.10 : 0;
     const discount = Math.round(subtotal * discountPct);
     const cleaning = 165;
     const taxes = Math.round((subtotal - discount + cleaning) * 0.11);
     const total = subtotal - discount + cleaning + taxes;
-    breakdown.innerHTML = `
-      <div class="booking-line"><span>$${p.basePrice} × ${nights} night${nights>1?'s':''}</span><span>$${subtotal.toLocaleString()}</span></div>
+
+    // Detect if there's nightly variance worth noting
+    const allSame = perNight.every(x => x === perNight[0]);
+    const minP = Math.min(...perNight), maxP = Math.max(...perNight);
+
+    let priceLabel;
+    if (allSame) {
+      priceLabel = `$${perNight[0]} × ${nightCount} night${nightCount > 1 ? 's' : ''}`;
+    } else {
+      priceLabel = `$${minP}–$${maxP} × ${nightCount} nights (avg $${avgNightly})`;
+    }
+
+    let sourceTag = '';
+    if (source === 'pricelabs') {
+      sourceTag = `<span title="Live from PriceLabs" style="display:inline-flex; align-items:center; gap: 0.3rem; font-size: 0.72rem; color: var(--color-success); padding: 0.1rem 0.5rem; border: 1px solid var(--color-success); border-radius: 999px; margin-left: 0.5rem;">● Live</span>`;
+    } else if (source === 'mixed') {
+      sourceTag = `<span title="${coverage}/${nightCount} nights live" style="display:inline-flex; align-items:center; gap: 0.3rem; font-size: 0.72rem; color: var(--color-accent); padding: 0.1rem 0.5rem; border: 1px solid var(--color-accent); border-radius: 999px; margin-left: 0.5rem;">${coveragePct}% live</span>`;
+    } else if (loading) {
+      sourceTag = `<span style="font-size: 0.72rem; color: var(--color-stone); margin-left: 0.5rem;">checking live rates…</span>`;
+    }
+
+    el.innerHTML = `
+      <div class="booking-line"><span>${priceLabel}${sourceTag}</span><span>$${subtotal.toLocaleString()}</span></div>
       ${discount ? `<div class="booking-line"><span>${(discountPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${discount.toLocaleString()}</span></div>` : ''}
       <div class="booking-line"><span>Cleaning fee</span><span>$${cleaning}</span></div>
       <div class="booking-line"><span>Occupancy taxes</span><span>$${taxes}</span></div>

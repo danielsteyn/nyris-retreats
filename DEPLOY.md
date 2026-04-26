@@ -60,7 +60,25 @@ Once deployed:
 
 ## 4. Connect integrations (Hospitable, PriceLabs, Turso)
 
-There are **two ways** to provide the Hospitable and PriceLabs API keys:
+### Easiest path: the in-admin Setup Wizard (zero manual env vars)
+
+The fastest way to activate everything is the wizard built into `/admin`. It:
+
+1. Asks for a one-time Vercel API token ([create one here](https://vercel.com/account/tokens))
+2. Auto-detects which Vercel project to configure
+3. Walks you through getting Turso credentials (4 CLI commands or the dashboard)
+4. Generates a `CRON_SECRET`
+5. Sets `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, and `CRON_SECRET` env vars on the project — automatically
+6. Triggers a production redeploy
+7. Shows the `CRON_SECRET` once at the end so you can paste it into GitHub Actions for the 15-min schedule
+
+The Vercel token is **never stored** server-side — it's used in-flight only for the activation request, then forgotten.
+
+When the redeploy completes (~30 seconds), the cron and admin storage are live. Open the PriceLabs tab → Auto-sync panel to confirm.
+
+### Manual path (alternative)
+
+If you'd rather set the env vars yourself, the dashboard route is:
 
 **A. From the admin dashboard (recommended)** — once Turso is connected, you can paste keys directly into the admin UI's Hospitable API and PriceLabs tabs. They're encrypted at rest (AES-256-GCM) before being stored, and the raw values are never returned to the browser. Replace or remove keys with one click.
 

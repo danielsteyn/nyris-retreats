@@ -26,7 +26,7 @@
 <script src="/js/data.js"></script>
 <script src="/js/app.js"></script>
 <script>
-(function() {
+(async function() {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('slug');
   const ci = params.get('checkin') || isoToday(7);
@@ -38,7 +38,25 @@
   if (!p) { left.innerHTML = '<h1>Property not found</h1>'; return; }
 
   const nights = nightsBetween(ci, co);
-  const subtotal = nights * p.basePrice;
+
+  // Try live PriceLabs pricing; fall back to base price.
+  let perNight = Array(nights).fill(p.basePrice);
+  let priceSource = "fallback";
+  let coveragePct = 0;
+  try {
+    const r = await fetch(`/api/pricing?propertyId=${encodeURIComponent(p.id)}&checkin=${ci}&checkout=${co}&basePrice=${p.basePrice}`);
+    const j = await r.json();
+    if (j.ok && Array.isArray(j.nights)) {
+      perNight = j.nights.map(n => n.price);
+      priceSource = j.source;
+      coveragePct = j.coveragePct || 0;
+    }
+  } catch {}
+
+  const subtotal = perNight.reduce((s, x) => s + x, 0);
+  const avgNightly = Math.round(subtotal / nights);
+  const minP = Math.min(...perNight), maxP = Math.max(...perNight);
+  const allSame = perNight.every(x => x === perNight[0]);
   const discountPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
   const discount = Math.round(subtotal * discountPct);
   const cleaning = 165;
@@ -46,6 +64,12 @@
   const total = subtotal - discount + cleaning + taxes;
   const dueNow = Math.round(total * 0.5);
   const dueLater = total - dueNow;
+  const priceLabel = allSame ? `$${perNight[0]} × ${nights} night${nights > 1 ? 's' : ''}` : `$${minP}–$${maxP} × ${nights} nights (avg $${avgNightly})`;
+  const liveBadge = priceSource === "pricelabs"
+    ? `<span style="display:inline-flex; align-items:center; gap: 0.3rem; font-size: 0.72rem; color: var(--color-success); padding: 0.1rem 0.5rem; border: 1px solid var(--color-success); border-radius: 999px; margin-left: 0.5rem;">● Live PriceLabs</span>`
+    : priceSource === "mixed"
+    ? `<span style="font-size: 0.72rem; color: var(--color-accent); padding: 0.1rem 0.5rem; border: 1px solid var(--color-accent); border-radius: 999px; margin-left: 0.5rem;">${coveragePct}% live</span>`
+    : "";
 
   left.innerHTML = `
     <a href="/property.html?slug=${slug}" style="font-size: 0.88rem; color: var(--color-stone);">← Back to property</a>
@@ -122,7 +146,7 @@
         </div>
       </div>
       <h3 style="font-size: 1.05rem; margin: 0 0 0.85rem;">Price details</h3>
-      <div class="booking-line"><span>$${p.basePrice} × ${nights} night${nights > 1 ? 's' : ''}</span><span>$${subtotal.toLocaleString()}</span></div>
+      <div class="booking-line"><span>${priceLabel}${liveBadge}</span><span>$${subtotal.toLocaleString()}</span></div>
       ${discount ? `<div class="booking-line"><span>${(discountPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${discount.toLocaleString()}</span></div>` : ''}
       <div class="booking-line"><span>Cleaning fee</span><span>$${cleaning}</span></div>
       <div class="booking-line"><span>Occupancy taxes</span><span>$${taxes}</span></div>

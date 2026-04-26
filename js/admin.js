@@ -940,9 +940,282 @@ function renderCronWarning(title, body) {
         <div style="flex: 1;">
           <strong style="color: var(--color-charcoal);">${escapeHtml(title)}</strong>
           <p style="color: var(--color-stone); margin: 0.4rem 0 0; font-size: 0.9rem;">${body}</p>
+          <button class="btn btn-primary btn-sm" style="margin-top: 0.85rem;" onclick="openSetupWizard()">Set up sync now</button>
         </div>
       </div>
     </div>`;
+}
+
+// =============================================================================
+// Setup Wizard — programmatically configures Vercel env vars + Turso, redeploys
+// =============================================================================
+function openSetupWizard() {
+  const existing = document.getElementById("setupWizard");
+  if (existing) { existing.remove(); }
+  const overlay = document.createElement("div");
+  overlay.id = "setupWizard";
+  overlay.style.cssText = "position: fixed; inset: 0; background: rgba(20,30,25,0.55); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1.5rem; overflow-y: auto;";
+  overlay.innerHTML = `
+    <div style="background: var(--color-cream); border-radius: 18px; max-width: 640px; width: 100%; box-shadow: var(--shadow-xl); max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
+      <div style="padding: 1.5rem 2rem; border-bottom: 1px solid var(--color-line); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2 style="margin: 0; font-size: 1.4rem;">Activate sync</h2>
+          <p style="color: var(--color-stone); margin: 0.25rem 0 0; font-size: 0.9rem;">Set up Turso + Vercel env vars + redeploy — all from here.</p>
+        </div>
+        <button class="icon-btn" onclick="closeSetupWizard()" aria-label="Close">${ICON.close.replace('width="22" height="22"','width="20" height="20"')}</button>
+      </div>
+      <div id="wizardBody" style="padding: 2rem;"></div>
+    </div>`;
+  overlay.onclick = closeSetupWizard;
+  document.body.appendChild(overlay);
+  renderWizardStep(1);
+}
+function closeSetupWizard() {
+  document.getElementById("setupWizard")?.remove();
+}
+
+const WIZ = {}; // ephemeral form state — never persisted
+
+function renderWizardStep(step) {
+  const body = document.getElementById("wizardBody");
+  if (step === 1) {
+    body.innerHTML = `
+      ${renderStepHeader(1, "Vercel API token")}
+      <p style="color: var(--color-stone); margin: 0 0 1rem;">We need a one-time Vercel token to set env vars and trigger a redeploy on your behalf. The token is used in-flight only and is <strong>never stored</strong>.</p>
+      <ol style="color: var(--color-stone); margin: 0 0 1.5rem; padding-left: 1.25rem; line-height: 1.7; font-size: 0.92rem;">
+        <li>Open <a href="https://vercel.com/account/tokens" target="_blank" style="color: var(--color-primary); text-decoration: underline;">vercel.com/account/tokens</a></li>
+        <li>Click "Create Token". Give it a descriptive name (e.g. "Nyris admin setup"). Scope: full account or just this team.</li>
+        <li>Set expiration as short as you like — we only need it for one minute.</li>
+        <li>Paste the token below.</li>
+      </ol>
+      <label class="form-label">Vercel API token</label>
+      <input class="form-control" type="password" id="wizVercelToken" placeholder="vercel_..." style="font-family: monospace; font-size: 0.9rem;" autocomplete="off"/>
+      <div id="wizStep1Error" style="color: var(--color-danger); font-size: 0.85rem; margin-top: 0.5rem;"></div>
+      <div style="display:flex; gap: 0.5rem; margin-top: 1.5rem;">
+        <button class="btn btn-primary" onclick="wizardStep1Validate()">Continue →</button>
+        <button class="btn btn-ghost" onclick="closeSetupWizard()">Cancel</button>
+      </div>`;
+  } else if (step === 2) {
+    body.innerHTML = `
+      ${renderStepHeader(2, "Choose a Vercel project")}
+      <p style="color: var(--color-stone); margin: 0 0 1rem;">Signed in as <strong>${escapeHtml(WIZ.user?.email || WIZ.user?.username || "you")}</strong>. Pick the project that hosts this admin (likely <code>nyris-retreats</code>).</p>
+
+      ${WIZ.teams && WIZ.teams.length ? `
+        <label class="form-label">Team / scope</label>
+        <select class="form-control" id="wizTeam" onchange="wizardLoadProjects()">
+          <option value="">Personal account</option>
+          ${WIZ.teams.map(t => `<option value="${escapeAttr(t.id)}">${escapeHtml(t.name || t.slug)}</option>`).join("")}
+        </select>
+      ` : ""}
+
+      <label class="form-label" style="margin-top: 1rem;">Project</label>
+      <select class="form-control" id="wizProject"><option value="">Loading…</option></select>
+      <div id="wizStep2Error" style="color: var(--color-danger); font-size: 0.85rem; margin-top: 0.5rem;"></div>
+      <div style="display:flex; gap: 0.5rem; margin-top: 1.5rem;">
+        <button class="btn btn-ghost" onclick="renderWizardStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="wizardStep2Confirm()">Continue →</button>
+      </div>`;
+    wizardLoadProjects();
+  } else if (step === 3) {
+    body.innerHTML = `
+      ${renderStepHeader(3, "Turso database")}
+      <p style="color: var(--color-stone); margin: 0 0 1rem;">Turso is where your admin overrides + cron-synced prices live (free tier is plenty). Get the URL and a token in 60 seconds via the CLI:</p>
+      <pre style="background: var(--color-charcoal); color: var(--color-cream); padding: 1rem 1.25rem; border-radius: 8px; font-size: 0.82rem; overflow-x: auto; line-height: 1.55;">brew install tursodatabase/tap/turso
+turso auth signup     <span style="color: #999;"># or: turso auth login</span>
+turso db create nyris-retreats
+turso db show nyris-retreats --url
+turso db tokens create nyris-retreats</pre>
+      <p style="color: var(--color-stone); font-size: 0.85rem; margin: 1rem 0 1.5rem;">Or use the <a href="https://app.turso.tech" target="_blank" style="color: var(--color-primary); text-decoration: underline;">Turso dashboard</a> instead of the CLI.</p>
+
+      <label class="form-label">Database URL</label>
+      <input class="form-control" id="wizTursoUrl" placeholder="libsql://nyris-retreats-xxxxx.turso.io" style="font-family: monospace; font-size: 0.85rem;"/>
+      <label class="form-label" style="margin-top: 1rem;">Auth token</label>
+      <input class="form-control" type="password" id="wizTursoToken" placeholder="eyJ..." style="font-family: monospace; font-size: 0.85rem;" autocomplete="off"/>
+      <div id="wizStep3Status" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
+      <div style="display:flex; gap: 0.5rem; margin-top: 1.5rem;">
+        <button class="btn btn-ghost" onclick="renderWizardStep(2)">← Back</button>
+        <button class="btn btn-outline" onclick="wizardTestTurso()">Test connection</button>
+        <button class="btn btn-primary" onclick="wizardActivate()">Activate sync →</button>
+      </div>`;
+  } else if (step === 4) {
+    body.innerHTML = `
+      ${renderStepHeader(4, "Activating…")}
+      <div id="wizActivateLog" style="background: var(--color-charcoal); color: var(--color-cream); padding: 1rem 1.25rem; border-radius: 8px; font-family: monospace; font-size: 0.82rem; line-height: 1.6; min-height: 200px; white-space: pre-wrap;"></div>`;
+  } else if (step === 5) {
+    const cronSecret = WIZ.cronSecret;
+    const dep = WIZ.deployment;
+    body.innerHTML = `
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width: 64px; height: 64px; background: var(--color-success); color: white; border-radius: 999px; margin-bottom: 1rem;">${ICON.check.replace('width="22" height="22"','width="32" height="32"')}</div>
+        <h3 style="margin: 0;">Sync activated</h3>
+        <p style="color: var(--color-stone); margin: 0.5rem 0 0;">Vercel is redeploying. Cron will start running on the next 15-minute mark.</p>
+      </div>
+
+      <div style="background: white; border: 1px solid var(--color-line); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem;">
+        <strong style="display:block; margin-bottom: 0.5rem; font-size: 0.92rem;">What just happened</strong>
+        <ul style="margin: 0; padding-left: 1.25rem; line-height: 1.7; font-size: 0.9rem; color: var(--color-stone);">
+          <li>Set <code>TURSO_DATABASE_URL</code>, <code>TURSO_AUTH_TOKEN</code>, <code>CRON_SECRET</code> as Vercel env vars</li>
+          <li>Triggered a production redeploy (~30s)</li>
+          <li>Once it's live, your admin-saved API keys persist server-side and the cron can read them</li>
+        </ul>
+      </div>
+
+      <div style="background: var(--color-sand); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem;">
+        <strong style="display:block; margin-bottom: 0.5rem;">For the every-15-min schedule</strong>
+        <p style="font-size: 0.9rem; color: var(--color-charcoal); margin: 0 0 0.75rem;">Vercel Hobby only allows daily cron, so a GitHub Actions workflow handles the 15-min cadence. Add this as a repo secret:</p>
+        <label class="form-label" style="font-size: 0.78rem;">CRON_SECRET (shown once — save it now)</label>
+        <div style="display:flex; gap: 0.5rem;">
+          <input class="form-control" id="wizCronSecret" value="${escapeAttr(cronSecret)}" readonly style="font-family: monospace; font-size: 0.82rem;"/>
+          <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('wizCronSecret').value).then(()=>toast('Copied'))">Copy</button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--color-stone); margin: 0.85rem 0 0;">In your GitHub repo: <strong>Settings → Secrets and variables → Actions</strong> → add <code>CRON_SECRET</code> with this value, plus <code>SITE_URL</code> = <code>${escapeHtml(window.location.origin)}</code>.</p>
+      </div>
+
+      ${dep && dep.inspectorUrl ? `
+        <p style="font-size: 0.88rem; color: var(--color-stone); margin: 0 0 1rem;">
+          Track the redeploy: <a href="${escapeAttr(dep.inspectorUrl)}" target="_blank" style="color: var(--color-primary); text-decoration: underline;">Vercel inspector</a>
+        </p>` : ""}
+
+      <div style="display:flex; gap: 0.5rem;">
+        <button class="btn btn-primary" onclick="closeSetupWizard(); setTimeout(() => location.reload(), 100)">Reload admin</button>
+      </div>`;
+  }
+}
+
+function renderStepHeader(n, title) {
+  const total = 3;
+  const pct = Math.min(100, (n / total) * 100);
+  return `
+    <div style="margin-bottom: 1.5rem;">
+      <div style="display:flex; align-items:center; gap: 0.6rem; margin-bottom: 0.5rem;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width: 28px; height: 28px; border-radius: 999px; background: var(--color-primary); color: var(--color-cream); font-size: 0.85rem; font-weight: 600;">${n}</span>
+        <h3 style="margin: 0; font-size: 1.1rem;">${escapeHtml(title)}</h3>
+      </div>
+      <div style="height: 3px; background: var(--color-line); border-radius: 999px; overflow:hidden;">
+        <div style="height: 100%; background: var(--color-primary); width: ${pct}%; transition: width 0.3s;"></div>
+      </div>
+    </div>`;
+}
+
+async function wizardStep1Validate() {
+  const errEl = document.getElementById("wizStep1Error");
+  errEl.textContent = "";
+  const token = document.getElementById("wizVercelToken").value.trim();
+  if (!token || token.length < 20) { errEl.textContent = "Paste a token first."; return; }
+  errEl.textContent = "Validating…";
+  try {
+    const r = await fetch("/api/admin/setup/vercel", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "validate", vercelToken: token })
+    });
+    const j = await r.json();
+    if (!j.ok) { errEl.textContent = j.error || "Token rejected"; return; }
+    WIZ.vercelToken = token;
+    WIZ.user = j.user;
+    WIZ.teams = j.teams || [];
+    renderWizardStep(2);
+  } catch (e) {
+    errEl.textContent = `Network error: ${e.message}`;
+  }
+}
+
+async function wizardLoadProjects() {
+  const sel = document.getElementById("wizProject");
+  const teamSel = document.getElementById("wizTeam");
+  const teamId = teamSel ? teamSel.value : "";
+  WIZ.teamId = teamId || null;
+  sel.innerHTML = `<option value="">Loading…</option>`;
+  try {
+    const r = await fetch("/api/admin/setup/vercel", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "list-projects", vercelToken: WIZ.vercelToken, teamId })
+    });
+    const j = await r.json();
+    if (!j.ok) { sel.innerHTML = `<option value="">Error: ${escapeHtml(j.error)}</option>`; return; }
+    if (!j.projects.length) { sel.innerHTML = `<option value="">No projects found</option>`; return; }
+    // Try to auto-select the most likely project (host substring match)
+    const host = window.location.hostname;
+    const guess = j.projects.find(p => host.includes(p.name)) || j.projects[0];
+    sel.innerHTML = j.projects.map(p =>
+      `<option value="${escapeAttr(p.id)}" ${p.id === guess.id ? "selected" : ""}>${escapeHtml(p.name)} ${p.url ? `· ${escapeHtml(p.url)}` : ""}</option>`
+    ).join("");
+  } catch (e) {
+    sel.innerHTML = `<option value="">Network error</option>`;
+  }
+}
+
+function wizardStep2Confirm() {
+  const errEl = document.getElementById("wizStep2Error");
+  errEl.textContent = "";
+  const projId = document.getElementById("wizProject").value;
+  if (!projId) { errEl.textContent = "Pick a project."; return; }
+  WIZ.projectId = projId;
+  renderWizardStep(3);
+}
+
+async function wizardTestTurso() {
+  const status = document.getElementById("wizStep3Status");
+  status.style.color = "var(--color-stone)";
+  status.textContent = "Testing…";
+  const url = document.getElementById("wizTursoUrl").value.trim();
+  const tok = document.getElementById("wizTursoToken").value.trim();
+  if (!url || !tok) { status.style.color = "var(--color-danger)"; status.textContent = "Enter both URL and token first."; return; }
+  try {
+    const r = await fetch("/api/admin/setup/turso-test", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, authToken: tok })
+    });
+    const j = await r.json();
+    if (j.ok) { status.style.color = "var(--color-success)"; status.textContent = "✓ Turso credentials valid"; }
+    else { status.style.color = "var(--color-danger)"; status.textContent = `✗ ${j.error}${j.hint ? " — " + j.hint : ""}`; }
+  } catch (e) {
+    status.style.color = "var(--color-danger)"; status.textContent = `Network error: ${e.message}`;
+  }
+}
+
+async function wizardActivate() {
+  const url = document.getElementById("wizTursoUrl").value.trim();
+  const tok = document.getElementById("wizTursoToken").value.trim();
+  if (!url || !tok) {
+    const status = document.getElementById("wizStep3Status");
+    status.style.color = "var(--color-danger)"; status.textContent = "Enter both Turso URL and token.";
+    return;
+  }
+  renderWizardStep(4);
+  const log = document.getElementById("wizActivateLog");
+  const append = (s) => { log.textContent = (log.textContent ? log.textContent + "\n" : "") + s; log.scrollTop = log.scrollHeight; };
+  append("Activating…");
+
+  try {
+    const r = await fetch("/api/admin/setup/activate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vercelToken: WIZ.vercelToken,
+        projectId: WIZ.projectId,
+        teamId: WIZ.teamId,
+        tursoUrl: url,
+        tursoToken: tok
+      })
+    });
+    const j = await r.json();
+    log.textContent = "";
+    (j.log || []).forEach(append);
+    if (!j.ok) {
+      append("");
+      append(`✗ Activation failed at step "${j.step}": ${j.error}`);
+      if (j.detail) append(`   detail: ${typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail)}`);
+      const div = document.createElement("div");
+      div.style.cssText = "margin-top: 1rem; display: flex; gap: 0.5rem;";
+      div.innerHTML = `<button class="btn btn-ghost" onclick="renderWizardStep(3)">← Back</button>`;
+      log.parentNode.appendChild(div);
+      return;
+    }
+    WIZ.cronSecret = j.cronSecret;
+    WIZ.deployment = j.deployment;
+    setTimeout(() => renderWizardStep(5), 1200); // brief pause so the log is visible
+  } catch (e) {
+    append(`✗ Network error: ${e.message}`);
+  }
 }
 
 function humanizeAgo(iso) {
