@@ -231,10 +231,14 @@ function initReveal() {
 function propertyCard(p, opts = {}) {
   const liked = Wishlist.has(p.id);
   const compareOn = Compare.has(p.id);
+  // If admin photo overrides have already loaded for this page-view, apply them
+  // here at render time so there's no flash. Otherwise applyToCards() will run
+  // after PhotoOverrides.load() resolves and update the cards in place.
+  const images = (PhotoOverrides && PhotoOverrides._data) ? PhotoOverrides.imagesFor(p) : p.images;
   return `
   <article class="prop-card" data-id="${p.id}">
-    <div class="prop-card-media" data-images='${JSON.stringify(p.images.slice(0, 5))}'>
-      <img class="prop-card-img" src="${p.images[0]}" alt="${escapeHtml(p.name)}" loading="lazy"/>
+    <div class="prop-card-media" data-images='${JSON.stringify(images.slice(0, 5))}'>
+      <img class="prop-card-img" src="${images[0]}" alt="${escapeHtml(p.name)}" loading="lazy"/>
       <div class="prop-card-badges">
         ${p.isGuestFavorite ? `<span class="badge badge-favorite">${ICON.badge.replace('<svg','<svg width="11" height="11"')} Guest Favorite</span>` : ''}
         ${p.isNew ? `<span class="badge badge-new">New</span>` : ''}
@@ -360,6 +364,56 @@ const Lightbox = {
   }
 };
 
+// =============================================================================
+// PhotoOverrides — admin-edited photo lists (cover, captions, custom uploads).
+// Loaded once per page from /api/photos, then merged with each property's static
+// images. The first item is used as the card cover.
+// =============================================================================
+const PhotoOverrides = {
+  _data: null,
+  _promise: null,
+  async load() {
+    if (this._promise) return this._promise;
+    this._promise = (async () => {
+      try {
+        const r = await fetch("/api/photos");
+        const j = await r.json();
+        this._data = j.ok ? (j.overrides || {}) : {};
+      } catch { this._data = {}; }
+      return this._data;
+    })();
+    return this._promise;
+  },
+  // Returns the effective image list for a property, with overrides applied.
+  imagesFor(property) {
+    const ov = this._data?.[property.id];
+    if (!ov || ov.length === 0) return property.images;
+    // Admin's order is authoritative. Append any base images not in admin list.
+    const overrideUrls = new Set(ov.map(p => p.url));
+    const remainingBase = (property.images || []).filter(u => !overrideUrls.has(u));
+    return [...ov.map(p => p.url), ...remainingBase];
+  },
+  // Re-apply overrides to all property cards on the page after load completes.
+  applyToCards() {
+    document.querySelectorAll(".prop-card[data-id]").forEach(card => {
+      const id = card.dataset.id;
+      const property = NYRIS.properties.find(p => p.id === id);
+      if (!property) return;
+      const images = this.imagesFor(property);
+      const media = card.querySelector(".prop-card-media");
+      const img = card.querySelector(".prop-card-img");
+      if (!media || !img) return;
+      const newFirst = images[0];
+      if (img.src !== newFirst) {
+        img.style.opacity = "0";
+        setTimeout(() => { img.src = newFirst; img.style.opacity = "1"; }, 100);
+      }
+      // Update the carousel's image list so prev/next reflect overrides too
+      media.dataset.images = JSON.stringify(images.slice(0, 5));
+    });
+  }
+};
+
 // ===== Format helpers =====
 function fmtPrice(n) { return '$' + Number(n).toLocaleString(); }
 function nightsBetween(a, b) {
@@ -380,4 +434,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFooter();
   initReveal();
   renderCompareBar();
+
+  // Fire-and-update: load admin photo overrides in the background and re-apply
+  // them to any rendered property cards once they arrive.
+  PhotoOverrides.load().then(() => PhotoOverrides.applyToCards());
 });

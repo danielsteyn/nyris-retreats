@@ -1,6 +1,6 @@
 // Property detail page logic
 
-(function() {
+(async function() {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('slug');
   const p = NYRIS.properties.find(x => x.slug === slug);
@@ -16,6 +16,11 @@
 
   document.title = `${p.name} — ${p.city}, ${p.state} | Nyris Retreats`;
   RecentlyViewed.add(p.id);
+
+  // Apply admin photo overrides (saved cover + custom uploads) to this property's
+  // gallery before rendering. Falls through to static images if no override exists.
+  await PhotoOverrides.load();
+  p.images = PhotoOverrides.imagesFor(p);
 
   // Build the page
   root.innerHTML = `

@@ -427,29 +427,39 @@ function mergePhotos(base, override) {
 function renderPhotoBoard(photos) {
   const board = document.getElementById('photoBoard');
   board.innerHTML = `
+    <p style="color: var(--color-stone); font-size: 0.88rem; margin: 0 0 1rem;">
+      Click <strong>Set as cover</strong> on any photo to make it the main image used in property cards and as the first photo in the gallery. Drag tiles to reorder. Changes save automatically.
+    </p>
     <div id="photoGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;"></div>
     <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
-      <button class="btn btn-primary" onclick="savePhotoChanges()">Save photo changes</button>
+      <button class="btn btn-outline" onclick="addCustomPhoto()">+ Add photo</button>
       <button class="btn btn-ghost" onclick="resetPhotos()">Reset to Hospitable</button>
-      <button class="btn btn-outline" onclick="addCustomPhoto()">+ Add custom photo</button>
     </div>`;
   const grid = document.getElementById('photoGrid');
-  grid.innerHTML = photos.filter(p => !p.isHidden).map((p, i) => `
-    <div class="photo-tile ${p.isCover || (i === 0 && !photos.some(x => x.isCover)) ? 'cover' : ''}" draggable="true" data-url="${escapeAttr(p.url)}">
-      <span class="cover-tag">Cover</span>
-      <img src="${p.url}" alt="" loading="lazy"/>
-      <div class="overlay">
-        <div class="actions">
-          <button title="Mark as cover" onclick="setCover('${escapeAttr(p.url)}')" type="button">★</button>
-          <button title="Edit caption" onclick="editCaption('${escapeAttr(p.url)}')" type="button">✎</button>
-          <button title="Remove" onclick="hidePhoto('${escapeAttr(p.url)}')" type="button">×</button>
+
+  // Determine effective cover (explicit isCover, else first non-hidden photo)
+  const visible = photos.filter(p => !p.isHidden);
+  const explicitCover = visible.find(p => p.isCover);
+  const effectiveCoverUrl = (explicitCover || visible[0])?.url;
+
+  grid.innerHTML = visible.map(p => {
+    const isCover = p.url === effectiveCoverUrl;
+    return `
+      <div class="photo-tile ${isCover ? 'cover' : ''}" draggable="true" data-url="${escapeAttr(p.url)}">
+        ${isCover
+          ? `<span class="cover-tag-fixed">★ Cover</span>`
+          : `<button class="set-cover-btn" onclick="setCover('${escapeAttr(p.url)}')" title="Make this the cover photo">★ Set as cover</button>`}
+        <img src="${p.url}" alt="" loading="lazy"/>
+        <div class="overlay">
+          <div class="actions">
+            <button title="Edit caption" onclick="editCaption('${escapeAttr(p.url)}')" type="button">✎</button>
+            <button title="Remove from public site" onclick="hidePhoto('${escapeAttr(p.url)}')" type="button">×</button>
+          </div>
+          <div class="cap">${escapeHtml(p.caption || '')}</div>
         </div>
-        <div class="cap">${escapeHtml(p.caption || '')}</div>
-      </div>
-    </div>
-  `).join('');
+      </div>`;
+  }).join('');
   bindPhotoDrag();
-  // Stash current state on element
   grid.dataset.photos = JSON.stringify(photos);
 }
 
@@ -466,6 +476,8 @@ function bindPhotoDrag() {
       const tiles = [...list.children];
       const si = tiles.indexOf(dragSrc), ti = tiles.indexOf(tile);
       if (si < ti) tile.after(dragSrc); else tile.before(dragSrc);
+      // Auto-save the new order
+      persistPhotos(getCurrentPhotos(), "Order saved");
     });
   });
 }
@@ -483,12 +495,13 @@ function getCurrentPhotos() {
   return [...reordered, ...hidden];
 }
 
-function setCover(url) {
+async function setCover(url) {
   const photos = getCurrentPhotos().map(p => ({ ...p, isCover: p.url === url }));
-  // Move cover to first position
   const cover = photos.find(p => p.isCover);
   const rest = photos.filter(p => !p.isCover);
-  renderPhotoBoard([cover, ...rest]);
+  const reordered = [cover, ...rest];
+  renderPhotoBoard(reordered);
+  await persistPhotos(reordered, "Cover updated");
 }
 function editCaption(url) {
   const photos = getCurrentPhotos();
@@ -497,11 +510,30 @@ function editCaption(url) {
   if (next === null) return;
   p.caption = next;
   renderPhotoBoard(photos);
+  persistPhotos(photos, "Caption saved");
 }
-function hidePhoto(url) {
+async function hidePhoto(url) {
   if (!confirm("Hide this photo from the public site? You can restore it from the photos tab later.")) return;
   const photos = getCurrentPhotos().map(p => p.url === url ? { ...p, isHidden: true } : p);
   renderPhotoBoard(photos);
+  await persistPhotos(photos, "Photo removed");
+}
+
+// Auto-save photo changes to whichever store is configured
+async function persistPhotos(photos, successMsg) {
+  try {
+    if (await RemoteStore.probe()) {
+      await RemoteStore.savePhotos(_currentPhotoProperty, photos);
+    } else {
+      const o = await Store.getOverrides();
+      o.photos = o.photos || {};
+      o.photos[_currentPhotoProperty] = photos;
+      await Store.saveOverrides(o);
+    }
+    if (successMsg) toast(successMsg);
+  } catch (e) {
+    toast(`Save failed: ${e.message}`);
+  }
 }
 function addCustomPhoto() {
   openPhotoUploadDialog();
@@ -687,6 +719,7 @@ async function doPhotoUpload() {
     document.getElementById("photoUploadDialog").remove();
     toast(`Uploaded · ${(j.size / 1024).toFixed(0)} KB`);
     _selectedPhotoFile = null;
+    persistPhotos(photos);
   } catch (e) {
     status.style.color = "var(--color-danger)";
     status.textContent = `Upload error: ${e.message}`;
@@ -703,6 +736,7 @@ function doPhotoFromUrl() {
   renderPhotoBoard(photos);
   document.getElementById("photoUploadDialog").remove();
   toast("Photo added");
+  persistPhotos(photos);
 }
 async function savePhotoChanges() {
   const photos = getCurrentPhotos();

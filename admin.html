@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=2"/>
-<script src="/js/theme.js?v=2"></script>
+<link rel="stylesheet" href="/css/styles.css?v=3"/>
+<script src="/js/theme.js?v=3"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -321,12 +321,29 @@
   color: white; font-size: 0.78rem; line-height: 1.3; padding: 0 0.25rem;
   text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 }
-.photo-tile .cover-tag {
-  position: absolute; top: 8px; left: 8px; background: var(--color-accent); color: white;
-  padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em;
-  display: none;
+.photo-tile .cover-tag,
+.photo-tile .cover-tag-fixed {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  background: var(--color-accent); color: white;
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  pointer-events: none;
 }
+.photo-tile .cover-tag { display: none; }
 .photo-tile.cover .cover-tag { display: inline-block; }
+.photo-tile .set-cover-btn {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  background: rgba(255,255,255,0.95); color: var(--color-charcoal);
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  border: 1px solid var(--color-line);
+  cursor: pointer; opacity: 0; transform: translateY(-2px);
+  transition: opacity 0.15s, transform 0.15s, background 0.15s, color 0.15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+.photo-tile:hover .set-cover-btn { opacity: 1; transform: translateY(0); }
+.photo-tile .set-cover-btn:hover { background: var(--color-accent); color: white; border-color: var(--color-accent); }
 .add-photo-tile {
   aspect-ratio: 4/3; border: 2px dashed var(--color-line); border-radius: 12px;
   display:flex; align-items:center; justify-content:center; flex-direction: column;
@@ -339,8 +356,8 @@
 }
 </style>
 
-<script src="/js/data.js?v=2"></script>
-<script src="/js/app.js?v=2"></script>
-<script src="/js/admin.js?v=2"></script>
+<script src="/js/data.js?v=3"></script>
+<script src="/js/app.js?v=3"></script>
+<script src="/js/admin.js?v=3"></script>
 </body>
 </html>
