@@ -145,11 +145,16 @@ function renderHeader(active = "") {
   el.classList.add("site-header");
   const t = (window.Theme && window.Theme.get()) || { brandName: NYRIS.brand.name };
   const logoHtml = (window.Theme && window.Theme.logoMark(t)) || ICON.logo;
+  // If a custom logo (URL or inline SVG) is set, the logo replaces both the
+  // icon AND the company name — admins typically upload full wordmarks.
+  const customLogo = !!(t.logoUrl || t.logoSvg);
+  const brandInner = customLogo
+    ? logoHtml
+    : `${logoHtml}<span data-brand-name>${escapeHtml(t.brandName)}</span>`;
   el.innerHTML = `
     <div class="nav-inner">
-      <a href="/" class="brand-mark" aria-label="${escapeHtml(t.brandName)} home">
-        ${logoHtml}
-        <span data-brand-name>${escapeHtml(t.brandName)}</span>
+      <a href="/" class="brand-mark${customLogo ? ' brand-mark-custom' : ''}" aria-label="${escapeHtml(t.brandName)} home">
+        ${brandInner}
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="/search.html" class="${active==='stays'?'active':''}">All stays</a>
@@ -193,12 +198,15 @@ function renderFooter() {
   const yr = new Date().getFullYear();
   const t = (window.Theme && window.Theme.get()) || { brandName: NYRIS.brand.name };
   const logoHtml = (window.Theme && window.Theme.logoMark(t)) || ICON.logo;
+  const customLogo = !!(t.logoUrl || t.logoSvg);
+  const footerBrandInner = customLogo
+    ? logoHtml
+    : `${logoHtml}<span data-brand-name>${escapeHtml(t.brandName)}</span>`;
   el.innerHTML = `
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="brand-mark" style="color: var(--color-cream);">
-          ${logoHtml}
-          <span data-brand-name>${escapeHtml(t.brandName)}</span>
+        <div class="brand-mark${customLogo ? ' brand-mark-custom' : ''}" style="color: var(--color-cream);">
+          ${footerBrandInner}
         </div>
         <p style="margin-top: 1rem;">Curated, Superhost-managed vacation homes — every one a Top 1% Guest Favorite. Skip the platform fees and book direct.</p>
         <p style="margin-top: 1rem; font-size: 0.85rem;">${NYRIS.brand.email} &middot; ${NYRIS.brand.phone}</p>

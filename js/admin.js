@@ -702,10 +702,11 @@ function updateBrandPreview() {
   Theme.apply(t); // live-apply to whole page
 
   const preview = document.getElementById('brandPreview');
+  const customLogo = !!(t.logoUrl || t.logoSvg);
   preview.innerHTML = `
-    <div style="display:flex; align-items:center; gap: 0.6rem; color: ${t.colors.primary}; font-family: '${t.fontDisplay}', serif; font-size: 1.6rem; font-weight: 600; margin-bottom: 1.5rem;">
+    <div class="brand-mark${customLogo ? ' brand-mark-custom' : ''}" style="color: ${t.colors.primary}; font-family: '${t.fontDisplay}', serif; font-size: 1.6rem; font-weight: 600; margin-bottom: 1.5rem;">
       ${Theme.logoMark(t)}
-      <span style="font-family: '${t.fontDisplay}', serif;">${escapeHtml(t.brandName)}</span>
+      ${customLogo ? '' : `<span style="font-family: '${t.fontDisplay}', serif;">${escapeHtml(t.brandName)}</span>`}
     </div>
     <h2 style="font-family: '${t.fontDisplay}', serif; font-size: 2rem; line-height: 1.15; color: var(--color-charcoal); margin: 0 0 0.5rem;">Stay where the reviews don't lie.</h2>
     <p style="font-family: '${t.fontBody}', sans-serif; color: var(--color-stone); margin: 0 0 1.5rem;">${escapeHtml(t.brandTagline)}</p>
@@ -2212,9 +2213,13 @@ function escapeAttr(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;'
 // Init
 // =============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Brand mark on login screen
+  // Brand mark on login screen — custom logos replace the brand-name text.
   const t = Theme.get();
-  document.getElementById('loginBrand').innerHTML = `${Theme.logoMark(t)}<span data-brand-name>${t.brandName}</span>`;
+  const customLogo = !!(t.logoUrl || t.logoSvg);
+  document.getElementById('loginBrand').className = `brand-mark${customLogo ? ' brand-mark-custom' : ''}`;
+  document.getElementById('loginBrand').innerHTML = customLogo
+    ? Theme.logoMark(t)
+    : `${Theme.logoMark(t)}<span data-brand-name>${t.brandName}</span>`;
 
   bindTabs();
   if (isLoggedIn()) showDashboard();

@@ -108,6 +108,28 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .brand-mark svg { width: 28px; height: 28px; }
 .brand-mark:hover { color: var(--color-primary-dark); }
+
+/* When the admin uploads a custom logo (image or inline SVG), the logo
+   replaces both the default icon and the brand name text. We give it
+   more vertical room since wordmarks need it. */
+.brand-mark-custom {
+  gap: 0;
+}
+.brand-mark-img,
+.brand-mark-svg svg {
+  display: block;
+  height: auto;
+  max-height: 40px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+}
+.brand-mark-svg { display: inline-flex; align-items: center; }
+.site-footer .brand-mark-img,
+.site-footer .brand-mark-svg svg {
+  max-height: 44px;
+  max-width: 240px;
+}
 .nav-links {
   display: flex; align-items: center; gap: 1.75rem;
   font-size: 0.92rem; font-weight: 500; color: var(--color-charcoal);

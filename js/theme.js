@@ -131,10 +131,11 @@
     logoMark(t = null) {
       t = t || this.get();
       if (t.logoUrl) {
-        return `<img src="${escapeAttr(t.logoUrl)}" alt="${escapeAttr(t.brandName)}" style="height: 28px; width: auto;"/>`;
+        // Sized to fit the header bar; wordmarks taller than this get scaled down.
+        return `<img class="brand-mark-img" src="${escapeAttr(t.logoUrl)}" alt="${escapeAttr(t.brandName)}"/>`;
       }
       if (t.logoSvg) {
-        return t.logoSvg;
+        return `<span class="brand-mark-svg">${t.logoSvg}</span>`;
       }
       return `<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:28px; height:28px;"><path d="M4 26 L16 6 L28 26 Z"/><path d="M10 26 L16 14 L22 26"/><circle cx="16" cy="22" r="1.2" fill="currentColor"/></svg>`;
     }
