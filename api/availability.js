@@ -20,28 +20,41 @@ export default async function handler(req, res) {
   const start = today.toISOString().slice(0, 10);
   const end = new Date(today.getTime() + months * 31 * 86400000).toISOString().slice(0, 10);
 
-  // 1. Pull Hospitable availability (booked dates + min-stay).
-  let availability = {};
+  // 1. Pull Hospitable reservations within the window. Mark every covered
+  //    night as booked. We follow standard hotel/STR semantics: nights
+  //    include arrival_date, exclude departure_date.
+  let bookedDates = new Set();
   let hospitableSource = "none";
   const { key: hospitableKey } = await resolveApiKey(req, "hospitable_api_key", "HOSPITABLE_API_KEY");
   if (hospitableKey) {
     try {
-      const r = await fetch(
-        `${HOSPITABLE_BASE}/properties/${propertyId}/calendar?start_date=${start}&end_date=${end}`,
-        { headers: { Authorization: `Bearer ${hospitableKey}`, Accept: "application/json" } }
-      );
-      if (r.ok) {
+      // Paginate through reservations until we've covered the window.
+      let page = 1;
+      while (page <= 5) { // hard cap so we never loop forever
+        const url = `${HOSPITABLE_BASE}/reservations?properties[]=${encodeURIComponent(propertyId)}&per_page=100&page=${page}`;
+        const r = await fetch(url, {
+          headers: { Authorization: `Bearer ${hospitableKey}`, Accept: "application/json" }
+        });
+        if (!r.ok) break;
         const j = await r.json();
-        for (const d of (j.data || [])) {
-          if (!d.date) continue;
-          availability[d.date] = {
-            available: d.availability?.available !== false,
-            minStay: d.min_nights || d.min_stay || null,
-            hospitablePrice: d.price?.amount || null,
-            currency: d.price?.currency || "USD"
-          };
+        for (const res of (j.data || [])) {
+          // Skip cancelled / declined / pending
+          const status = res.reservation_status?.current?.category || res.status || "";
+          if (!["accepted", "confirmed", "arrived", "checked_in", "checked_out", "completed"].includes(String(status).toLowerCase())) continue;
+          // arrival_date / departure_date are tz-aware (e.g. "2026-05-01T00:00:00-05:00").
+          // The first 10 chars are the local YYYY-MM-DD; that's what we want.
+          const arrival = (res.arrival_date || res.check_in || "").slice(0, 10);
+          const departure = (res.departure_date || res.check_out || "").slice(0, 10);
+          if (!arrival || !departure) continue;
+          for (let d = new Date(arrival + "T00:00:00Z");
+               d.toISOString().slice(0, 10) < departure;
+               d.setUTCDate(d.getUTCDate() + 1)) {
+            bookedDates.add(d.toISOString().slice(0, 10));
+          }
         }
         hospitableSource = "live";
+        if (!j.meta?.next_page && (j.data || []).length < 100) break;
+        page++;
       }
     } catch {}
   }
@@ -74,15 +87,14 @@ export default async function handler(req, res) {
   for (let i = 0; i < totalDays; i++) {
     const d = new Date(today.getTime() + i * 86400000);
     const dateStr = d.toISOString().slice(0, 10);
-    const av = availability[dateStr];
     const pl = priceMap.get(dateStr);
     days.push({
       date: dateStr,
-      available: av ? av.available : true, // default available if no Hospitable data
-      price: pl?.price ?? av?.hospitablePrice ?? null,
-      priceSource: pl ? "pricelabs" : (av?.hospitablePrice ? "hospitable" : "none"),
-      currency: pl?.currency || av?.currency || "USD",
-      minStay: pl?.minStay ?? av?.minStay ?? null
+      available: !bookedDates.has(dateStr),
+      price: pl?.price ?? null,
+      priceSource: pl ? "pricelabs" : "none",
+      currency: pl?.currency || "USD",
+      minStay: pl?.minStay ?? null
     });
   }
 
@@ -91,6 +103,7 @@ export default async function handler(req, res) {
     propertyId,
     start, end,
     days,
+    bookedCount: bookedDates.size,
     source: { availability: hospitableSource, prices: priceMap.size ? "pricelabs" : "none" },
     fetchedAt: new Date().toISOString()
   });
