@@ -1,5 +1,22 @@
 // Property detail page logic
 
+// =============================================================================
+// Booking calendar state — must be defined BEFORE the IIFE below, because the
+// IIFE references window.BkCal synchronously when wiring the property in.
+// (Prior version of this file had `await PhotoOverrides.load()` in the IIFE
+// which yielded long enough for the file's later top-level code to run; the
+// non-blocking render refactor removed that yield, so we must hoist this.)
+// =============================================================================
+window.BkCal = window.BkCal || {
+  propertyId: null,
+  data: null,
+  range: { ci: null, co: null },
+  hover: null,
+  monthAnchor: null,
+  pickFor: "checkin",
+  loading: false
+};
+
 (async function() {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('slug');
@@ -434,18 +451,9 @@
 
 // =============================================================================
 // Booking calendar: 2-month grid with per-night prices + blocked booked dates.
-// State lives on window so the inline onclick handlers can access it.
+// State (window.BkCal) is hoisted to the top of this file so the property
+// IIFE can reference it without crashing.
 // =============================================================================
-window.BkCal = {
-  propertyId: null,
-  data: null,           // map: 'YYYY-MM-DD' → { available, price, currency, minStay }
-  range: { ci: null, co: null }, // selected check-in / check-out, ISO strings
-  hover: null,          // hover-over date for range preview
-  monthAnchor: null,    // first day of the leftmost displayed month
-  pickFor: "checkin",   // which trigger initiated the open: 'checkin' | 'checkout'
-  loading: false
-};
-
 async function openBookingCalendar(pickFor) {
   const cal = document.getElementById("bkCalendar");
   if (!cal) return;
