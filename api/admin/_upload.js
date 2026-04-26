@@ -12,7 +12,7 @@ import crypto from "crypto";
 const ALLOWED_TYPES = [
   "image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"
 ];
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "POST only" });

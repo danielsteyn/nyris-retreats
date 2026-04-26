@@ -564,7 +564,7 @@ function openPhotoUploadDialog() {
           <div id="phDropzoneInner" style="pointer-events: none;">
             <div style="font-size: 2.4rem; line-height: 1; margin-bottom: 0.5rem; color: var(--color-stone);">↑</div>
             <strong style="display:block; margin-bottom: 0.25rem;">Drop an image here</strong>
-            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 25 MB)</span>
+            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 20 MB)</span>
           </div>
         </div>
         <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
@@ -657,9 +657,9 @@ function setupPhotoDropzone() {
       status.style.color = "var(--color-danger)"; status.textContent = "Pick an image file (JPEG, PNG, WebP).";
       return;
     }
-    if (file.size > 25 * 1024 * 1024) {
+    if (file.size > 20 * 1024 * 1024) {
       status.style.color = "var(--color-danger)";
-      status.textContent = `That's ${(file.size / 1024 / 1024).toFixed(1)} MB — max is 25 MB. Compress at squoosh.app and try again.`;
+      status.textContent = `That's ${(file.size / 1024 / 1024).toFixed(1)} MB — max is 20 MB. Compress at squoosh.app and try again.`;
       return;
     }
     _selectedPhotoFile = file;
