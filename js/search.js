@@ -36,11 +36,33 @@
     </label>
   `).join('');
 
+  // Wire the shared booking calendar to the search bar (no property selected
+  // → just a date picker, same UX as home and property pages).
+  if (window.BkCal) {
+    window.BkCal.propertyId = null;
+    window.BkCal.targets = {
+      container: "searchPageCalendar",
+      checkinValue: "fCheckin",
+      checkoutValue: "fCheckout",
+      checkinDisplay: "fCheckinDisplay",
+      checkoutDisplay: "fCheckoutDisplay"
+    };
+    window.BkCal.onChange = render;
+  }
+
   // Read URL params
   const params = new URLSearchParams(window.location.search);
   if (params.get('dest')) document.getElementById('fDest').value = params.get('dest');
-  if (params.get('checkin')) document.getElementById('fCheckin').value = params.get('checkin');
-  if (params.get('checkout')) document.getElementById('fCheckout').value = params.get('checkout');
+  if (params.get('checkin')) {
+    document.getElementById('fCheckin').value = params.get('checkin');
+    document.getElementById('fCheckinDisplay').textContent = formatDateShort(params.get('checkin'));
+    if (window.BkCal) window.BkCal.range.ci = params.get('checkin');
+  }
+  if (params.get('checkout')) {
+    document.getElementById('fCheckout').value = params.get('checkout');
+    document.getElementById('fCheckoutDisplay').textContent = formatDateShort(params.get('checkout'));
+    if (window.BkCal) window.BkCal.range.co = params.get('checkout');
+  }
   if (params.get('guests')) document.getElementById('fGuests').value = params.get('guests');
 
   // Bind filter events

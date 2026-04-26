@@ -209,11 +209,11 @@
           <p class="price-from-note" id="bkPriceNote" style="font-size: 0.78rem; color: var(--color-stone); margin: -0.5rem 0 1rem;">Lowest nightly rate over the next 90 days. Pick dates for an exact total.</p>
           <form class="booking-form" onsubmit="bookSubmit(event, '${p.slug}')">
             <div class="row">
-              <button type="button" class="field date-trigger" id="bkCheckinBtn" onclick="openBookingCalendar('checkin')">
+              <button type="button" class="field date-trigger" id="bkCheckinBtn" onclick="openBookingCalendar('checkin', this)">
                 <label>Check-in</label>
                 <span class="date-display" id="bkCheckinDisplay">Add date</span>
               </button>
-              <button type="button" class="field date-trigger" id="bkCheckoutBtn" onclick="openBookingCalendar('checkout')">
+              <button type="button" class="field date-trigger" id="bkCheckoutBtn" onclick="openBookingCalendar('checkout', this)">
                 <label>Checkout</label>
                 <span class="date-display" id="bkCheckoutDisplay">Add date</span>
               </button>

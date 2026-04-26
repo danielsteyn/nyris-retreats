@@ -453,18 +453,20 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-form .date-trigger:hover { background: rgba(31,61,43,0.04); }
 .booking-form .date-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
+/* Always-on-top floating calendar — JS sets exact top/left via fixed-positioning
+   anchored to the trigger button. z-index sits above the sticky header (50)
+   and below the lightbox (200). */
 .booking-calendar {
-  position: absolute; z-index: 50;
-  background: white; border: 1px solid var(--color-line); border-radius: 16px;
-  box-shadow: var(--shadow-xl); padding: 1.25rem;
-  margin-top: 0.5rem;
+  position: fixed;
+  z-index: 100;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+  padding: 1.25rem;
   width: min(680px, calc(100vw - 2rem));
-  right: 0;
   color: var(--color-charcoal);
-}
-.booking-calendar.hero-calendar {
-  top: 100%; left: 50%; right: auto; transform: translateX(-50%);
-  margin-top: 0.75rem;
+  /* Default top/left set inline by JS when opened. */
 }
 .bkcal-head {
   display: flex; align-items: center; justify-content: space-between;
