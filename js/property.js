@@ -605,12 +605,34 @@ function bindCalendarCells() {
       return;
     }
     cell.addEventListener("click", () => onCellClick(cell.dataset.date));
+    // Only mutate CSS classes on hover — never re-render the DOM. Re-rendering
+    // mid-interaction was killing real user clicks (mousedown on cell A,
+    // hover into cell B triggers a render that replaces both, mouseup
+    // never matches a click target → no click event fires).
     cell.addEventListener("mouseenter", () => {
       if (window.BkCal.range.ci && !window.BkCal.range.co) {
         window.BkCal.hover = cell.dataset.date;
-        renderCalendar();
+        updateRangePreview();
       }
     });
+  });
+}
+
+function updateRangePreview() {
+  const { ci } = window.BkCal.range;
+  const hov = window.BkCal.hover;
+  document.querySelectorAll(".bkcal-cell[data-date]").forEach(cell => {
+    if (cell.classList.contains("disabled") || cell.classList.contains("past") || cell.classList.contains("booked") || cell.classList.contains("checkin") || cell.classList.contains("checkout")) {
+      cell.classList.remove("in-range");
+      return;
+    }
+    if (!ci || !hov) {
+      cell.classList.remove("in-range");
+      return;
+    }
+    const d = cell.dataset.date;
+    if (d > ci && d <= hov) cell.classList.add("in-range");
+    else cell.classList.remove("in-range");
   });
 }
 
