@@ -25,9 +25,8 @@ export default async function handler(req, res) {
   //    include arrival_date, exclude departure_date.
   let bookedDates = new Set();
   let hospitableSource = "none";
-  const debug = { keyPresent: false, attempts: [] };
+  let hospitableError = null;
   const { key: hospitableKey } = await resolveApiKey(req, "hospitable_api_key", "HOSPITABLE_API_KEY");
-  debug.keyPresent = !!hospitableKey;
   if (hospitableKey) {
     try {
       // Paginate through reservations until we've covered the window.
@@ -37,15 +36,13 @@ export default async function handler(req, res) {
         const r = await fetch(url, {
           headers: { Authorization: `Bearer ${hospitableKey}`, Accept: "application/json" }
         });
-        const attempt = { url: url.replace(propertyId, "<uuid>"), status: r.status };
         if (!r.ok) {
-          attempt.body = (await r.text()).slice(0, 200);
-          debug.attempts.push(attempt);
+          hospitableError = r.status === 401
+            ? "Hospitable token rejected (401). Refresh the API key in admin → Hospitable API."
+            : `Hospitable API ${r.status}`;
           break;
         }
         const j = await r.json();
-        attempt.dataLen = (j.data || []).length;
-        debug.attempts.push(attempt);
         for (const res of (j.data || [])) {
           // Skip cancelled / declined / pending
           const status = res.reservation_status?.current?.category || res.status || "";
@@ -114,7 +111,7 @@ export default async function handler(req, res) {
     days,
     bookedCount: bookedDates.size,
     source: { availability: hospitableSource, prices: priceMap.size ? "pricelabs" : "none" },
-    debug,
+    hospitableError,
     fetchedAt: new Date().toISOString()
   });
 }
