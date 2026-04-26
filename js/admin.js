@@ -564,7 +564,7 @@ function openPhotoUploadDialog() {
           <div id="phDropzoneInner" style="pointer-events: none;">
             <div style="font-size: 2.4rem; line-height: 1; margin-bottom: 0.5rem; color: var(--color-stone);">↑</div>
             <strong style="display:block; margin-bottom: 0.25rem;">Drop an image here</strong>
-            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 5 MB)</span>
+            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 25 MB)</span>
           </div>
         </div>
         <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
@@ -657,9 +657,9 @@ function setupPhotoDropzone() {
       status.style.color = "var(--color-danger)"; status.textContent = "Pick an image file (JPEG, PNG, WebP).";
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) {
       status.style.color = "var(--color-danger)";
-      status.textContent = `That's ${(file.size / 1024 / 1024).toFixed(1)} MB — max is 5 MB. Compress at squoosh.app and try again.`;
+      status.textContent = `That's ${(file.size / 1024 / 1024).toFixed(1)} MB — max is 25 MB. Compress at squoosh.app and try again.`;
       return;
     }
     _selectedPhotoFile = file;
@@ -689,40 +689,31 @@ async function doPhotoUpload() {
   status.style.color = "var(--color-stone)"; status.textContent = `Uploading ${file.name}…`;
 
   try {
-    const dataUrl = await new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result); r.onerror = reject;
-      r.readAsDataURL(file);
-    });
+    // Load the Vercel Blob client lib from a CDN. This avoids a build step.
+    const { upload } = await import("https://esm.sh/@vercel/blob@2.3.3/client");
 
-    const r = await fetch("/api/admin/upload", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dataUrl, filename: file.name, propertyId: _currentPhotoProperty, caption
-      })
-    });
-    const j = await r.json();
+    // Build a pathname that includes the property folder for organization.
+    const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_").slice(0, 60) || "photo";
+    const pathname = `photos/${_currentPhotoProperty || "misc"}/${safeName}`;
 
-    if (!j.ok) {
-      status.style.color = "var(--color-danger)";
-      status.innerHTML = `<strong>Upload failed:</strong> ${escapeHtml(j.error)}`
-        + (j.hint ? `<div style="margin-top: 0.4rem; color: var(--color-stone); font-size: 0.85rem;">${escapeHtml(j.hint)}</div>` : "")
-        + (j.setupUrl ? `<a href="${j.setupUrl}" target="_blank" style="color: var(--color-primary); text-decoration: underline;">Open Vercel Storage settings →</a>` : "");
-      btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "Upload";
-      return;
-    }
+    const blob = await upload(pathname, file, {
+      access: "public",
+      handleUploadUrl: "/api/admin/upload",
+      contentType: file.type,
+      clientPayload: JSON.stringify({ propertyId: _currentPhotoProperty })
+    });
 
     // Success — add to current property's photos
     const photos = getCurrentPhotos();
-    photos.push({ url: j.url, caption: caption || "", source: "custom" });
+    photos.push({ url: blob.url, caption: caption || "", source: "custom" });
     renderPhotoBoard(photos);
     document.getElementById("photoUploadDialog").remove();
-    toast(`Uploaded · ${(j.size / 1024).toFixed(0)} KB`);
+    toast(`Uploaded · ${(file.size / 1024).toFixed(0)} KB`);
     _selectedPhotoFile = null;
     persistPhotos(photos);
   } catch (e) {
     status.style.color = "var(--color-danger)";
-    status.textContent = `Upload error: ${e.message}`;
+    status.innerHTML = `<strong>Upload error:</strong> ${escapeHtml(String(e.message || e))}`;
     btn.disabled = false; btn.style.opacity = "1"; btn.textContent = "Upload";
   }
 }
