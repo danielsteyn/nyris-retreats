@@ -536,22 +536,79 @@ async function persistPhotos(photos, successMsg) {
   }
 }
 function addCustomPhoto() {
-  openPhotoUploadDialog();
+  openUploadDialog({
+    title: "Add a property photo",
+    pathPrefix: `photos/${_currentPhotoProperty || "misc"}`,
+    captionField: true,
+    onUploaded: (url, caption) => {
+      const photos = getCurrentPhotos();
+      photos.push({ url, caption: caption || "", source: "custom" });
+      renderPhotoBoard(photos);
+      toast("Photo added");
+      persistPhotos(photos);
+    }
+  });
+}
+
+function openLogoUpload() {
+  openUploadDialog({
+    title: "Upload logo",
+    subtitle: "Transparent PNG or SVG sized ~100×100 works best.",
+    pathPrefix: "branding",
+    captionField: false,
+    onUploaded: (url) => {
+      const inp = document.getElementById("bLogoUrl");
+      if (inp) inp.value = url;
+      setLogoMode("url");
+      if (typeof updateBrandPreview === "function") updateBrandPreview();
+      toast("Logo image uploaded. Click Save branding to apply.");
+    }
+  });
+}
+
+function openHeroUpload() {
+  openUploadDialog({
+    title: "Upload hero background",
+    subtitle: "Wide image at least 1920×1080 recommended.",
+    pathPrefix: "branding/hero",
+    captionField: false,
+    onUploaded: (url) => {
+      const inp = document.getElementById("aHImg");
+      if (inp) inp.value = url;
+      if (typeof updateHeroPreview === "function") updateHeroPreview();
+      toast("Hero image uploaded. Click Save changes to apply.");
+    }
+  });
 }
 
 // =============================================================================
-// Photo upload dialog (Upload from PC | Paste URL tabs)
+// Generic upload dialog (Upload from PC | Paste URL tabs)
+// Used by: property photos, branding logo, hero image. Pass an onUploaded
+// callback that receives (url, caption) when the user confirms either tab.
 // =============================================================================
-function openPhotoUploadDialog() {
+let _uploadOpts = {};
+function openUploadDialog(opts = {}) {
+  _uploadOpts = {
+    title: "Add an image",
+    subtitle: "",
+    pathPrefix: "misc",
+    captionField: true,
+    onUploaded: () => {},
+    ...opts
+  };
   document.getElementById("photoUploadDialog")?.remove();
   const overlay = document.createElement("div");
   overlay.id = "photoUploadDialog";
   overlay.style.cssText = "position: fixed; inset: 0; background: rgba(20,30,25,0.55); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1.5rem;";
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  const cap = !!_uploadOpts.captionField;
   overlay.innerHTML = `
     <div style="background: var(--color-cream); border-radius: 18px; max-width: 540px; width: 100%; box-shadow: var(--shadow-xl); overflow: hidden;" onclick="event.stopPropagation()">
       <div style="padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--color-line); display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="margin: 0; font-size: 1.2rem;">Add a photo</h3>
+        <div>
+          <h3 style="margin: 0; font-size: 1.2rem;">${escapeHtml(_uploadOpts.title)}</h3>
+          ${_uploadOpts.subtitle ? `<p style="margin: 0.2rem 0 0; color: var(--color-stone); font-size: 0.85rem;">${escapeHtml(_uploadOpts.subtitle)}</p>` : ""}
+        </div>
         <button class="icon-btn" onclick="document.getElementById('photoUploadDialog').remove()" aria-label="Close">${ICON.close.replace('width="22" height="22"','width="20" height="20"')}</button>
       </div>
       <div style="padding: 0; border-bottom: 1px solid var(--color-line); display:flex;">
@@ -559,16 +616,16 @@ function openPhotoUploadDialog() {
         <button id="phTabUrl" class="ph-tab" style="flex:1; padding: 0.85rem; font-weight: 500; border-bottom: 2px solid transparent; color: var(--color-stone);" onclick="switchPhotoDialogTab('url')">Paste URL</button>
       </div>
       <div id="phPanelUpload" style="padding: 1.75rem;">
-        <input type="file" id="phFileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" style="display:none"/>
+        <input type="file" id="phFileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/svg+xml" style="display:none"/>
         <div id="phDropzone" style="border: 2px dashed var(--color-line); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; user-select: none;">
           <div id="phDropzoneInner" style="pointer-events: none;">
             <div style="font-size: 2.4rem; line-height: 1; margin-bottom: 0.5rem; color: var(--color-stone);">↑</div>
             <strong style="display:block; margin-bottom: 0.25rem;">Drop an image here</strong>
-            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 20 MB)</span>
+            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP, SVG — max 20 MB)</span>
           </div>
         </div>
-        <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
-        <input class="form-control" id="phUploadCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>
+        ${cap ? `<label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
+        <input class="form-control" id="phUploadCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>` : `<input type="hidden" id="phUploadCaption" value=""/>`}
         <div id="phUploadStatus" style="margin-top: 1rem; font-size: 0.9rem; min-height: 24px;"></div>
         <div style="display:flex; gap: 0.5rem; margin-top: 1.25rem;">
           <button class="btn btn-primary" id="phUploadBtn" onclick="doPhotoUpload()" disabled style="opacity: 0.5;">Upload</button>
@@ -578,11 +635,11 @@ function openPhotoUploadDialog() {
       <div id="phPanelUrl" style="padding: 1.75rem; display:none;">
         <label class="form-label">Image URL</label>
         <input class="form-control" id="phUrlInput" placeholder="https://...jpg" style="font-family: monospace; font-size: 0.9rem;"/>
-        <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.4rem 0 0;">Must be publicly accessible. Hospitable image URLs work directly (no auth required).</p>
-        <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
-        <input class="form-control" id="phUrlCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>
+        <p style="color: var(--color-stone); font-size: 0.82rem; margin: 0.4rem 0 0;">Must be publicly accessible.</p>
+        ${cap ? `<label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
+        <input class="form-control" id="phUrlCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>` : `<input type="hidden" id="phUrlCaption" value=""/>`}
         <div style="display:flex; gap: 0.5rem; margin-top: 1.5rem;">
-          <button class="btn btn-primary" onclick="doPhotoFromUrl()">Add photo</button>
+          <button class="btn btn-primary" onclick="doPhotoFromUrl()">Use this URL</button>
           <button class="btn btn-ghost" onclick="document.getElementById('photoUploadDialog').remove()">Cancel</button>
         </div>
       </div>
@@ -700,26 +757,27 @@ async function doPhotoUpload() {
     // Load the Vercel Blob client lib from a CDN. This avoids a build step.
     const { upload } = await import("https://esm.sh/@vercel/blob@2.3.3/client");
 
-    // Build a pathname that includes the property folder for organization.
+    // Build a pathname under the upload's pathPrefix.
     const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_").slice(0, 60) || "photo";
-    const pathname = `photos/${_currentPhotoProperty || "misc"}/${safeName}`;
+    const prefix = _uploadOpts.pathPrefix || "misc";
+    const pathname = `${prefix}/${safeName}`;
 
     const blob = await upload(pathname, file, {
       access: "public",
       handleUploadUrl: "/api/admin/upload",
       contentType: file.type,
-      clientPayload: JSON.stringify({ propertyId: _currentPhotoProperty })
+      clientPayload: JSON.stringify({ propertyId: _currentPhotoProperty, pathPrefix: prefix })
     });
 
-    // Success — add to current property's photos
-    const photos = getCurrentPhotos();
-    photos.push({ url: blob.url, caption: caption || "", source: "custom" });
-    renderPhotoBoard(photos);
+    // Success — invoke the dialog's onUploaded callback (which decides
+    // what to do with the URL — add to property photos, set logo, etc.)
     document.getElementById("photoUploadDialog").remove();
     const savedPct = original.size > file.size ? ` (saved ${Math.round((1 - file.size/original.size)*100)}%)` : "";
     toast(`Uploaded · ${(file.size / 1024).toFixed(0)} KB${savedPct}`);
     _selectedPhotoFile = null;
-    persistPhotos(photos);
+    if (typeof _uploadOpts.onUploaded === "function") {
+      _uploadOpts.onUploaded(blob.url, caption);
+    }
   } catch (e) {
     status.style.color = "var(--color-danger)";
     status.innerHTML = `<strong>Upload error:</strong> ${escapeHtml(String(e.message || e))}`;
@@ -771,14 +829,12 @@ async function compressImage(file, { maxEdge = 1920, quality = 0.86 } = {}) {
 
 function doPhotoFromUrl() {
   const url = document.getElementById("phUrlInput").value.trim();
-  const caption = document.getElementById("phUrlCaption").value.trim();
+  const caption = document.getElementById("phUrlCaption")?.value?.trim() || "";
   if (!url || !/^https?:\/\//.test(url)) { toast("Enter a valid URL starting with http(s)://"); return; }
-  const photos = getCurrentPhotos();
-  photos.push({ url, caption, source: "custom" });
-  renderPhotoBoard(photos);
   document.getElementById("photoUploadDialog").remove();
-  toast("Photo added");
-  persistPhotos(photos);
+  if (typeof _uploadOpts.onUploaded === "function") {
+    _uploadOpts.onUploaded(url, caption);
+  }
 }
 async function savePhotoChanges() {
   const photos = getCurrentPhotos();

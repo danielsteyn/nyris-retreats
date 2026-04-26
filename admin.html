@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=13"/>
-<script src="/js/theme.js?v=13"></script>
+<link rel="stylesheet" href="/css/styles.css?v=14"/>
+<script src="/js/theme.js?v=14"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -79,9 +79,12 @@
           <div style="margin-bottom: 1.25rem;"><label class="form-label">Headline</label><input class="form-control" id="aHTitle"/></div>
           <div style="margin-bottom: 1.25rem;"><label class="form-label">Subtitle</label><textarea class="form-control" id="aHSub" rows="3" style="resize: vertical;"></textarea></div>
           <div style="margin-bottom: 1.5rem;">
-            <label class="form-label">Hero background image URL</label>
-            <input class="form-control" id="aHImg"/>
-            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Tip: copy a URL from one of your property images.</p>
+            <label class="form-label">Hero background image</label>
+            <div style="display:flex; gap: 0.5rem;">
+              <input class="form-control" id="aHImg" placeholder="Paste a URL or click Upload"/>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openHeroUpload()">Upload</button>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Wide image works best — at least 1920×1080. Upload uses the same drag-and-drop dialog as property photos.</p>
           </div>
           <div style="display:flex; gap: 0.75rem;">
             <button class="btn btn-primary" onclick="saveHero()">Save changes</button>
@@ -118,9 +121,12 @@
             <button type="button" class="btn btn-outline btn-sm" id="logoModeSvg" onclick="setLogoMode('svg')">Inline SVG</button>
           </div>
           <div id="logoUrlField" style="display:none; margin-bottom: 1rem;">
-            <label class="form-label">Logo image URL (PNG, SVG, JPEG)</label>
-            <input class="form-control" id="bLogoUrl" placeholder="https://..."/>
-            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Use a transparent PNG or SVG sized to ~28px tall.</p>
+            <label class="form-label">Logo image</label>
+            <div style="display:flex; gap: 0.5rem;">
+              <input class="form-control" id="bLogoUrl" placeholder="Paste a URL or click Upload"/>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openLogoUpload()">Upload</button>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Transparent PNG or SVG sized ~100×100. Upload uses the same drag-and-drop dialog as property photos.</p>
           </div>
           <div id="logoSvgField" style="display:none; margin-bottom: 1rem;">
             <label class="form-label">Inline SVG markup</label>
@@ -356,8 +362,8 @@
 }
 </style>
 
-<script src="/js/data.js?v=13"></script>
-<script src="/js/app.js?v=13"></script>
-<script src="/js/admin.js?v=13"></script>
+<script src="/js/data.js?v=14"></script>
+<script src="/js/app.js?v=14"></script>
+<script src="/js/admin.js?v=14"></script>
 </body>
 </html>
