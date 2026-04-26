@@ -100,6 +100,7 @@ window.__bookingState = { discount: null }; // { code, type, value, discountAmou
   window.__bookingCtx = { p, ci, co, subtotal, longStayPct, longStayDiscount, cleaning, computeTotals, refreshRight };
 
   function renderLeft(dueNow) {
+    const { total, dueLater } = computeTotals();
     return `
     <a href="/property.html?slug=${slug}" style="font-size: 0.88rem; color: var(--color-stone);">← Back to property</a>
     <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 1rem 0 2rem;">Confirm and pay</h1>
