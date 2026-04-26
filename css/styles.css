@@ -29,6 +29,7 @@
 }
 
 * { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
 
 body {
@@ -744,11 +745,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .mobile-drawer {
   position: fixed; inset: 0; z-index: 100;
   background: var(--color-cream);
-  transform: translateX(100%); transition: transform 0.35s var(--ease-out);
+  transform: translateX(100%); transition: transform 0.35s var(--ease-out), visibility 0s linear 0.35s;
   padding: 5rem 1.5rem 2rem;
   display: flex; flex-direction: column;
+  /* Inert when closed — prevents accidental clicks on hidden links and stops
+     it being revealed if anything ever pushes the body beyond its viewport. */
+  visibility: hidden; pointer-events: none;
 }
-.mobile-drawer.open { transform: translateX(0); }
+.mobile-drawer.open {
+  transform: translateX(0);
+  visibility: visible; pointer-events: auto;
+  transition: transform 0.35s var(--ease-out), visibility 0s linear 0s;
+}
 .mobile-drawer a {
   font-family: var(--font-display); font-size: 2rem; padding: 0.85rem 0;
   border-bottom: 1px solid var(--color-line); color: var(--color-charcoal);
