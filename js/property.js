@@ -624,13 +624,17 @@ function onCellClick(iso) {
     if (iso <= ci) {
       // User clicked on or before existing checkin → restart with this as checkin
       window.BkCal.range = { ci: iso, co: null };
-    } else if (rangeHasBlockedDay(ci, iso)) {
-      toast("Some dates in that range are already booked. Pick a different range.");
-      return;
     } else {
+      const conflicts = rangeBlockedDays(ci, iso);
+      if (conflicts.length) {
+        flashBlockedConflict(conflicts);
+        showCalendarBanner(`That range covers ${conflicts.length} booked night${conflicts.length > 1 ? "s" : ""} (${conflicts.map(d => formatDateShort(d)).join(", ")}). Pick a checkout before the first booked night.`);
+        return;
+      }
       window.BkCal.range = { ci, co: iso };
     }
   }
+  hideCalendarBanner();
   applyCalendarSelection();
   renderCalendar();
   if (window.BkCal.range.ci && window.BkCal.range.co) {
@@ -638,18 +642,48 @@ function onCellClick(iso) {
   }
 }
 
-function rangeHasBlockedDay(ci, co) {
-  // Check if any date strictly between ci (inclusive) and co (exclusive) is unavailable.
-  // Note: standard calendar semantics — checkin counts as a stayed night, checkout doesn't.
+function rangeBlockedDays(ci, co) {
+  // Returns array of ISO date strings within [ci, co) that are unavailable.
   const data = window.BkCal.data || {};
   const start = new Date(ci + "T00:00:00Z");
   const end = new Date(co + "T00:00:00Z");
+  const out = [];
   for (let d = new Date(start); d < end; d.setUTCDate(d.getUTCDate() + 1)) {
     const iso = d.toISOString().slice(0, 10);
     const meta = data[iso];
-    if (meta && meta.available === false) return true;
+    if (meta && meta.available === false) out.push(iso);
   }
-  return false;
+  return out;
+}
+
+function flashBlockedConflict(dates) {
+  // Pulse the conflicting cells with a red highlight so the user immediately
+  // sees which booked nights blocked their selection.
+  const set = new Set(dates);
+  document.querySelectorAll(".bkcal-cell[data-date]").forEach(cell => {
+    if (set.has(cell.dataset.date)) {
+      cell.classList.add("conflict-flash");
+      setTimeout(() => cell.classList.remove("conflict-flash"), 1400);
+    }
+  });
+}
+
+function showCalendarBanner(msg) {
+  const cal = document.getElementById("bkCalendar");
+  if (!cal) return;
+  let banner = document.getElementById("bkCalBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "bkCalBanner";
+    banner.className = "bkcal-banner";
+    cal.insertBefore(banner, cal.firstChild);
+  }
+  banner.textContent = msg;
+  banner.classList.remove("hidden");
+}
+
+function hideCalendarBanner() {
+  document.getElementById("bkCalBanner")?.classList.add("hidden");
 }
 
 function applyCalendarSelection() {
