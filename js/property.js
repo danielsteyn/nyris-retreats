@@ -335,6 +335,9 @@
   window.toggleCompare = (id) => { Compare.toggle(id); };
 
   let _priceReqId = 0;
+  // Exposed on window so the calendar code (top-level, outside this IIFE)
+  // can call it after every selection change.
+  window.__updatePriceBreakdown = updatePriceBreakdown;
   async function updatePriceBreakdown() {
     const ci = document.getElementById('bkCheckin').value;
     const co = document.getElementById('bkCheckout').value;
@@ -714,7 +717,9 @@ function applyCalendarSelection() {
   document.getElementById("bkCheckout").value = co || "";
   document.getElementById("bkCheckinDisplay").textContent = ci ? formatDateShort(ci) : "Add date";
   document.getElementById("bkCheckoutDisplay").textContent = co ? formatDateShort(co) : "Add date";
-  if (typeof updatePriceBreakdown === "function") updatePriceBreakdown();
+  // updatePriceBreakdown is scoped inside the property.js IIFE; the IIFE
+  // exposes it on window so this top-level function can fire it.
+  if (typeof window.__updatePriceBreakdown === "function") window.__updatePriceBreakdown();
 }
 
 function formatDateShort(iso) {
