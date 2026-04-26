@@ -25,8 +25,20 @@
   const si = document.getElementById('searchIcon');
   if (si) si.innerHTML = ICON.search;
   // Default dates
-  document.getElementById('searchCheckin').min = isoToday();
-  document.getElementById('searchCheckout').min = isoToday(1);
+  // Wire the shared booking calendar to the hero search bar.
+  // No property selected, so the calendar is just a date picker — no
+  // booked-date blocking, no per-night prices.
+  if (window.BkCal) {
+    window.BkCal.propertyId = null;
+    window.BkCal.targets = {
+      container: "heroCalendar",
+      checkinValue: "searchCheckin",
+      checkoutValue: "searchCheckout",
+      checkinDisplay: "searchCheckinDisplay",
+      checkoutDisplay: "searchCheckoutDisplay"
+    };
+    window.BkCal.onChange = null;
+  }
 
   // Featured grid
   const grid = document.getElementById('featuredGrid');

@@ -192,9 +192,218 @@ async function showDashboard() {
   initPhotosTab();
   initPropertiesTab(o);
   initOrderTab(o);
+  initDestinationsTab(o);
+  initExperiencesTab(o);
   initDiscountsTab();
   initHospitableTab();
   initPricelabsTab();
+}
+
+// =============================================================================
+// Destinations tab — edit name/state/tagline/image per destination
+// =============================================================================
+function initDestinationsTab(o) {
+  const wrap = document.getElementById("destinationsEditor");
+  if (!wrap) return;
+  const overrides = o.destinations || {};
+  // Counts driven by properties' destination field
+  const counts = {};
+  for (const p of NYRIS.properties) counts[p.destination] = (counts[p.destination] || 0) + 1;
+
+  wrap.innerHTML = NYRIS.destinations.map(d => {
+    const ov = overrides[d.slug] || {};
+    const eff = {
+      name: ov.name ?? d.name,
+      state: ov.state ?? d.state,
+      tagline: ov.tagline ?? d.tagline,
+      image: ov.image ?? d.image
+    };
+    return `
+      <div class="dest-edit-card" data-slug="${escapeAttr(d.slug)}">
+        <div class="dest-edit-image" style="background-image: url('${escapeAttr(eff.image)}');" id="destPreview-${escapeAttr(d.slug)}"></div>
+        <div class="dest-edit-fields">
+          <div style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.85rem;">
+            <span style="font-size: 0.78rem; letter-spacing: 0.06em; color: var(--color-stone); text-transform: uppercase;">slug</span>
+            <code style="background: var(--color-cream-dark); padding: 0.15rem 0.55rem; border-radius: 6px; font-size: 0.85rem;">${escapeHtml(d.slug)}</code>
+            <span style="margin-left: auto; font-size: 0.82rem; color: var(--color-stone);">${counts[d.slug] || 0} ${(counts[d.slug] || 0) === 1 ? "property" : "properties"}</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1.6fr 1fr; gap: 0.75rem;">
+            <div><label class="form-label">Name</label><input class="form-control" data-dest-slug="${escapeAttr(d.slug)}" data-dest-field="name" value="${escapeAttr(eff.name)}" placeholder="${escapeAttr(d.name)}"/></div>
+            <div><label class="form-label">State</label><input class="form-control" data-dest-slug="${escapeAttr(d.slug)}" data-dest-field="state" value="${escapeAttr(eff.state)}" placeholder="${escapeAttr(d.state)}"/></div>
+          </div>
+          <div style="margin-top: 0.85rem;"><label class="form-label">Tagline</label><input class="form-control" data-dest-slug="${escapeAttr(d.slug)}" data-dest-field="tagline" value="${escapeAttr(eff.tagline)}" placeholder="${escapeAttr(d.tagline)}"/></div>
+          <div style="margin-top: 0.85rem;">
+            <label class="form-label">Image</label>
+            <div style="display:flex; gap: 0.5rem;">
+              <input class="form-control" data-dest-slug="${escapeAttr(d.slug)}" data-dest-field="image" value="${escapeAttr(eff.image)}" placeholder="Paste URL or click Upload" style="font-family: monospace; font-size: 0.85rem;"/>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openDestImageUpload('${escapeAttr(d.slug)}')">Upload</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+
+  document.querySelectorAll('[data-dest-slug]').forEach(input => {
+    input.addEventListener("change", saveDestOverride);
+    if (input.dataset.destField === "image") {
+      input.addEventListener("input", () => updateDestPreview(input.dataset.destSlug, input.value));
+    }
+  });
+}
+
+function updateDestPreview(slug, url) {
+  const el = document.getElementById("destPreview-" + slug);
+  if (el && url) el.style.backgroundImage = `url('${url}')`;
+}
+
+async function saveDestOverride(e) {
+  const o = await Store.getOverrides();
+  o.destinations = o.destinations || {};
+  const slug = e.target.dataset.destSlug;
+  const field = e.target.dataset.destField;
+  const val = e.target.value.trim();
+  o.destinations[slug] = o.destinations[slug] || {};
+  if (val) o.destinations[slug][field] = val;
+  else delete o.destinations[slug][field];
+  if (Object.keys(o.destinations[slug]).length === 0) delete o.destinations[slug];
+  await Store.saveOverrides(o);
+  toast("Saved.");
+}
+
+function openDestImageUpload(slug) {
+  openUploadDialog({
+    title: "Upload destination image",
+    subtitle: "Tall hero-style image works best (4:5 aspect ratio, ≥1200px wide).",
+    pathPrefix: `destinations/${slug}`,
+    captionField: false,
+    onUploaded: async (url) => {
+      const inp = document.querySelector(`[data-dest-slug="${slug}"][data-dest-field="image"]`);
+      if (inp) {
+        inp.value = url;
+        updateDestPreview(slug, url);
+        // Persist immediately
+        const o = await Store.getOverrides();
+        o.destinations = o.destinations || {};
+        o.destinations[slug] = { ...(o.destinations[slug] || {}), image: url };
+        await Store.saveOverrides(o);
+      }
+      toast("Destination image uploaded.");
+    }
+  });
+}
+
+// =============================================================================
+// Experiences tab — per-property list editor
+// =============================================================================
+let _expCurrentSlug = null;
+
+function initExperiencesTab(o) {
+  const sel = document.getElementById("expPropSelect");
+  if (!sel) return;
+  sel.innerHTML = NYRIS.properties.map(p => `<option value="${escapeAttr(p.slug)}">${escapeHtml(p.name)} — ${p.city}, ${p.state}</option>`).join("");
+  sel.addEventListener("change", () => loadExperiencesFor(sel.value));
+  loadExperiencesFor(sel.value);
+}
+
+async function loadExperiencesFor(slug) {
+  _expCurrentSlug = slug;
+  const wrap = document.getElementById("experiencesEditor");
+  const o = await Store.getOverrides();
+  const p = NYRIS.properties.find(x => x.slug === slug);
+  const overrideList = o.props?.[slug]?.experiences;
+  const list = Array.isArray(overrideList) ? overrideList : (p?.experiences || []);
+  renderExpList(list);
+}
+
+function renderExpList(items) {
+  const wrap = document.getElementById("experiencesEditor");
+  wrap.innerHTML = `
+    <ul id="expList" style="list-style:none; padding:0; margin:0;">
+      ${items.map((text, i) => expRow(text, i)).join("")}
+    </ul>
+    <div style="display:flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap;">
+      <button class="btn btn-outline" onclick="expAdd()">+ Add experience</button>
+      <button class="btn btn-ghost" onclick="expReset()">Reset to defaults</button>
+    </div>
+  `;
+  bindExpDrag();
+}
+
+function expRow(text, i) {
+  return `
+    <li class="exp-row" draggable="true" data-i="${i}">
+      <span class="exp-handle" title="Drag to reorder">⋮⋮</span>
+      <input class="form-control exp-input" value="${escapeAttr(text)}" data-i="${i}" placeholder="e.g. Sunset stroll on the beach"/>
+      <button class="icon-btn exp-remove" data-i="${i}" title="Remove" type="button">${ICON.close.replace('width="22" height="22"', 'width="18" height="18"')}</button>
+    </li>`;
+}
+
+function getExpItems() {
+  return [...document.querySelectorAll("#expList .exp-row")].map(li => {
+    const inp = li.querySelector(".exp-input");
+    return (inp.value || "").trim();
+  }).filter(s => s.length);
+}
+
+function bindExpDrag() {
+  let dragSrc = null;
+  document.querySelectorAll("#expList .exp-row").forEach(row => {
+    row.addEventListener("dragstart", () => { dragSrc = row; row.style.opacity = "0.4"; });
+    row.addEventListener("dragend", () => row.style.opacity = "1");
+    row.addEventListener("dragover", e => e.preventDefault());
+    row.addEventListener("drop", e => {
+      e.preventDefault();
+      if (!dragSrc || dragSrc === row) return;
+      const list = row.parentNode;
+      const rows = [...list.children];
+      const si = rows.indexOf(dragSrc), ti = rows.indexOf(row);
+      if (si < ti) row.after(dragSrc); else row.before(dragSrc);
+      persistExperiences();
+    });
+  });
+  document.querySelectorAll(".exp-input").forEach(inp => {
+    inp.addEventListener("change", persistExperiences);
+  });
+  document.querySelectorAll(".exp-remove").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const items = getExpItems();
+      const i = parseInt(btn.dataset.i, 10);
+      items.splice(i, 1);
+      renderExpList(items);
+      persistExperiences();
+    });
+  });
+}
+
+function expAdd() {
+  const items = getExpItems();
+  items.push("");
+  renderExpList(items);
+  // Focus the last input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll(".exp-input");
+    inputs[inputs.length - 1]?.focus();
+  }, 0);
+}
+
+async function expReset() {
+  if (!confirm("Reset experiences for this property to the original list? Your edits will be lost.")) return;
+  const o = await Store.getOverrides();
+  if (o.props?.[_expCurrentSlug]) delete o.props[_expCurrentSlug].experiences;
+  await Store.saveOverrides(o);
+  loadExperiencesFor(_expCurrentSlug);
+  toast("Reset to defaults.");
+}
+
+async function persistExperiences() {
+  if (!_expCurrentSlug) return;
+  const items = getExpItems();
+  const o = await Store.getOverrides();
+  o.props = o.props || {};
+  o.props[_expCurrentSlug] = o.props[_expCurrentSlug] || {};
+  o.props[_expCurrentSlug].experiences = items;
+  await Store.saveOverrides(o);
+  toast("Saved.");
 }
 
 // =============================================================================

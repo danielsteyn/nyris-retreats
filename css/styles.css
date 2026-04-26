@@ -191,6 +191,19 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-bottom: 0.2rem;
   line-height: 1.2;
 }
+/* Date-trigger button variant of .search-field reset for button defaults */
+.search-bar button.search-field {
+  font-family: inherit; text-align: left;
+  border: 0; outline: none;
+}
+.search-bar .search-field > span.date-display {
+  font-size: 0.92rem;
+  font-weight: 400;
+  color: var(--color-stone);
+  letter-spacing: 0;
+  margin-bottom: 0;
+  line-height: 1.4;
+}
 .search-bar .search-field input,
 .search-bar .search-field select {
   border: 0; background: transparent; font-size: 0.92rem; color: var(--color-stone);
@@ -447,6 +460,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-top: 0.5rem;
   width: min(680px, calc(100vw - 2rem));
   right: 0;
+  color: var(--color-charcoal);
+}
+.booking-calendar.hero-calendar {
+  top: 100%; left: 50%; right: auto; transform: translateX(-50%);
+  margin-top: 0.75rem;
 }
 .bkcal-head {
   display: flex; align-items: center; justify-content: space-between;

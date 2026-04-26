@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=19"/>
-<script src="/js/theme.js?v=19"></script>
+<link rel="stylesheet" href="/css/styles.css?v=20"/>
+<script src="/js/theme.js?v=20"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -65,6 +65,8 @@
       <button class="tab-btn" data-tab="branding">Branding & theme</button>
       <button class="tab-btn" data-tab="photos">Photos</button>
       <button class="tab-btn" data-tab="properties">Property details</button>
+      <button class="tab-btn" data-tab="destinations">Destinations</button>
+      <button class="tab-btn" data-tab="experiences">Experiences</button>
       <button class="tab-btn" data-tab="order">Featured order</button>
       <button class="tab-btn" data-tab="discounts">Promo codes</button>
       <button class="tab-btn" data-tab="hospitable">Hospitable API</button>
@@ -184,6 +186,23 @@
       <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Property overrides</h2>
       <p style="color: var(--color-stone); margin: 0 0 2rem;">Override displayed names, taglines, or starting prices. Leave blank to keep the source-of-truth from Hospitable.</p>
       <div id="propOverrides"></div>
+    </div>
+
+    <!-- Destinations tab -->
+    <div class="tab-panel" id="tab-destinations" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Destinations</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Edit the four destination cards on the homepage and the Experiences page header. Property counts update automatically based on which properties belong to each destination.</p>
+      <div id="destinationsEditor"></div>
+    </div>
+
+    <!-- Experiences tab -->
+    <div class="tab-panel" id="tab-experiences" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Experiences</h2>
+      <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Curated activities shown on each property's detail page and on the Experiences page. Add, edit, reorder, or remove items per property.</p>
+      <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+        <select class="form-control" id="expPropSelect" style="max-width: 320px;"></select>
+      </div>
+      <div id="experiencesEditor"></div>
     </div>
 
     <!-- Order tab -->
@@ -422,6 +441,35 @@
   .two-col { grid-template-columns: 1fr !important; }
 }
 
+/* Destinations editor */
+.dest-edit-card {
+  display:grid; grid-template-columns: 200px 1fr; gap: 1.25rem;
+  padding: 1.25rem; background: white; border: 1px solid var(--color-line);
+  border-radius: 14px; margin-bottom: 1rem;
+}
+.dest-edit-image {
+  background-size: cover; background-position: center;
+  border-radius: 10px; aspect-ratio: 4/5;
+}
+@media (max-width: 720px) {
+  .dest-edit-card { grid-template-columns: 1fr; }
+  .dest-edit-image { aspect-ratio: 16/9; }
+}
+
+/* Experiences editor */
+.exp-row {
+  display:flex; align-items:center; gap: 0.5rem;
+  background: white; border: 1px solid var(--color-line);
+  padding: 0.5rem 0.6rem; border-radius: 10px; margin-bottom: 0.5rem;
+}
+.exp-handle {
+  cursor: grab; color: var(--color-stone); font-size: 1.1rem;
+  user-select: none; padding: 0 0.25rem;
+}
+.exp-input { flex: 1; border: 0 !important; padding: 0.45rem 0.5rem !important; background: transparent; font-size: 0.95rem; }
+.exp-input:focus { background: var(--color-cream-dark); border-radius: 6px; }
+.exp-remove { width: 28px !important; height: 28px !important; }
+
 /* Promo codes list */
 .dc-row {
   display: flex; align-items: start; justify-content: space-between; gap: 1rem;
@@ -442,8 +490,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=19"></script>
-<script src="/js/app.js?v=19"></script>
-<script src="/js/admin.js?v=19"></script>
+<script src="/js/data.js?v=20"></script>
+<script src="/js/app.js?v=20"></script>
+<script src="/js/admin.js?v=20"></script>
 </body>
 </html>

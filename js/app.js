@@ -88,7 +88,7 @@ function applyOverrides(props) {
   if (o.heroSubtitle) NYRIS.brand.heroSubtitle = o.heroSubtitle;
   if (o.heroImage) NYRIS.brand.heroImage = o.heroImage;
 
-  // Per-property field overrides (name, tagline, basePrice, cleaningFee, …)
+  // Per-property field overrides (name, tagline, basePrice, cleaningFee, experiences, …)
   if (o.props) {
     for (const p of props) {
       const ov = o.props[p.slug];
@@ -97,6 +97,19 @@ function applyOverrides(props) {
       if (ov.tagline) p.tagline = ov.tagline;
       if (ov.basePrice != null) p.basePrice = Number(ov.basePrice);
       if (ov.cleaningFee != null) p.cleaningFee = Number(ov.cleaningFee);
+      if (Array.isArray(ov.experiences)) p.experiences = ov.experiences.filter(s => s && s.trim());
+    }
+  }
+
+  // Destination overrides (name, state, tagline, image)
+  if (o.destinations && Array.isArray(NYRIS.destinations)) {
+    for (const d of NYRIS.destinations) {
+      const od = o.destinations[d.slug];
+      if (!od) continue;
+      if (od.name) d.name = od.name;
+      if (od.state) d.state = od.state;
+      if (od.tagline) d.tagline = od.tagline;
+      if (od.image) d.image = od.image;
     }
   }
 

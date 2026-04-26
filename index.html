@@ -11,8 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=18"/>
-<script src="/js/theme.js?v=18"></script>
+<link rel="stylesheet" href="/css/styles.css?v=20"/>
+<script src="/js/theme.js?v=20"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
 <script>window.__activeNav = "home";</script>
 </head>
@@ -37,14 +37,16 @@
           <option value="">Anywhere on our list</option>
         </select>
       </label>
-      <label class="search-field">
+      <button type="button" class="search-field date-trigger" onclick="openBookingCalendar('checkin')">
         <span>Check in</span>
-        <input type="date" name="checkin" id="searchCheckin"/>
-      </label>
-      <label class="search-field">
+        <span class="date-display" id="searchCheckinDisplay">Add date</span>
+      </button>
+      <button type="button" class="search-field date-trigger" onclick="openBookingCalendar('checkout')">
         <span>Check out</span>
-        <input type="date" name="checkout" id="searchCheckout"/>
-      </label>
+        <span class="date-display" id="searchCheckoutDisplay">Add date</span>
+      </button>
+      <input type="hidden" id="searchCheckin" name="checkin"/>
+      <input type="hidden" id="searchCheckout" name="checkout"/>
       <label class="search-field">
         <span>Guests</span>
         <input type="number" name="guests" id="searchGuests" min="1" max="13" placeholder="Add guests"/>
@@ -53,6 +55,7 @@
         <span id="searchIcon"></span>
         <span>Search</span>
       </button>
+      <div id="heroCalendar" class="booking-calendar hero-calendar" hidden></div>
     </form>
     <div style="margin-top: 1.25rem; display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; font-size: 0.86rem; color: rgba(255,255,255,0.8);">
       <span>★ 5.0 average rating</span>
@@ -237,8 +240,9 @@ section[style*="grid-template-columns: 1fr 1.4fr"] { } @media (max-width: 960px)
 
 <footer id="site-footer"></footer>
 
-<script src="/js/data.js?v=18"></script>
-<script src="/js/app.js?v=18"></script>
-<script src="/js/home.js?v=18"></script>
+<script src="/js/data.js?v=20"></script>
+<script src="/js/app.js?v=20"></script>
+<script src="/js/booking-calendar.js?v=20"></script>
+<script src="/js/home.js?v=20"></script>
 </body>
 </html>
