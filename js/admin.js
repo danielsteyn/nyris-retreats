@@ -527,11 +527,13 @@ function openPhotoUploadDialog() {
         <button id="phTabUrl" class="ph-tab" style="flex:1; padding: 0.85rem; font-weight: 500; border-bottom: 2px solid transparent; color: var(--color-stone);" onclick="switchPhotoDialogTab('url')">Paste URL</button>
       </div>
       <div id="phPanelUpload" style="padding: 1.75rem;">
-        <div id="phDropzone" style="border: 2px dashed var(--color-line); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s;">
-          <div style="font-size: 2.4rem; line-height: 1; margin-bottom: 0.5rem; color: var(--color-stone);">↑</div>
-          <strong style="display:block; margin-bottom: 0.25rem;">Drop an image here</strong>
-          <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 5 MB)</span>
-          <input type="file" id="phFileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" style="display:none"/>
+        <input type="file" id="phFileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" style="display:none"/>
+        <div id="phDropzone" style="border: 2px dashed var(--color-line); border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; user-select: none;">
+          <div id="phDropzoneInner" style="pointer-events: none;">
+            <div style="font-size: 2.4rem; line-height: 1; margin-bottom: 0.5rem; color: var(--color-stone);">↑</div>
+            <strong style="display:block; margin-bottom: 0.25rem;">Drop an image here</strong>
+            <span style="color: var(--color-stone); font-size: 0.9rem;">or click to choose a file (JPEG, PNG, WebP — max 5 MB)</span>
+          </div>
         </div>
         <label class="form-label" style="margin-top: 1.25rem;">Caption (optional)</label>
         <input class="form-control" id="phUploadCaption" placeholder="e.g. Sunset deck — perfect for evening drinks"/>
@@ -573,17 +575,46 @@ function setupPhotoDropzone() {
   const status = document.getElementById("phUploadStatus");
   const btn = document.getElementById("phUploadBtn");
 
+  // Block the browser from opening dropped files anywhere on the page while
+  // the dialog is open. (Outside the zone, we still preventDefault so the
+  // user doesn't accidentally navigate away if their drop misses by a pixel.)
+  const blockDefault = (e) => { e.preventDefault(); };
+  document.addEventListener("dragover", blockDefault);
+  document.addEventListener("drop", blockDefault);
+  // Tear those listeners down when the dialog closes.
+  const dialogEl = document.getElementById("photoUploadDialog");
+  const cleanup = new MutationObserver(() => {
+    if (!document.body.contains(dialogEl)) {
+      document.removeEventListener("dragover", blockDefault);
+      document.removeEventListener("drop", blockDefault);
+      cleanup.disconnect();
+    }
+  });
+  cleanup.observe(document.body, { childList: true });
+
+  // Click → file picker. The dropzone's inner content has pointer-events: none,
+  // so the click reliably reaches the zone itself.
   zone.addEventListener("click", () => input.click());
-  ["dragenter", "dragover"].forEach(ev => zone.addEventListener(ev, e => {
-    e.preventDefault(); zone.style.borderColor = "var(--color-primary)"; zone.style.background = "rgba(31,61,43,0.04)";
-  }));
-  ["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => {
-    e.preventDefault(); zone.style.borderColor = "var(--color-line)"; zone.style.background = "transparent";
-  }));
-  zone.addEventListener("drop", e => {
+
+  // Drag counter pattern — gives stable enter/leave behavior even when the
+  // cursor crosses nested children of the zone.
+  let dragCount = 0;
+  const setActive = (active) => {
+    zone.style.borderColor = active ? "var(--color-primary)" : "var(--color-line)";
+    zone.style.background = active ? "rgba(31,61,43,0.06)" : "transparent";
+  };
+  zone.addEventListener("dragenter", (e) => { e.preventDefault(); dragCount++; setActive(true); });
+  zone.addEventListener("dragleave", (e) => { e.preventDefault(); dragCount = Math.max(0, dragCount - 1); if (dragCount === 0) setActive(false); });
+  zone.addEventListener("dragover", (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCount = 0;
+    setActive(false);
     const file = e.dataTransfer?.files?.[0];
     if (file) handleSelectedFile(file);
   });
+
   input.addEventListener("change", e => {
     const file = e.target.files?.[0];
     if (file) handleSelectedFile(file);
@@ -603,13 +634,14 @@ function setupPhotoDropzone() {
     status.style.color = "var(--color-charcoal)";
     status.innerHTML = `<strong>${escapeHtml(file.name)}</strong> · ${(file.size / 1024 / 1024).toFixed(2)} MB · ${escapeHtml(file.type)} ready to upload`;
     btn.disabled = false; btn.style.opacity = "1";
-    // Show inline preview
+    // Show inline preview. Replace only the inner content; the zone itself and
+    // its event listeners remain intact, so a second drop still works.
     const reader = new FileReader();
     reader.onload = () => {
-      zone.innerHTML = `<img src="${reader.result}" alt="" style="max-height: 180px; max-width: 100%; border-radius: 8px;"/>
-        <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--color-stone);">Click upload below or drop a different image to replace</div>`;
-      // Re-bind drop on the new content
-      zone.addEventListener("click", () => input.click());
+      const inner = document.getElementById("phDropzoneInner") || zone;
+      inner.style.pointerEvents = "none";
+      inner.innerHTML = `<img src="${reader.result}" alt="" style="max-height: 180px; max-width: 100%; border-radius: 8px; display: block; margin: 0 auto;"/>
+        <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--color-stone);">Click or drop a different image to replace</div>`;
     };
     reader.readAsDataURL(file);
   }
