@@ -52,7 +52,10 @@ export default async function handler(req, res) {
 
     const ext = (contentType.split("/")[1] || "bin").toLowerCase();
     const id = crypto.randomBytes(8).toString("hex");
-    const safeName = String(filename).replace(/[^a-z0-9._-]/gi, "_").slice(0, 50) || "photo";
+    // Strip any existing extension from the original filename, then sanitize.
+    // (We append the canonical ext from contentType to avoid e.g. "test.png.png".)
+    const baseName = String(filename).replace(/\.[^./\\]+$/, "");
+    const safeName = baseName.replace(/[^a-z0-9._-]/gi, "_").slice(0, 50) || "photo";
     const path = `photos/${encodeURIComponent(propertyId).replace(/%/g, "_")}/${id}-${safeName}.${ext}`;
 
     const blob = await put(path, buffer, {
