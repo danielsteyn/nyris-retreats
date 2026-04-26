@@ -17,10 +17,21 @@
   document.title = `${p.name} — ${p.city}, ${p.state} | Nyris Retreats`;
   RecentlyViewed.add(p.id);
 
-  // Apply admin photo overrides (saved cover + custom uploads) to this property's
-  // gallery before rendering. Falls through to static images if no override exists.
-  await PhotoOverrides.load();
-  p.images = PhotoOverrides.imagesFor(p);
+  // Apply admin photo overrides if they're already cached; otherwise render
+  // with static images and upgrade once the override fetch resolves. We
+  // never block the render on the API — a slow / failed /api/photos call
+  // must not leave the page blank.
+  if (PhotoOverrides && PhotoOverrides._data) {
+    p.images = PhotoOverrides.imagesFor(p);
+  } else if (PhotoOverrides) {
+    PhotoOverrides.load().then(() => {
+      const newImages = PhotoOverrides.imagesFor(p);
+      if (newImages[0] !== p.images[0]) {
+        p.images = newImages;
+        applyOverridesToGallery(newImages);
+      }
+    }).catch(() => {});
+  }
 
   // Build the page
   root.innerHTML = `
@@ -256,6 +267,18 @@
   document.querySelectorAll('.detail-gallery > div').forEach((d, i) => {
     d.onclick = () => Lightbox.open(p.images, i);
   });
+
+  // Defined after the gallery is rendered so it can swap images in place
+  // when admin overrides arrive late (slow /api/photos on first visit).
+  window.applyOverridesToGallery = function(newImages) {
+    window.__propImages = newImages;
+    const wrappers = document.querySelectorAll('.detail-gallery > div');
+    wrappers.forEach((d, i) => {
+      const img = d.querySelector('img');
+      if (img && newImages[i] && img.src !== newImages[i]) img.src = newImages[i];
+      d.onclick = () => Lightbox.open(newImages, i);
+    });
+  };
 
   // Mobile CTA
   document.getElementById('mctaPrice').textContent = `$${p.basePrice}`;
