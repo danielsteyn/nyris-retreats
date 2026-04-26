@@ -896,10 +896,13 @@ function initPropertiesTab(o) {
             <div style="color: var(--color-stone); font-size: 0.85rem;">${p.city}, ${p.state}</div>
           </div>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;" class="prop-fields">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;" class="prop-fields">
           <div><label class="form-label">Display name</label><input class="form-control" data-prop-slug="${p.slug}" data-prop-field="name" placeholder="${escapeAttr(p.name)}" value="${escapeAttr(ov.name || '')}"/></div>
           <div><label class="form-label">Tagline</label><input class="form-control" data-prop-slug="${p.slug}" data-prop-field="tagline" placeholder="${escapeAttr(p.tagline)}" value="${escapeAttr(ov.tagline || '')}"/></div>
-          <div><label class="form-label">Starting price</label><input class="form-control" type="number" data-prop-slug="${p.slug}" data-prop-field="basePrice" placeholder="${p.basePrice}" value="${ov.basePrice || ''}"/></div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;" class="prop-fields">
+          <div><label class="form-label">Starting price ($/night)</label><input class="form-control" type="number" min="0" data-prop-slug="${p.slug}" data-prop-field="basePrice" placeholder="${p.basePrice}" value="${ov.basePrice || ''}"/></div>
+          <div><label class="form-label">Cleaning fee ($)</label><input class="form-control" type="number" min="0" data-prop-slug="${p.slug}" data-prop-field="cleaningFee" placeholder="${p.cleaningFee != null ? p.cleaningFee : 165}" value="${ov.cleaningFee != null ? ov.cleaningFee : ''}"/></div>
         </div>
       </div>`;
   }).join('');
@@ -912,8 +915,11 @@ async function savePropOverride(e) {
   const field = e.target.dataset.propField;
   const val = e.target.value.trim();
   o.props[slug] = o.props[slug] || {};
-  if (val) o.props[slug][field] = field === 'basePrice' ? parseFloat(val) : val;
-  else delete o.props[slug][field];
+  if (val) {
+    o.props[slug][field] = (field === 'basePrice' || field === 'cleaningFee') ? parseFloat(val) : val;
+  } else {
+    delete o.props[slug][field];
+  }
   await Store.saveOverrides(o);
   toast("Saved.");
 }

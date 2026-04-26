@@ -416,7 +416,9 @@ window.BkCal = window.BkCal || {
     const { nightCount, perNight, avgNightly, subtotal, source, coverage, coveragePct, loading } = ctx;
     const discountPct = nightCount >= 28 ? 0.20 : nightCount >= 7 ? 0.10 : 0;
     const discount = Math.round(subtotal * discountPct);
-    const cleaning = 165;
+    // Per-property cleaning fee (admin-configurable). Falls back to 165 only
+    // for older properties that don't declare one.
+    const cleaning = (p.cleaningFee != null) ? Number(p.cleaningFee) : 165;
     const taxes = Math.round((subtotal - discount + cleaning) * 0.11);
     const total = subtotal - discount + cleaning + taxes;
 

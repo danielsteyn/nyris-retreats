@@ -87,6 +87,19 @@ function applyOverrides(props) {
   if (o.heroTitle) NYRIS.brand.heroTitle = o.heroTitle;
   if (o.heroSubtitle) NYRIS.brand.heroSubtitle = o.heroSubtitle;
   if (o.heroImage) NYRIS.brand.heroImage = o.heroImage;
+
+  // Per-property field overrides (name, tagline, basePrice, cleaningFee, …)
+  if (o.props) {
+    for (const p of props) {
+      const ov = o.props[p.slug];
+      if (!ov) continue;
+      if (ov.name) p.name = ov.name;
+      if (ov.tagline) p.tagline = ov.tagline;
+      if (ov.basePrice != null) p.basePrice = Number(ov.basePrice);
+      if (ov.cleaningFee != null) p.cleaningFee = Number(ov.cleaningFee);
+    }
+  }
+
   if (o.featuredOrder && Array.isArray(o.featuredOrder)) {
     const ordered = [];
     for (const slug of o.featuredOrder) {
