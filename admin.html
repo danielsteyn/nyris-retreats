@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=16"/>
-<script src="/js/theme.js?v=16"></script>
+<link rel="stylesheet" href="/css/styles.css?v=17"/>
+<script src="/js/theme.js?v=17"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -66,6 +66,7 @@
       <button class="tab-btn" data-tab="photos">Photos</button>
       <button class="tab-btn" data-tab="properties">Property details</button>
       <button class="tab-btn" data-tab="order">Featured order</button>
+      <button class="tab-btn" data-tab="discounts">Discount codes</button>
       <button class="tab-btn" data-tab="hospitable">Hospitable API</button>
       <button class="tab-btn" data-tab="pricelabs">PriceLabs</button>
     </div>
@@ -191,6 +192,66 @@
       <p style="color: var(--color-stone); margin: 0 0 2rem;">Drag to reorder how properties appear on the homepage and search.</p>
       <ul id="orderList" style="list-style:none; padding:0; margin:0;"></ul>
       <button class="btn btn-primary" onclick="saveOrder()" style="margin-top: 1.5rem;">Save order</button>
+    </div>
+
+    <!-- Discount codes tab -->
+    <div class="tab-panel" id="tab-discounts" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Discount codes</h2>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Create flat-rate or percentage codes that guests can apply at checkout. Set a one-time-use limit, multi-use cap, or leave unlimited. Optional expiration.</p>
+
+      <div style="display:grid; grid-template-columns: 1fr 1.4fr; gap: 2rem;" class="two-col">
+        <!-- Create form -->
+        <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; align-self: start;">
+          <h3 style="font-size: 1.05rem; margin: 0 0 1.25rem;">New code</h3>
+
+          <label class="form-label">Code</label>
+          <div style="display:flex; gap: 0.5rem;">
+            <input class="form-control" id="dcCode" placeholder="SPRING25" style="text-transform: uppercase; font-family: monospace;"/>
+            <button type="button" class="btn btn-outline btn-sm" onclick="dcGenerate()" title="Generate a random code">↻</button>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--color-stone); margin: 0.3rem 0 0;">Letters, digits, dashes, underscores. 3–32 chars.</p>
+
+          <label class="form-label" style="margin-top: 1rem;">Type</label>
+          <div style="display:flex; gap: 0.5rem;">
+            <button type="button" class="btn btn-primary btn-sm" id="dcTypeFlat" onclick="dcSetType('flat')">$ Flat amount</button>
+            <button type="button" class="btn btn-outline btn-sm" id="dcTypePct" onclick="dcSetType('percent')">% Percentage</button>
+          </div>
+
+          <label class="form-label" style="margin-top: 1rem;">
+            <span id="dcValueLabel">Discount amount ($)</span>
+          </label>
+          <input class="form-control" id="dcValue" type="number" min="0" step="1" placeholder="50"/>
+
+          <label class="form-label" style="margin-top: 1rem;">Usage limit</label>
+          <select class="form-control" id="dcUsesPreset" onchange="dcUsesPresetChange()">
+            <option value="">Unlimited (re-usable)</option>
+            <option value="1">One-time use only</option>
+            <option value="custom">Multi-use, custom limit…</option>
+          </select>
+          <input class="form-control" id="dcMaxUses" type="number" min="1" placeholder="e.g. 25" style="display:none; margin-top: 0.5rem;"/>
+
+          <label class="form-label" style="margin-top: 1rem;">Expiration</label>
+          <label style="display:flex; align-items:center; gap: 0.5rem; font-size: 0.92rem; margin-bottom: 0.5rem;">
+            <input type="checkbox" id="dcIndefinite" checked onchange="dcIndefiniteChange()"/> No expiration
+          </label>
+          <input class="form-control" id="dcExpires" type="date" style="display:none;"/>
+
+          <label class="form-label" style="margin-top: 1rem;">Description (optional)</label>
+          <input class="form-control" id="dcDescription" placeholder="e.g. Spring 2026 promo"/>
+
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;" onclick="dcSave()">Create code</button>
+          <div id="dcStatus" style="margin-top: 0.75rem; font-size: 0.88rem; min-height: 20px;"></div>
+        </div>
+
+        <!-- Existing codes -->
+        <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; flex-wrap:wrap; gap: 0.5rem;">
+            <h3 style="font-size: 1.05rem; margin: 0;">Existing codes</h3>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="dcLoadList()">Refresh</button>
+          </div>
+          <div id="dcList"><p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">Loading…</p></div>
+        </div>
+      </div>
     </div>
 
     <!-- Hospitable tab -->
@@ -360,10 +421,29 @@
   .stats-grid { grid-template-columns: 1fr 1fr !important; }
   .two-col { grid-template-columns: 1fr !important; }
 }
+
+/* Discount codes list */
+.dc-row {
+  display: flex; align-items: start; justify-content: space-between; gap: 1rem;
+  padding: 1rem 0; border-top: 1px solid var(--color-line);
+}
+.dc-row:first-child { border-top: 0; padding-top: 0; }
+.dc-row[data-status="inactive"] .dc-left,
+.dc-row[data-status="exhausted"] .dc-left,
+.dc-row[data-status="expired"] .dc-left { opacity: 0.6; }
+.dc-code { display:flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.dc-code code {
+  background: var(--color-cream-dark); padding: 0.2rem 0.55rem;
+  border-radius: 6px; font-size: 0.95rem; font-weight: 600;
+  font-family: ui-monospace, monospace;
+}
+.dc-desc { color: var(--color-charcoal); font-size: 0.92rem; margin-top: 0.3rem; }
+.dc-meta { color: var(--color-stone); font-size: 0.85rem; margin-top: 0.2rem; }
+.dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=16"></script>
-<script src="/js/app.js?v=16"></script>
-<script src="/js/admin.js?v=16"></script>
+<script src="/js/data.js?v=17"></script>
+<script src="/js/app.js?v=17"></script>
+<script src="/js/admin.js?v=17"></script>
 </body>
 </html>

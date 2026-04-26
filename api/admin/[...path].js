@@ -2,6 +2,7 @@
 // Consolidating to one Serverless Function to stay within Vercel Hobby's 12-function limit.
 
 import cronStatus from "./_cron-status.js";
+import discounts from "./_discounts.js";
 import overrides from "./_overrides.js";
 import photos from "./_photos.js";
 import secrets from "./_secrets.js";
@@ -13,6 +14,7 @@ import setupVercel from "./setup/_vercel.js";
 
 const ROUTES = {
   "cron-status": cronStatus,
+  "discounts": discounts,
   "overrides": overrides,
   "photos": photos,
   "secrets": secrets,

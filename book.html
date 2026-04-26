@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=16"/>
-<script src="/js/theme.js?v=16"></script>
+<link rel="stylesheet" href="/css/styles.css?v=17"/>
+<script src="/js/theme.js?v=17"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
 </head>
 <body>
@@ -23,9 +23,11 @@
 </main>
 <footer id="site-footer"></footer>
 <style>@media (max-width: 960px) { #bookGrid { grid-template-columns: 1fr !important; } }</style>
-<script src="/js/data.js?v=16"></script>
-<script src="/js/app.js?v=16"></script>
+<script src="/js/data.js?v=17"></script>
+<script src="/js/app.js?v=17"></script>
 <script>
+window.__bookingState = { discount: null }; // { code, type, value, discountAmount, label }
+
 (async function() {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('slug');
@@ -57,13 +59,23 @@
   const avgNightly = Math.round(subtotal / nights);
   const minP = Math.min(...perNight), maxP = Math.max(...perNight);
   const allSame = perNight.every(x => x === perNight[0]);
-  const discountPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
-  const discount = Math.round(subtotal * discountPct);
+  const longStayPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
+  const longStayDiscount = Math.round(subtotal * longStayPct);
   const cleaning = (p.cleaningFee != null) ? Number(p.cleaningFee) : 165;
-  const taxes = Math.round((subtotal - discount + cleaning) * 0.11);
-  const total = subtotal - discount + cleaning + taxes;
-  const dueNow = Math.round(total * 0.5);
-  const dueLater = total - dueNow;
+
+  function computeTotals() {
+    const code = window.__bookingState.discount;
+    // Promo-code discount applies to nightly subtotal (after long-stay discount)
+    const afterLongStay = subtotal - longStayDiscount;
+    const promo = code ? Math.min(afterLongStay, code.discountAmount) : 0;
+    const taxableBase = afterLongStay - promo + cleaning;
+    const taxes = Math.round(taxableBase * 0.11);
+    const total = afterLongStay - promo + cleaning + taxes;
+    const dueNow = Math.round(total * 0.5);
+    const dueLater = total - dueNow;
+    return { promo, taxes, total, dueNow, dueLater };
+  }
+
   const priceLabel = allSame ? `$${perNight[0]} × ${nights} night${nights > 1 ? 's' : ''}` : `$${minP}–$${maxP} × ${nights} nights (avg $${avgNightly})`;
   const liveBadge = priceSource === "pricelabs"
     ? `<span style="display:inline-flex; align-items:center; gap: 0.3rem; font-size: 0.72rem; color: var(--color-success); padding: 0.1rem 0.5rem; border: 1px solid var(--color-success); border-radius: 999px; margin-left: 0.5rem;">● Live PriceLabs</span>`
@@ -71,7 +83,24 @@
     ? `<span style="font-size: 0.72rem; color: var(--color-accent); padding: 0.1rem 0.5rem; border: 1px solid var(--color-accent); border-radius: 999px; margin-left: 0.5rem;">${coveragePct}% live</span>`
     : "";
 
-  left.innerHTML = `
+  function refreshRight() {
+    const { promo, taxes, total, dueNow } = computeTotals();
+    const code = window.__bookingState.discount;
+    right.innerHTML = renderRight(promo, taxes, total, code);
+    const btn = document.getElementById("bkConfirmBtn");
+    if (btn) btn.textContent = `Confirm and pay $${dueNow.toLocaleString()}`;
+  }
+  function renderUI() {
+    // Initial render of the static left column. After this, only refreshRight()
+    // is called on state changes — keeps the discount input + feedback stable.
+    const { dueNow } = computeTotals();
+    left.innerHTML = renderLeft(dueNow);
+    refreshRight();
+  }
+  window.__bookingCtx = { p, ci, co, subtotal, longStayPct, longStayDiscount, cleaning, computeTotals, refreshRight };
+
+  function renderLeft(dueNow) {
+    return `
     <a href="/property.html?slug=${slug}" style="font-size: 0.88rem; color: var(--color-stone);">← Back to property</a>
     <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 1rem 0 2rem;">Confirm and pay</h1>
 
@@ -131,11 +160,23 @@
       </div>
     </div>
 
-    <button class="btn btn-accent btn-lg" style="width: 100%;" onclick="confirmBooking()">Confirm and pay $${dueNow.toLocaleString()}</button>
+    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
+      <h2 style="font-size: 1.2rem; margin: 0 0 0.5rem;">Promo or discount code</h2>
+      <p style="color: var(--color-stone); margin: 0 0 1rem; font-size: 0.9rem;">Have a code? Apply it before paying.</p>
+      <div style="display:flex; gap: 0.5rem;">
+        <input class="form-control" id="bkDiscountInput" placeholder="e.g. SPRING25" style="text-transform: uppercase; font-family: monospace;" autocomplete="off"/>
+        <button type="button" class="btn btn-outline" onclick="applyDiscountCode()">Apply</button>
+      </div>
+      <div id="bkDiscountFeedback" style="margin-top: 0.85rem; font-size: 0.9rem;"></div>
+    </div>
+
+    <button class="btn btn-accent btn-lg" id="bkConfirmBtn" style="width: 100%;" onclick="confirmBooking()">Confirm and pay $${dueNow.toLocaleString()}</button>
     <p style="text-align:center; font-size: 0.82rem; color: var(--color-stone); margin: 1rem 0 0;">By confirming, you agree to the host's house rules and our cancellation policy. Full refund up to 14 days before check-in.</p>
   `;
+  }
 
-  right.innerHTML = `
+  function renderRight(promo, taxes, total, code) {
+    return `
     <div class="booking-widget" style="position: sticky; top: 100px;">
       <div style="display: flex; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-line); margin-bottom: 1.25rem;">
         <img src="${p.images[0]}" alt="" style="width: 96px; height: 88px; object-fit: cover; border-radius: 10px;"/>
@@ -147,7 +188,8 @@
       </div>
       <h3 style="font-size: 1.05rem; margin: 0 0 0.85rem;">Price details</h3>
       <div class="booking-line"><span>${priceLabel}${liveBadge}</span><span>$${subtotal.toLocaleString()}</span></div>
-      ${discount ? `<div class="booking-line"><span>${(discountPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${discount.toLocaleString()}</span></div>` : ''}
+      ${longStayDiscount ? `<div class="booking-line"><span>${(longStayPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${longStayDiscount.toLocaleString()}</span></div>` : ''}
+      ${promo ? `<div class="booking-line"><span>Promo code <code style="background: var(--color-cream-dark); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.85rem;">${escapeHtml(code.code)}</code> · ${escapeHtml(code.label)}</span><span style="color: var(--color-success);">-$${promo.toLocaleString()}</span></div>` : ''}
       <div class="booking-line"><span>Cleaning fee</span><span>$${cleaning}</span></div>
       <div class="booking-line"><span>Occupancy taxes</span><span>$${taxes}</span></div>
       <div class="booking-total"><span>Total (USD)</span><span>$${total.toLocaleString()}</span></div>
@@ -156,12 +198,81 @@
       </div>
     </div>
   `;
+  }
+
+  renderUI();
+  // Stash subtotal etc. in case discount handler needs current values
 })();
 
-function confirmBooking() {
+window.applyDiscountCode = async function() {
+  const input = document.getElementById("bkDiscountInput");
+  const fb = document.getElementById("bkDiscountFeedback");
+  const code = (input.value || "").trim().toUpperCase();
+  if (!code) { fb.style.color = "var(--color-stone)"; fb.textContent = "Enter a code first."; return; }
+  fb.style.color = "var(--color-stone)"; fb.textContent = "Checking…";
+  const ctx = window.__bookingCtx;
+  try {
+    const r = await fetch("/api/discounts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "validate", code, subtotal: ctx.subtotal - ctx.longStayDiscount })
+    });
+    const j = await r.json();
+    if (!j.valid) {
+      window.__bookingState.discount = null;
+      ctx.refreshRight();
+      fb.style.color = "var(--color-danger)";
+      fb.textContent = j.reason || j.error || "Code not valid.";
+      return;
+    }
+    window.__bookingState.discount = { code: j.code, type: j.type, value: j.value, discountAmount: j.discountAmount, label: j.label };
+    fb.style.color = "var(--color-success)";
+    fb.innerHTML = `✓ ${escapeHtml(j.label)} applied — saving $${j.discountAmount.toLocaleString()} <button type="button" onclick="removeDiscountCode()" style="background: transparent; color: var(--color-stone); margin-left: 0.5rem; text-decoration: underline; font-size: 0.85rem;">Remove</button>`;
+    ctx.refreshRight();
+  } catch (e) {
+    fb.style.color = "var(--color-danger)";
+    fb.textContent = "Couldn't reach the server: " + e.message;
+  }
+};
+
+window.removeDiscountCode = function() {
+  window.__bookingState.discount = null;
+  document.getElementById("bkDiscountInput").value = "";
+  document.getElementById("bkDiscountFeedback").textContent = "";
+  window.__bookingCtx.renderUI();
+};
+
+window.confirmBooking = async function() {
+  const ctx = window.__bookingCtx;
+  const code = window.__bookingState.discount;
+  // Redeem the code (atomically increments use count). If anything has changed
+  // since validation, this fails and the user sees an updated total.
+  if (code) {
+    try {
+      const r = await fetch("/api/discounts", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "redeem", code: code.code,
+          subtotal: ctx.subtotal - ctx.longStayDiscount,
+          propertyId: ctx.p.id
+        })
+      });
+      const j = await r.json();
+      if (!j.ok || !j.redeemed) {
+        const fb = document.getElementById("bkDiscountFeedback");
+        fb.style.color = "var(--color-danger)";
+        fb.textContent = j.reason || "That code is no longer redeemable. Please try another.";
+        window.__bookingState.discount = null;
+        ctx.refreshRight();
+        return;
+      }
+    } catch (e) {
+      toast("Couldn't redeem the code: " + e.message);
+      return;
+    }
+  }
   toast("Booking confirmed! Check your email for details.", 3000);
   setTimeout(() => { window.location.href = '/'; }, 2400);
-}
+};
 </script>
 </body>
 </html>

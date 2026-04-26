@@ -192,8 +192,164 @@ async function showDashboard() {
   initPhotosTab();
   initPropertiesTab(o);
   initOrderTab(o);
+  initDiscountsTab();
   initHospitableTab();
   initPricelabsTab();
+}
+
+// =============================================================================
+// Discount codes tab
+// =============================================================================
+let _dcType = "flat";
+function initDiscountsTab() {
+  // Default state
+  _dcType = "flat";
+  document.getElementById("dcUsesPresetChange") && (document.getElementById("dcUsesPreset").value = "");
+  dcLoadList();
+}
+
+function dcSetType(t) {
+  _dcType = t;
+  document.getElementById("dcTypeFlat").className = "btn btn-sm " + (t === "flat" ? "btn-primary" : "btn-outline");
+  document.getElementById("dcTypePct").className = "btn btn-sm " + (t === "percent" ? "btn-primary" : "btn-outline");
+  document.getElementById("dcValueLabel").textContent = t === "flat" ? "Discount amount ($)" : "Discount percent (%)";
+  const v = document.getElementById("dcValue");
+  v.placeholder = t === "flat" ? "50" : "15";
+  v.max = t === "percent" ? "100" : "";
+}
+
+function dcUsesPresetChange() {
+  const v = document.getElementById("dcUsesPreset").value;
+  document.getElementById("dcMaxUses").style.display = v === "custom" ? "block" : "none";
+}
+
+function dcIndefiniteChange() {
+  const ind = document.getElementById("dcIndefinite").checked;
+  document.getElementById("dcExpires").style.display = ind ? "none" : "block";
+}
+
+function dcGenerate() {
+  // Generate a memorable-ish code: WORD + 2-digit number, like "SPRING25" or "STAY20"
+  const words = ["SPRING", "SUMMER", "FALL", "WINTER", "STAY", "RELAX", "ESCAPE", "RETREAT", "WELCOME", "GETAWAY", "VACAY", "BEACH", "CABIN", "OASIS"];
+  const word = words[Math.floor(Math.random() * words.length)];
+  const num = String(Math.floor(Math.random() * 90 + 10));
+  document.getElementById("dcCode").value = word + num;
+}
+
+async function dcSave() {
+  const status = document.getElementById("dcStatus");
+  const code = document.getElementById("dcCode").value.trim().toUpperCase();
+  const value = parseFloat(document.getElementById("dcValue").value);
+  const preset = document.getElementById("dcUsesPreset").value;
+  const customMax = parseInt(document.getElementById("dcMaxUses").value, 10);
+  const maxUses = preset === "" ? null : preset === "custom" ? (Number.isFinite(customMax) ? customMax : null) : parseInt(preset, 10);
+  const indefinite = document.getElementById("dcIndefinite").checked;
+  const expiresAt = indefinite ? null : document.getElementById("dcExpires").value || null;
+  const description = document.getElementById("dcDescription").value.trim() || null;
+
+  status.style.color = "var(--color-stone)"; status.textContent = "Saving…";
+  try {
+    const r = await fetch("/api/admin/discounts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, type: _dcType, value, maxUses, expiresAt, description })
+    });
+    const j = await r.json();
+    if (!j.ok) {
+      status.style.color = "var(--color-danger)";
+      status.textContent = j.error || "Save failed";
+      return;
+    }
+    status.style.color = "var(--color-success)";
+    status.textContent = `✓ ${j.code} created.`;
+    // Reset form
+    document.getElementById("dcCode").value = "";
+    document.getElementById("dcValue").value = "";
+    document.getElementById("dcDescription").value = "";
+    document.getElementById("dcUsesPreset").value = "";
+    document.getElementById("dcMaxUses").value = "";
+    document.getElementById("dcMaxUses").style.display = "none";
+    document.getElementById("dcIndefinite").checked = true;
+    document.getElementById("dcExpires").style.display = "none";
+    dcLoadList();
+  } catch (e) {
+    status.style.color = "var(--color-danger)";
+    status.textContent = "Network error: " + e.message;
+  }
+}
+
+async function dcLoadList() {
+  const wrap = document.getElementById("dcList");
+  if (!wrap) return;
+  wrap.innerHTML = `<p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">Loading…</p>`;
+  try {
+    const r = await fetch("/api/admin/discounts");
+    const j = await r.json();
+    if (!j.ok) {
+      wrap.innerHTML = `<p style="color: var(--color-danger); font-size: 0.9rem;">${escapeHtml(j.error || "Failed to load")}</p>`;
+      return;
+    }
+    if (!j.codes.length) {
+      wrap.innerHTML = `<p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">No codes yet. Create one on the left.</p>`;
+      return;
+    }
+    wrap.innerHTML = j.codes.map(c => {
+      const valueLabel = c.type === "percent" ? `${c.value}%` : `$${Math.round(c.value)}`;
+      const usageLabel = c.max_uses == null
+        ? `${c.times_used} used · unlimited`
+        : `${c.times_used}/${c.max_uses} used`;
+      const expLabel = c.expires_at
+        ? `Expires ${new Date(c.expires_at + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}`
+        : "No expiration";
+      const exhausted = c.max_uses != null && c.times_used >= c.max_uses;
+      const expired = c.expires_at && c.expires_at < new Date().toISOString().slice(0, 10);
+      const statusClass = !c.active ? "inactive" : exhausted ? "exhausted" : expired ? "expired" : "active";
+      return `
+        <div class="dc-row" data-status="${statusClass}">
+          <div class="dc-left">
+            <div class="dc-code"><code>${escapeHtml(c.code)}</code> ${dcStatusBadge(statusClass)}</div>
+            ${c.description ? `<div class="dc-desc">${escapeHtml(c.description)}</div>` : ""}
+            <div class="dc-meta">
+              <strong>${valueLabel} off</strong> · ${usageLabel} · ${expLabel}
+            </div>
+          </div>
+          <div class="dc-actions">
+            <button class="btn btn-ghost btn-sm" onclick="dcCopy('${escapeAttr(c.code)}')" title="Copy code">Copy</button>
+            <button class="btn btn-ghost btn-sm" onclick="dcToggle('${escapeAttr(c.code)}', ${c.active ? 0 : 1})">${c.active ? "Pause" : "Resume"}</button>
+            <button class="btn btn-ghost btn-sm" onclick="dcDelete('${escapeAttr(c.code)}')" style="color: var(--color-danger);">Delete</button>
+          </div>
+        </div>`;
+    }).join("");
+  } catch (e) {
+    wrap.innerHTML = `<p style="color: var(--color-danger);">${escapeHtml(e.message)}</p>`;
+  }
+}
+
+function dcStatusBadge(s) {
+  const styles = {
+    active: 'background: rgba(44, 122, 90, 0.12); color: var(--color-success);',
+    inactive: 'background: rgba(107, 117, 104, 0.18); color: var(--color-stone);',
+    exhausted: 'background: rgba(107, 117, 104, 0.18); color: var(--color-stone);',
+    expired: 'background: rgba(177, 74, 63, 0.12); color: var(--color-danger);'
+  };
+  const labels = { active: "Active", inactive: "Paused", exhausted: "Used up", expired: "Expired" };
+  return `<span style="${styles[s]} padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;">${labels[s]}</span>`;
+}
+
+async function dcCopy(code) {
+  try { await navigator.clipboard.writeText(code); toast(`Copied ${code}`); } catch { toast("Copy failed"); }
+}
+async function dcToggle(code, active) {
+  await fetch("/api/admin/discounts", {
+    method: "PATCH", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, active: !!active })
+  });
+  dcLoadList();
+}
+async function dcDelete(code) {
+  if (!confirm(`Delete code ${code}? This can't be undone.`)) return;
+  await fetch(`/api/admin/discounts?code=${encodeURIComponent(code)}`, { method: "DELETE" });
+  toast(`${code} deleted`);
+  dcLoadList();
 }
 
 // =============================================================================
