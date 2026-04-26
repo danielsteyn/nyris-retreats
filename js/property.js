@@ -570,10 +570,19 @@ function renderMonth(grid) {
       (inRange || hoverInRange) && "in-range"
     ].filter(Boolean).join(" ");
 
-    const priceLabel = meta.price ? `<span class="cell-price">$${meta.price >= 1000 ? Math.round(meta.price/100)/10 + 'k' : Math.round(meta.price)}</span>` : "";
+    let bottomLabel = "";
+    if (booked) {
+      bottomLabel = `<span class="cell-price">Booked</span>`;
+    } else if (!past && meta.price) {
+      const formatted = meta.price >= 1000 ? Math.round(meta.price/100)/10 + 'k' : Math.round(meta.price);
+      bottomLabel = `<span class="cell-price">$${formatted}</span>`;
+    }
 
-    return `<button type="button" class="${classes}" data-date="${iso}" ${disabled ? "disabled" : ""}>
-      <span class="cell-day">${day}</span>${priceLabel}
+    // aria-disabled + tabindex=-1 ensure assistive tech and keyboard users
+    // can't activate booked / past cells either.
+    const blockAttrs = disabled ? `disabled aria-disabled="true" tabindex="-1"` : "";
+    return `<button type="button" class="${classes}" data-date="${iso}" ${blockAttrs}>
+      <span class="cell-day">${day}</span>${bottomLabel}
     </button>`;
   }).join("");
 
@@ -589,7 +598,12 @@ function renderMonth(grid) {
 
 function bindCalendarCells() {
   document.querySelectorAll(".bkcal-cell[data-date]").forEach(cell => {
-    if (cell.disabled) return;
+    if (cell.disabled || cell.classList.contains("booked") || cell.classList.contains("past")) {
+      // Belt-and-suspenders: kill any click that somehow reaches a blocked cell.
+      cell.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); }, true);
+      cell.addEventListener("mousedown", e => e.preventDefault(), true);
+      return;
+    }
     cell.addEventListener("click", () => onCellClick(cell.dataset.date));
     cell.addEventListener("mouseenter", () => {
       if (window.BkCal.range.ci && !window.BkCal.range.co) {

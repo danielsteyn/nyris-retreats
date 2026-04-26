@@ -518,14 +518,42 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .bkcal-cell.in-range {
   background: rgba(31, 61, 43, 0.10);
 }
-.bkcal-cell.disabled, .bkcal-cell.past, .bkcal-cell.booked {
-  color: var(--color-line);
+.bkcal-cell.disabled,
+.bkcal-cell.past,
+.bkcal-cell.booked {
   cursor: not-allowed;
-  background: transparent !important;
 }
-.bkcal-cell.booked .cell-day { text-decoration: line-through; color: var(--color-stone); }
-.bkcal-cell.booked .cell-price { display: none; }
-.bkcal-cell.past .cell-price { display: none; }
+/* Past dates: faint, no strikethrough — just out of reach */
+.bkcal-cell.past:not(.booked) {
+  color: var(--color-stone-light);
+  background: transparent !important;
+  opacity: 0.55;
+}
+.bkcal-cell.past:not(.booked) .cell-price { display: none; }
+.bkcal-cell.past:not(.booked):hover { background: transparent !important; }
+
+/* Booked dates: gray tile + bold strikethrough — unmistakably unavailable */
+.bkcal-cell.booked {
+  background: #ECECEC !important;
+  color: #8A8A8A !important;
+}
+.bkcal-cell.booked .cell-day {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: #8A8A8A;
+  font-weight: 500;
+  color: #8A8A8A;
+}
+.bkcal-cell.booked .cell-price {
+  display: inline-block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8A8A8A;
+  font-weight: 500;
+  text-decoration: none;
+}
+.bkcal-cell.booked:hover { background: #ECECEC !important; }
 .bkcal-foot {
   display: flex; align-items: center; gap: 1.25rem; margin-top: 1rem;
   padding-top: 1rem; border-top: 1px solid var(--color-line);
