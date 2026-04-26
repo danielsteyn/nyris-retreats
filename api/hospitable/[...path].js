@@ -13,8 +13,16 @@ const ROUTES = {
 };
 
 export default async function handler(req, res) {
-  const segments = req.query.path;
-  const path = Array.isArray(segments) ? segments.join("/") : (segments || "");
+  let path = "";
+  try {
+    const u = (req.url || "").split("?")[0];
+    const m = u.match(/^\/api\/hospitable\/(.+?)\/?$/);
+    if (m) path = m[1];
+  } catch {}
+  if (!path) {
+    const segments = req.query?.path;
+    path = Array.isArray(segments) ? segments.join("/") : (segments || "");
+  }
   const fn = ROUTES[path];
   if (!fn) {
     return res.status(404).json({ ok: false, error: `Unknown hospitable route: ${path}` });
