@@ -25,18 +25,27 @@ export default async function handler(req, res) {
   //    include arrival_date, exclude departure_date.
   let bookedDates = new Set();
   let hospitableSource = "none";
+  const debug = { keyPresent: false, attempts: [] };
   const { key: hospitableKey } = await resolveApiKey(req, "hospitable_api_key", "HOSPITABLE_API_KEY");
+  debug.keyPresent = !!hospitableKey;
   if (hospitableKey) {
     try {
       // Paginate through reservations until we've covered the window.
       let page = 1;
       while (page <= 5) { // hard cap so we never loop forever
-        const url = `${HOSPITABLE_BASE}/reservations?properties[]=${encodeURIComponent(propertyId)}&per_page=100&page=${page}`;
+        const url = `${HOSPITABLE_BASE}/reservations?properties%5B%5D=${encodeURIComponent(propertyId)}&per_page=100&page=${page}`;
         const r = await fetch(url, {
           headers: { Authorization: `Bearer ${hospitableKey}`, Accept: "application/json" }
         });
-        if (!r.ok) break;
+        const attempt = { url: url.replace(propertyId, "<uuid>"), status: r.status };
+        if (!r.ok) {
+          attempt.body = (await r.text()).slice(0, 200);
+          debug.attempts.push(attempt);
+          break;
+        }
         const j = await r.json();
+        attempt.dataLen = (j.data || []).length;
+        debug.attempts.push(attempt);
         for (const res of (j.data || [])) {
           // Skip cancelled / declined / pending
           const status = res.reservation_status?.current?.category || res.status || "";
@@ -105,6 +114,7 @@ export default async function handler(req, res) {
     days,
     bookedCount: bookedDates.size,
     source: { availability: hospitableSource, prices: priceMap.size ? "pricelabs" : "none" },
+    debug,
     fetchedAt: new Date().toISOString()
   });
 }
