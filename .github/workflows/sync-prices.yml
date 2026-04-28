@@ -1,0 +1,49 @@
+# Triggers /api/cron/sync-pricelabs on the live site every 15 minutes.
+# Required GitHub repository secrets:
+#   - SITE_URL    : your production URL (e.g. https://nyris-retreats.vercel.app)
+#   - CRON_SECRET : same value as the CRON_SECRET env var set in Vercel
+# Add both at: Settings → Secrets and variables → Actions → New repository secret
+#
+# Why GitHub Actions and not Vercel Cron?
+#   - Vercel Hobby plan is limited to once-daily cron.
+#   - GitHub Actions Free tier includes 2,000 minutes/month, which is far more
+#     than enough for a 15-minute schedule (~3,000 runs/month at ~5s each).
+#   - If you're on Vercel Pro, you can switch to native Vercel Cron by editing
+#     vercel.json crons[].schedule to "*/15 * * * *" and removing this workflow.
+
+name: PriceLabs price sync
+
+on:
+  schedule:
+    # GitHub cron uses UTC. */15 = every 15 minutes.
+    # Note: GitHub Actions schedules can run with up to a few minutes of jitter.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger sync endpoint
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -e
+          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::SITE_URL and CRON_SECRET secrets must be set in repository settings"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            "${SITE_URL%/}/api/cron/sync-pricelabs")
+          body=$(echo "$response" | head -n -1)
+          code=$(echo "$response" | tail -n 1)
+          echo "HTTP $code"
+          echo "$body" | head -c 4096
+          if [ "$code" != "200" ]; then
+            echo "::error::Sync endpoint returned $code"
+            exit 1
+          fi

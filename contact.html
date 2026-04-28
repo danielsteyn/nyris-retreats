@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="stylesheet" href="/css/styles.css?v=67"/>
+<script src="/js/theme.js?v=67"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
 </head>
 <body>
@@ -46,6 +47,13 @@
           </div>
           <div style="margin-top: 1rem;"><label class="form-label">Email</label><input class="form-control" required type="email" name="email"/></div>
           <div style="margin-top: 1rem;"><label class="form-label">Phone (optional)</label><input class="form-control" type="tel" name="phone"/></div>
+          <label style="margin-top: 0.85rem; display:flex; gap: 0.65rem; align-items: flex-start; padding: 0.85rem 1rem; background: var(--color-cream-dark); border-radius: 10px; cursor: pointer; line-height: 1.45;">
+            <input type="checkbox" name="smsOptIn" value="yes" style="margin-top: 0.18rem; flex-shrink: 0;"/>
+            <span style="font-size: 0.85rem; color: var(--color-charcoal);">
+              <strong style="display:block; margin-bottom: 0.15rem;">Yes, you can text me.</strong>
+              By checking this box, I agree to receive text messages from Nyris Retreats at the phone number above regarding my inquiry and stay. Message frequency varies; message and data rates may apply. Reply <strong>STOP</strong> to opt out at any time, <strong>HELP</strong> for help. Consent is not a condition of any purchase.
+            </span>
+          </label>
           <div style="margin-top: 1rem;"><label class="form-label">What's this about?</label>
             <select class="form-control" name="topic" id="topicSel">
               <option value="general">General question</option>
@@ -69,17 +77,50 @@
 
 <style>@media (max-width: 960px) { #contactGrid { grid-template-columns: 1fr !important; } }</style>
 
-<script src="/js/data.js"></script>
-<script src="/js/app.js"></script>
+<script src="/js/data.js?v=67"></script>
+<script src="/js/app.js?v=67"></script>
 <script>
-document.getElementById('emailLine').textContent = NYRIS.brand.email;
-document.getElementById('phoneLine').textContent = NYRIS.brand.phone;
-const params = new URLSearchParams(window.location.search);
-if (params.get('topic')) document.getElementById('topicSel').value = params.get('topic');
-function contactSubmit(e) {
+(async function() {
+  // Wait for the server-side overrides fetch kicked off by app.js so the
+  // email + phone reflect any admin Contact info edits even on devices that
+  // haven't seen them locally yet.
+  if (window.__overridesReady) await window.__overridesReady;
+  // Apply admin overrides up-front. Idempotent with the DOMContentLoaded
+  // call in app.js.
+  if (typeof applyOverrides === "function" && typeof NYRIS !== "undefined") {
+    NYRIS.properties = applyOverrides(NYRIS.properties);
+  }
+  document.getElementById('emailLine').textContent = NYRIS.brand.email;
+  document.getElementById('phoneLine').textContent = NYRIS.brand.phone;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('topic')) document.getElementById('topicSel').value = params.get('topic');
+})();
+async function contactSubmit(e) {
   e.preventDefault();
-  toast("Got it — Sheena will reply within minutes.");
-  setTimeout(() => { e.target.reset(); }, 600);
+  const form = e.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalLabel = submitBtn ? submitBtn.textContent : '';
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Sending…'; }
+  const fd = new FormData(form);
+  const payload = Object.fromEntries(fd.entries());
+  try {
+    const r = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) {
+      toast("Got it — Sheena will reply within minutes.");
+      setTimeout(() => { form.reset(); }, 600);
+    } else {
+      toast(`Couldn't send: ${j.error || 'please try again'}`);
+    }
+  } catch {
+    toast("Couldn't send — check your connection and try again.");
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+  }
 }
 </script>
 </body>

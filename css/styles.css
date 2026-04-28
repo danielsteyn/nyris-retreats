@@ -29,6 +29,7 @@
 }
 
 * { box-sizing: border-box; }
+html, body { overflow-x: hidden; }
 html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
 
 body {
@@ -108,6 +109,22 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .brand-mark svg { width: 28px; height: 28px; }
 .brand-mark:hover { color: var(--color-primary-dark); }
+
+/* When the admin uploads a custom logo (image or inline SVG), the logo
+   replaces both the default icon and the brand name text. It's pinned to
+   the same total bounding box (~32px tall × ~240px wide) that the
+   default icon-plus-wordmark currently occupies, so swapping in a logo
+   doesn't expand the header or footer or shift surrounding nav. */
+.brand-mark-custom { gap: 0; }
+.brand-mark-img,
+.brand-mark-svg svg {
+  display: block;
+  height: 32px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+}
+.brand-mark-svg { display: inline-flex; align-items: center; }
 .nav-links {
   display: flex; align-items: center; gap: 1.75rem;
   font-size: 0.92rem; font-weight: 500; color: var(--color-charcoal);
@@ -182,9 +199,27 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .search-bar .search-field:hover { background: rgba(31, 61, 43, 0.04); }
 .search-bar .search-field + .search-field { border-left: 1px solid var(--color-line); }
-.search-bar .search-field label {
-  font-size: 0.73rem; font-weight: 600; letter-spacing: 0.02em; color: var(--color-charcoal);
-  margin-bottom: 0.15rem;
+.search-bar .search-field > span {
+  display: block;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-charcoal);
+  margin-bottom: 0.2rem;
+  line-height: 1.2;
+}
+/* Date-trigger button variant of .search-field reset for button defaults */
+.search-bar button.search-field {
+  font-family: inherit; text-align: left;
+  border: 0; outline: none;
+}
+.search-bar .search-field > span.date-display {
+  font-size: 0.92rem;
+  font-weight: 400;
+  color: var(--color-stone);
+  letter-spacing: 0;
+  margin-bottom: 0;
+  line-height: 1.4;
 }
 .search-bar .search-field input,
 .search-bar .search-field select {
@@ -229,6 +264,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   overflow: hidden; background: var(--color-sand);
   box-shadow: var(--shadow-sm);
 }
+/* Anchor wrapping the cover image so the entire photo (including any
+   watermark/badge baked into the image itself) navigates to the property
+   page. Decorative overlays sit above this via z-index; the interactive
+   controls (arrows, wishlist) keep stopPropagation in their click handlers
+   so they don't bubble to this link. */
+.prop-card-media-link {
+  display: block; width: 100%; height: 100%;
+  color: inherit; text-decoration: none;
+}
 .prop-card-img {
   width: 100%; height: 100%; object-fit: cover;
   transition: transform 0.6s var(--ease-out);
@@ -236,6 +280,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .prop-card-badges {
   position: absolute; top: 14px; left: 14px;
   display: flex; flex-direction: column; gap: 6px; z-index: 2;
+  pointer-events: none;
 }
 .badge {
   display: inline-flex; align-items: center; gap: 0.35rem;
@@ -261,6 +306,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .prop-card-dots {
   position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 5px; z-index: 2;
+  pointer-events: none;
 }
 .prop-card-dots span {
   width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.6);
@@ -368,6 +414,51 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .detail-gallery .show-all:hover { background: var(--color-cream); }
 
+/* === Photo grid (full-screen scrollable grid) === */
+.photo-grid-overlay {
+  position: fixed; inset: 0; z-index: 190;
+  background: var(--color-cream);
+  display: none; flex-direction: column;
+  overscroll-behavior: contain;
+}
+.photo-grid-overlay.open { display: flex; animation: fadeIn 0.2s; }
+.photo-grid-header {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--color-cream);
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.photo-grid-close {
+  width: 40px; height: 40px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; color: var(--color-charcoal);
+  transition: background 0.15s; cursor: pointer;
+}
+.photo-grid-close:hover { background: rgba(0,0,0,0.06); }
+.photo-grid-title { font-size: 0.95rem; font-weight: 500; color: var(--color-charcoal); }
+.photo-grid-body {
+  flex: 1; overflow-y: auto; padding: 1.25rem;
+}
+.photo-grid {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 1280px; margin: 0 auto;
+}
+@media (min-width: 560px) { .photo-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .photo-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1200px) { .photo-grid { grid-template-columns: repeat(5, 1fr); } }
+.photo-grid-tile {
+  position: relative; padding: 0; border: 0;
+  background: var(--color-sand);
+  border-radius: 12px; overflow: hidden; cursor: pointer;
+  aspect-ratio: 4 / 3;
+  transition: opacity 0.15s;
+}
+.photo-grid-tile:hover { opacity: 0.92; }
+.photo-grid-tile:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.photo-grid-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 /* === Lightbox === */
 .lightbox {
   position: fixed; inset: 0; z-index: 200; background: rgba(20,25,22,0.95);
@@ -392,8 +483,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-widget {
   border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem;
   background: white; box-shadow: var(--shadow-md); position: sticky; top: 100px;
+  z-index: 5;
 }
-.booking-widget .price-row { display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 1rem; }
+.booking-widget .booking-form { position: relative; }
+.booking-widget .price-row { display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.booking-widget .price-row .price-from-label {
+  font-size: 0.85rem; color: var(--color-stone); font-weight: 500;
+  text-transform: lowercase; letter-spacing: 0.02em;
+}
 .booking-widget .price-row .price { font-size: 1.55rem; font-weight: 600; color: var(--color-charcoal); }
 .booking-widget .price-row .per { color: var(--color-stone); font-size: 0.95rem; }
 
@@ -410,6 +507,216 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-line { display: flex; justify-content: space-between; padding: 0.6rem 0; font-size: 0.92rem; color: var(--color-stone); }
 .booking-line + .booking-line { border-top: 1px solid var(--color-line); }
 .booking-total { display: flex; justify-content: space-between; padding-top: 0.85rem; margin-top: 0.5rem; border-top: 1px solid var(--color-line); font-weight: 600; color: var(--color-charcoal); font-size: 1.05rem; }
+
+/* === Booking calendar (custom, replaces native date inputs) === */
+.booking-form .date-trigger {
+  text-align: left; cursor: pointer; background: transparent; border: 0;
+  font-family: inherit; padding: 0.7rem 0.85rem; width: 100%;
+  display: flex; flex-direction: column; gap: 0.1rem;
+  font: inherit; color: inherit;
+  border-radius: 0;
+}
+.booking-form .date-trigger label {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--color-charcoal); display: block; margin: 0; cursor: pointer;
+}
+.booking-form .date-trigger .date-display {
+  font-size: 0.95rem; color: var(--color-charcoal); line-height: 1.3;
+}
+.booking-form .date-trigger:hover { background: rgba(31,61,43,0.04); }
+.booking-form .date-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+
+/* Hospitable Direct embed — force the rendered iframe to fill its wrapper
+   so the booking card lines up with the sibling perks/channel cards in the
+   right column. Without this, Hospitable's snippet lays the iframe out
+   narrower than the column and the booking card looks inset against the
+   Direct-booking perks below. */
+#hospInlineWidget,
+#hospInlineWidget > * { width: 100%; }
+#hospInlineWidget iframe { display: block; width: 100% !important; max-width: 100%; border: 0; }
+
+/* Always-on-top floating calendar — JS sets exact top/left via fixed-positioning
+   anchored to the trigger button. z-index sits above the sticky header (50)
+   and below the lightbox (200). */
+.bkcal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.bkcal-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.booking-calendar {
+  position: fixed;
+  z-index: 9999;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xl);
+  padding: 1.25rem;
+  width: min(680px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  color: var(--color-charcoal);
+}
+.bkcal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1rem; gap: 0.5rem;
+}
+.bkcal-titles {
+  display: flex; gap: 4rem; flex: 1; justify-content: center; font-weight: 600; font-size: 0.95rem;
+}
+.bkcal-titles span:nth-child(2) { display: none; }
+@media (min-width: 600px) {
+  .bkcal-titles span:nth-child(2) { display: inline; }
+}
+.bkcal-nav {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: transparent; color: var(--color-charcoal); font-size: 1.2rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.bkcal-nav:hover { background: rgba(31,61,43,0.06); }
+.bkcal-close {
+  width: 32px; height: 32px; border-radius: 999px;
+  background: transparent; color: var(--color-charcoal); font-size: 1.4rem; line-height: 1;
+}
+.bkcal-close:hover { background: rgba(31,61,43,0.06); }
+
+.bkcal-grids {
+  display: grid; grid-template-columns: 1fr; gap: 1.5rem;
+}
+@media (min-width: 600px) {
+  .bkcal-grids { grid-template-columns: 1fr 1fr; }
+}
+.bkcal-month-title {
+  text-align: center; font-weight: 600; font-size: 0.95rem;
+  margin-bottom: 0.5rem; display: none;
+}
+@media (max-width: 599px) { .bkcal-month-title { display: block; } }
+.bkcal-dow {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+  font-size: 0.7rem; color: var(--color-stone); text-align: center;
+  margin-bottom: 0.5rem; font-weight: 600; letter-spacing: 0.04em;
+}
+.bkcal-cells {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+}
+.bkcal-cell {
+  aspect-ratio: 1.05 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: transparent; border-radius: 8px;
+  font-family: inherit; font-size: 0.92rem; color: var(--color-charcoal);
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+  padding: 0; gap: 0;
+  position: relative;
+}
+.bkcal-cell .cell-day { font-size: 0.92rem; font-weight: 500; line-height: 1; }
+.bkcal-cell .cell-price {
+  font-size: 0.65rem; color: var(--color-stone); line-height: 1; margin-top: 2px;
+  font-feature-settings: "tnum";
+}
+.bkcal-cell.empty { cursor: default; }
+.bkcal-cell:not([disabled]):not(.empty):hover {
+  background: var(--color-cream-dark);
+}
+.bkcal-cell.checkin, .bkcal-cell.checkout {
+  background: var(--color-primary) !important; color: var(--color-cream) !important;
+}
+.bkcal-cell.checkin .cell-price, .bkcal-cell.checkout .cell-price {
+  color: rgba(250, 246, 238, 0.8) !important;
+}
+.bkcal-cell.in-range {
+  background: rgba(31, 61, 43, 0.10);
+}
+.bkcal-cell.disabled,
+.bkcal-cell.past,
+.bkcal-cell.booked {
+  cursor: not-allowed;
+}
+/* Past dates: faint, no strikethrough — just out of reach */
+.bkcal-cell.past:not(.booked) {
+  color: var(--color-stone-light);
+  background: transparent !important;
+  opacity: 0.55;
+}
+.bkcal-cell.past:not(.booked) .cell-price { display: none; }
+.bkcal-cell.past:not(.booked):hover { background: transparent !important; }
+
+/* Booked dates: gray tile + bold strikethrough — unmistakably unavailable */
+.bkcal-cell.booked {
+  background: #ECECEC !important;
+  color: #8A8A8A !important;
+}
+.bkcal-cell.booked .cell-day {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: #8A8A8A;
+  font-weight: 500;
+  color: #8A8A8A;
+}
+.bkcal-cell.booked .cell-price {
+  display: inline-block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8A8A8A;
+  font-weight: 500;
+  text-decoration: none;
+}
+.bkcal-cell.booked:hover { background: #ECECEC !important; }
+
+/* Pulsing red flash when a user tries to span over booked nights */
+@keyframes bkcal-conflict-pulse {
+  0%, 100% { background: #ECECEC !important; box-shadow: none; }
+  20%, 60% { background: #FBD5D0 !important; box-shadow: 0 0 0 2px var(--color-danger); }
+}
+.bkcal-cell.booked.conflict-flash {
+  animation: bkcal-conflict-pulse 1.4s ease-in-out;
+}
+.bkcal-cell.booked.conflict-flash .cell-day,
+.bkcal-cell.booked.conflict-flash .cell-price {
+  color: var(--color-danger) !important;
+  text-decoration-color: var(--color-danger);
+}
+
+.bkcal-banner {
+  background: rgba(177, 74, 63, 0.10);
+  color: var(--color-danger);
+  border: 1px solid rgba(177, 74, 63, 0.35);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.88rem;
+  margin-bottom: 0.85rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.bkcal-banner.hidden { display: none; }
+.bkcal-foot {
+  display: flex; align-items: center; gap: 1.25rem; margin-top: 1rem;
+  padding-top: 1rem; border-top: 1px solid var(--color-line);
+  font-size: 0.82rem; color: var(--color-stone); flex-wrap: wrap;
+}
+.bkcal-legend { display: inline-flex; align-items: center; gap: 0.4rem; }
+.bkcal-legend .dot {
+  width: 8px; height: 8px; border-radius: 999px; display: inline-block;
+}
+.bkcal-legend .dot.booked { background: var(--color-line); border: 1px solid var(--color-stone); }
+.bkcal-legend .dot.live { background: var(--color-success); }
+.bkcal-clear {
+  margin-left: auto; background: transparent; color: var(--color-primary);
+  font-weight: 500; font-size: 0.85rem; padding: 0.25rem 0.5rem;
+  text-decoration: underline;
+}
+.bkcal-clear:hover { color: var(--color-primary-dark); }
 
 /* === Reviews === */
 .review-card {
@@ -514,11 +821,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .mobile-drawer {
   position: fixed; inset: 0; z-index: 100;
   background: var(--color-cream);
-  transform: translateX(100%); transition: transform 0.35s var(--ease-out);
+  transform: translateX(100%); transition: transform 0.35s var(--ease-out), visibility 0s linear 0.35s;
   padding: 5rem 1.5rem 2rem;
   display: flex; flex-direction: column;
+  /* Inert when closed — prevents accidental clicks on hidden links and stops
+     it being revealed if anything ever pushes the body beyond its viewport. */
+  visibility: hidden; pointer-events: none;
 }
-.mobile-drawer.open { transform: translateX(0); }
+.mobile-drawer.open {
+  transform: translateX(0);
+  visibility: visible; pointer-events: auto;
+  transition: transform 0.35s var(--ease-out), visibility 0s linear 0s;
+}
 .mobile-drawer a {
   font-family: var(--font-display); font-size: 2rem; padding: 0.85rem 0;
   border-bottom: 1px solid var(--color-line); color: var(--color-charcoal);
@@ -601,4 +915,69 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .props-grid { grid-template-columns: 1fr; }
   .newsletter { padding: 2.5rem 1.25rem; }
   .newsletter form { flex-direction: column; }
+}
+
+/* === Theme template: "modern" (Airbnb-style) ===
+   Selected from admin → Branding & theme → Theme template. Color and font
+   choices come from the theme's CSS variables; this block handles the
+   structural changes that variables can't (sans-serif headings, tighter
+   radii, flatter buttons, white surfaces). */
+[data-template="modern"] h1,
+[data-template="modern"] h2,
+[data-template="modern"] h3,
+[data-template="modern"] h4,
+[data-template="modern"] h5,
+[data-template="modern"] .font-display {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+[data-template="modern"] .brand-mark {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+}
+[data-template="modern"] .btn {
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+[data-template="modern"] .btn-primary,
+[data-template="modern"] .btn-accent { color: white; }
+[data-template="modern"] .btn-outline {
+  border-color: var(--color-charcoal);
+  color: var(--color-charcoal);
+}
+[data-template="modern"] .btn-outline:hover {
+  background: var(--color-charcoal);
+  color: white;
+}
+[data-template="modern"] .booking-widget,
+[data-template="modern"] .review-card,
+[data-template="modern"] .prop-card,
+[data-template="modern"] .book-card,
+[data-template="modern"] .amenity-item,
+[data-template="modern"] .form-control,
+[data-template="modern"] .field {
+  border-radius: 12px;
+}
+[data-template="modern"] .badge { border-radius: 8px; font-weight: 600; }
+[data-template="modern"] .detail-gallery,
+[data-template="modern"] .photo-grid-tile { border-radius: 14px; }
+
+/* Surfaces: airy white page, faintly cream cards (matches the booking-card
+   look in the modern reference). The booking widget on the property page
+   gets the cream tint so it reads as a distinct card against white. */
+[data-template="modern"] .site-header { background: rgba(255, 255, 255, 0.92); }
+[data-template="modern"] .site-header.scrolled { background: rgba(255, 255, 255, 0.98); }
+[data-template="modern"] .booking-widget {
+  background: var(--color-sand);
+  border: 1px solid var(--color-line);
+}
+
+/* The login screen + brand preview shouldn't show the serif wordmark when
+   the modern template is active — keep them sans like the rest of the site. */
+[data-template="modern"] .brand-mark span,
+[data-template="modern"] [data-brand-name] {
+  font-family: var(--font-body) !important;
 }

@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<title>Confirm booking — Nyris Retreats</title>
+<title>Request booking — Nyris Retreats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="stylesheet" href="/css/styles.css?v=67"/>
+<script src="/js/theme.js?v=67"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
 </head>
 <body>
@@ -21,11 +22,53 @@
   </section>
 </main>
 <footer id="site-footer"></footer>
-<style>@media (max-width: 960px) { #bookGrid { grid-template-columns: 1fr !important; } }</style>
-<script src="/js/data.js"></script>
-<script src="/js/app.js"></script>
+<style>
+@media (max-width: 960px) { #bookGrid { grid-template-columns: 1fr !important; } }
+.book-card {
+  background: white; border: 1px solid var(--color-line); border-radius: 16px;
+  padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.book-card h2 { font-size: 1.2rem; margin: 0 0 1rem; }
+.book-line {
+  display:flex; justify-content: space-between; align-items: baseline;
+  padding: 0.5rem 0; font-size: 0.95rem;
+}
+.book-line + .book-line { border-top: 1px dashed var(--color-line); }
+.book-total {
+  display:flex; justify-content: space-between; align-items: baseline;
+  padding: 0.85rem 0 0; margin-top: 0.85rem;
+  border-top: 2px solid var(--color-line);
+  font-size: 1.05rem; font-weight: 600;
+}
+.quote-state {
+  padding: 0.85rem 1rem; border-radius: 10px;
+  font-size: 0.88rem; margin-bottom: 1rem;
+}
+.quote-state.is-loading { background: var(--color-cream-dark); color: var(--color-stone); }
+.quote-state.is-error { background: rgba(177,74,63,0.08); border: 1px solid rgba(177,74,63,0.25); color: var(--color-danger); }
+.quote-state.is-fallback { background: rgba(194,132,86,0.1); border: 1px solid rgba(194,132,86,0.3); color: var(--color-charcoal); }
+.success-card {
+  background: white; border: 1px solid var(--color-line); border-radius: 18px;
+  padding: 2.5rem 2rem; text-align: center;
+}
+.success-card .icon-circle {
+  width: 56px; height: 56px; border-radius: 999px;
+  background: rgba(44,122,90,0.12); color: var(--color-success);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; margin-bottom: 1rem;
+}
+</style>
+<script src="/js/data.js?v=67"></script>
+<script src="/js/app.js?v=67"></script>
 <script>
-(function() {
+window.__bookingState = { discount: null, quote: null };
+
+(async function() {
+  if (window.__overridesReady) await window.__overridesReady;
+  if (typeof applyOverrides === "function" && typeof NYRIS !== "undefined") {
+    NYRIS.properties = applyOverrides(NYRIS.properties);
+  }
+
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('slug');
   const ci = params.get('checkin') || isoToday(7);
@@ -37,105 +80,291 @@
   if (!p) { left.innerHTML = '<h1>Property not found</h1>'; return; }
 
   const nights = nightsBetween(ci, co);
-  const subtotal = nights * p.basePrice;
-  const discountPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
-  const discount = Math.round(subtotal * discountPct);
-  const cleaning = 165;
-  const taxes = Math.round((subtotal - discount + cleaning) * 0.11);
-  const total = subtotal - discount + cleaning + taxes;
-  const dueNow = Math.round(total * 0.5);
-  const dueLater = total - dueNow;
 
-  left.innerHTML = `
-    <a href="/property.html?slug=${slug}" style="font-size: 0.88rem; color: var(--color-stone);">← Back to property</a>
-    <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 1rem 0 2rem;">Confirm and pay</h1>
+  // Local fallback price (PriceLabs + cleaning + estimated taxes), used if
+  // Hospitable's quote endpoint isn't enabled or fails.
+  const fallback = await computeFallbackPrice(p, ci, co, nights);
 
-    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Your trip</h2>
-      <div style="display:flex; justify-content: space-between; align-items: start; padding: 0.5rem 0;">
-        <div>
-          <strong>Dates</strong>
-          <div style="color: var(--color-stone); font-size: 0.92rem;">${ci} → ${co} · ${nights} night${nights > 1 ? 's' : ''}</div>
+  const ctx = {
+    p, ci, co, nights, guests, slug,
+    fallback,
+    quote: null,                // populated by fetchQuote() if Hospitable returns one
+    quoteState: 'loading',      // loading | ok | error | fallback
+    quoteError: null,
+    discount: null
+  };
+  window.__bookingCtx = ctx;
+
+  renderUI();
+
+  // Fire the live quote in the background. Page is already painted with
+  // fallback pricing so the user never sees a blank state.
+  fetchQuote().then(() => renderUI()).catch(() => {});
+
+  async function fetchQuote() {
+    try {
+      const r = await fetch('/api/hospitable/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId: p.id, checkin: ci, checkout: co, guests })
+      });
+      const j = await r.json();
+      if (j.ok && j.quote && j.quote.total != null) {
+        ctx.quote = j.quote;
+        ctx.quoteState = 'ok';
+      } else {
+        ctx.quoteState = 'fallback';
+        ctx.quoteError = j.error || 'Hospitable quote unavailable';
+      }
+    } catch (e) {
+      ctx.quoteState = 'fallback';
+      ctx.quoteError = String(e);
+    }
+  }
+
+  function renderUI() {
+    left.innerHTML = renderLeft();
+    right.innerHTML = renderRight();
+  }
+
+  function activeTotals() {
+    if (ctx.quoteState === 'ok' && ctx.quote && ctx.quote.total != null) {
+      const breakdown = ctx.quote.breakdown && ctx.quote.breakdown.length
+        ? ctx.quote.breakdown
+        : [{ label: `${ctx.nights} night${ctx.nights > 1 ? 's' : ''}`, amount: Math.round(ctx.quote.total) }];
+      return {
+        breakdown,
+        total: Math.round(ctx.quote.total),
+        currency: ctx.quote.currency || 'USD',
+        live: true
+      };
+    }
+    return { ...ctx.fallback, live: false };
+  }
+
+  function renderLeft() {
+    return `
+      <a href="/property.html?slug=${slug}" style="font-size: 0.88rem; color: var(--color-stone);">← Back to property</a>
+      <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 1rem 0 0.5rem;">Request to book</h1>
+      <p style="color: var(--color-stone); margin: 0 0 2rem;">Sheena reviews every direct request personally — most confirmations within minutes.</p>
+
+      ${quoteStateBanner()}
+
+      <div class="book-card">
+        <h2>Your trip</h2>
+        <div style="display:flex; justify-content: space-between; align-items: start; padding: 0.5rem 0;">
+          <div>
+            <strong>Dates</strong>
+            <div style="color: var(--color-stone); font-size: 0.92rem;">${ci} → ${co} · ${nights} night${nights > 1 ? 's' : ''}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="window.history.back()">Edit</button>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.history.back()">Edit</button>
-      </div>
-      <div style="display:flex; justify-content: space-between; align-items: start; padding: 0.5rem 0; border-top: 1px solid var(--color-line);">
-        <div>
-          <strong>Guests</strong>
-          <div style="color: var(--color-stone); font-size: 0.92rem;">${guests} guest${guests > 1 ? 's' : ''}</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="window.history.back()">Edit</button>
-      </div>
-    </div>
-
-    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Choose payment timing</h2>
-      <label style="display:flex; gap: 0.85rem; padding: 1rem; border: 2px solid var(--color-primary); border-radius: 12px; cursor: pointer; margin-bottom: 0.75rem;">
-        <input type="radio" name="pay" checked/>
-        <div>
-          <strong>Pay 50% now, 50% later</strong>
-          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.25rem 0 0;">$${dueNow.toLocaleString()} now, $${dueLater.toLocaleString()} 14 days before check-in.</p>
-        </div>
-      </label>
-      <label style="display:flex; gap: 0.85rem; padding: 1rem; border: 1px solid var(--color-line); border-radius: 12px; cursor: pointer;">
-        <input type="radio" name="pay"/>
-        <div>
-          <strong>Pay full amount now</strong>
-          <p style="color: var(--color-stone); font-size: 0.9rem; margin: 0.25rem 0 0;">$${total.toLocaleString()} charged today.</p>
-        </div>
-      </label>
-    </div>
-
-    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Your details</h2>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-        <div><label class="form-label">First name</label><input class="form-control"/></div>
-        <div><label class="form-label">Last name</label><input class="form-control"/></div>
-      </div>
-      <div style="margin-top: 1rem;"><label class="form-label">Email</label><input class="form-control" type="email"/></div>
-      <div style="margin-top: 1rem;"><label class="form-label">Phone</label><input class="form-control" type="tel"/></div>
-    </div>
-
-    <div style="border: 1px solid var(--color-line); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem;">
-      <h2 style="font-size: 1.2rem; margin: 0 0 1rem;">Payment</h2>
-      <p style="color: var(--color-stone); margin: 0 0 1rem;">Demo checkout — connect Stripe in production. <strong>No real payment will be taken.</strong></p>
-      <div><label class="form-label">Card number</label><input class="form-control" placeholder="1234 1234 1234 1234"/></div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-        <div><label class="form-label">Expiry</label><input class="form-control" placeholder="MM/YY"/></div>
-        <div><label class="form-label">CVC</label><input class="form-control" placeholder="123"/></div>
-      </div>
-    </div>
-
-    <button class="btn btn-accent btn-lg" style="width: 100%;" onclick="confirmBooking()">Confirm and pay $${dueNow.toLocaleString()}</button>
-    <p style="text-align:center; font-size: 0.82rem; color: var(--color-stone); margin: 1rem 0 0;">By confirming, you agree to the host's house rules and our cancellation policy. Full refund up to 14 days before check-in.</p>
-  `;
-
-  right.innerHTML = `
-    <div class="booking-widget" style="position: sticky; top: 100px;">
-      <div style="display: flex; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-line); margin-bottom: 1.25rem;">
-        <img src="${p.images[0]}" alt="" style="width: 96px; height: 88px; object-fit: cover; border-radius: 10px;"/>
-        <div>
-          <strong style="display:block; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
-          <div style="color: var(--color-stone); font-size: 0.85rem;">${p.type} · ${p.city}, ${p.state}</div>
-          <div style="font-size: 0.85rem; margin-top: 0.3rem;">★ ${p.rating.toFixed(1)} (${p.reviewCount})</div>
+        <div style="display:flex; justify-content: space-between; align-items: start; padding: 0.5rem 0; border-top: 1px solid var(--color-line);">
+          <div>
+            <strong>Guests</strong>
+            <div style="color: var(--color-stone); font-size: 0.92rem;">${guests} guest${guests > 1 ? 's' : ''}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="window.history.back()">Edit</button>
         </div>
       </div>
-      <h3 style="font-size: 1.05rem; margin: 0 0 0.85rem;">Price details</h3>
-      <div class="booking-line"><span>$${p.basePrice} × ${nights} night${nights > 1 ? 's' : ''}</span><span>$${subtotal.toLocaleString()}</span></div>
-      ${discount ? `<div class="booking-line"><span>${(discountPct*100).toFixed(0)}% long-stay discount</span><span style="color: var(--color-success);">-$${discount.toLocaleString()}</span></div>` : ''}
-      <div class="booking-line"><span>Cleaning fee</span><span>$${cleaning}</span></div>
-      <div class="booking-line"><span>Occupancy taxes</span><span>$${taxes}</span></div>
-      <div class="booking-total"><span>Total (USD)</span><span>$${total.toLocaleString()}</span></div>
-      <div style="margin-top: 1.5rem; padding: 0.85rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.85rem; text-align:center; color: var(--color-primary);">
-        ★ You're saving ~$${Math.round(total * 0.16).toLocaleString()} versus Airbnb fees
-      </div>
-    </div>
-  `;
+
+      <form id="bookForm" onsubmit="submitBookingRequest(event)" novalidate>
+        <div class="book-card">
+          <h2>Your details</h2>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div><label class="form-label">First name</label><input class="form-control" name="first" required/></div>
+            <div><label class="form-label">Last name</label><input class="form-control" name="last"/></div>
+          </div>
+          <div style="margin-top: 1rem;"><label class="form-label">Email</label><input class="form-control" name="email" type="email" required/></div>
+          <div style="margin-top: 1rem;"><label class="form-label">Phone (optional)</label><input class="form-control" name="phone" type="tel"/></div>
+          <label style="margin-top: 0.85rem; display:flex; gap: 0.65rem; align-items: flex-start; padding: 0.85rem 1rem; background: var(--color-cream-dark); border-radius: 10px; cursor: pointer; line-height: 1.45;">
+            <input type="checkbox" name="smsOptIn" value="yes" style="margin-top: 0.18rem; flex-shrink: 0;"/>
+            <span style="font-size: 0.85rem; color: var(--color-charcoal);">
+              <strong style="display:block; margin-bottom: 0.15rem;">Yes, you can text me.</strong>
+              By checking this box, I agree to receive text messages from Nyris Retreats at the phone number above regarding my booking and stay. Message frequency varies; message and data rates may apply. Reply <strong>STOP</strong> to opt out at any time, <strong>HELP</strong> for help. Consent is not a condition of any purchase.
+            </span>
+          </label>
+          <div style="margin-top: 1rem;"><label class="form-label">Anything Sheena should know? <span style="font-weight: 400; color: var(--color-stone);">(optional)</span></label><textarea class="form-control" name="message" rows="3" placeholder="Special occasion, accessibility needs, late check-in, etc." style="resize: vertical;"></textarea></div>
+        </div>
+
+        <div class="book-card">
+          <h2>Promo code <span style="font-weight: 400; color: var(--color-stone); font-size: 0.95rem;">(optional)</span></h2>
+          <div style="display:flex; gap: 0.5rem;">
+            <input class="form-control" id="bkDiscountInput" placeholder="e.g. SPRING25" style="text-transform: uppercase; font-family: monospace;" autocomplete="off"/>
+            <button type="button" class="btn btn-outline" onclick="applyDiscountCode()">Apply</button>
+          </div>
+          <div id="bkDiscountFeedback" style="margin-top: 0.85rem; font-size: 0.9rem;"></div>
+        </div>
+
+        <div style="background: var(--color-cream-dark); border-radius: 14px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; font-size: 0.9rem; line-height: 1.55; color: var(--color-charcoal);">
+          <strong style="display:block; margin-bottom: 0.4rem;">What happens next</strong>
+          You'll get a confirmation email immediately. Sheena reviews the request within minutes and sends you a secure payment link to lock in your dates. Your card isn't charged until you confirm.
+        </div>
+
+        <button type="submit" class="btn btn-accent btn-lg" id="bkSubmitBtn" style="width: 100%;">Send booking request</button>
+        <p style="text-align:center; font-size: 0.82rem; color: var(--color-stone); margin: 1rem 0 0;">By submitting, you agree to the host's house rules. No payment now — you'll get a payment link from Sheena.</p>
+      </form>
+    `;
+  }
+
+  function renderRight() {
+    const t = activeTotals();
+    return `
+      <div style="position: sticky; top: 100px;">
+        <div class="book-card" style="margin-bottom: 1rem;">
+          <div style="display:flex; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--color-line); margin-bottom: 1.25rem;">
+            <img src="${p.images[0]}" alt="" style="width: 96px; height: 88px; object-fit: cover; border-radius: 10px;"/>
+            <div>
+              <strong style="display:block; font-size: 0.95rem;">${escapeHtml(p.name)}</strong>
+              <div style="color: var(--color-stone); font-size: 0.85rem;">${p.type} · ${p.city}, ${p.state}</div>
+              <div style="font-size: 0.85rem; margin-top: 0.3rem;">★ ${p.rating.toFixed(1)} (${p.reviewCount})</div>
+            </div>
+          </div>
+          <h3 style="font-size: 1.05rem; margin: 0 0 0.85rem;">Price details
+            ${t.live
+              ? `<span style="display:inline-block; font-size: 0.7rem; color: var(--color-success); padding: 0.1rem 0.5rem; border: 1px solid var(--color-success); border-radius: 999px; margin-left: 0.5rem; vertical-align: middle;">● Live Hospitable quote</span>`
+              : `<span style="display:inline-block; font-size: 0.7rem; color: var(--color-stone); padding: 0.1rem 0.5rem; border: 1px solid var(--color-line); border-radius: 999px; margin-left: 0.5rem; vertical-align: middle;">Estimate</span>`
+            }
+          </h3>
+          ${t.breakdown.map(line => `<div class="book-line"><span>${escapeHtml(line.label)}</span><span>$${Number(line.amount).toLocaleString()}</span></div>`).join('')}
+          <div class="book-total"><span>Total (${t.currency || 'USD'})</span><span>$${t.total.toLocaleString()}</span></div>
+          <p style="margin: 1rem 0 0; font-size: 0.78rem; color: var(--color-stone); line-height: 1.5;">
+            ${t.live
+              ? "Pulled from Hospitable. Final price confirmed when Sheena sends your payment link."
+              : "Estimated based on your dates and our standard fees. Sheena will confirm the exact total in the payment link."}
+          </p>
+        </div>
+      </div>`;
+  }
+
+  function quoteStateBanner() {
+    if (ctx.quoteState === 'loading') {
+      return `<div class="quote-state is-loading">Pulling live pricing from Hospitable…</div>`;
+    }
+    if (ctx.quoteState === 'fallback') {
+      return `<div class="quote-state is-fallback">Showing estimated pricing — Sheena will confirm the exact total when she sends your payment link.</div>`;
+    }
+    return '';
+  }
 })();
 
-function confirmBooking() {
-  toast("Booking confirmed! Check your email for details.", 3000);
-  setTimeout(() => { window.location.href = '/'; }, 2400);
+async function computeFallbackPrice(p, ci, co, nights) {
+  let perNight = Array(nights).fill(p.basePrice);
+  try {
+    const r = await fetch(`/api/pricing?propertyId=${encodeURIComponent(p.id)}&checkin=${ci}&checkout=${co}&basePrice=${p.basePrice}`);
+    const j = await r.json();
+    if (j.ok && Array.isArray(j.nights)) perNight = j.nights.map(n => n.price);
+  } catch {}
+  const subtotal = perNight.reduce((s, x) => s + x, 0);
+  const allSame = perNight.every(x => x === perNight[0]);
+  const minP = Math.min(...perNight), maxP = Math.max(...perNight);
+  const avgNightly = Math.round(subtotal / nights);
+  const longStayPct = nights >= 28 ? 0.20 : nights >= 7 ? 0.10 : 0;
+  const longStayDiscount = Math.round(subtotal * longStayPct);
+  const cleaning = (p.cleaningFee != null) ? Number(p.cleaningFee) : 165;
+  const taxableBase = (subtotal - longStayDiscount) + cleaning;
+  const taxes = Math.round(taxableBase * 0.11);
+  const total = (subtotal - longStayDiscount) + cleaning + taxes;
+  const breakdown = [
+    { label: allSame ? `$${perNight[0]} × ${nights} night${nights > 1 ? 's' : ''}` : `$${minP}–$${maxP} × ${nights} nights (avg $${avgNightly})`, amount: subtotal }
+  ];
+  if (longStayDiscount) breakdown.push({ label: `${(longStayPct*100).toFixed(0)}% long-stay discount`, amount: -longStayDiscount });
+  breakdown.push({ label: 'Cleaning fee', amount: cleaning });
+  breakdown.push({ label: 'Estimated taxes', amount: taxes });
+  return { breakdown, total, currency: 'USD' };
+}
+
+window.applyDiscountCode = async function() {
+  const input = document.getElementById("bkDiscountInput");
+  const fb = document.getElementById("bkDiscountFeedback");
+  const code = (input.value || "").trim().toUpperCase();
+  if (!code) { fb.style.color = "var(--color-stone)"; fb.textContent = "Enter a code first."; return; }
+  fb.style.color = "var(--color-stone)"; fb.textContent = "Checking…";
+  const ctx = window.__bookingCtx;
+  const t = ctx.quote && ctx.quote.total ? ctx.quote.total : ctx.fallback.total;
+  try {
+    const r = await fetch("/api/discounts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "validate", code, subtotal: t })
+    });
+    const j = await r.json();
+    if (!j.valid) {
+      ctx.discount = null;
+      fb.style.color = "var(--color-danger)";
+      fb.textContent = j.reason || j.error || "Code not valid.";
+      return;
+    }
+    ctx.discount = { code: j.code, label: j.label, discountAmount: j.discountAmount };
+    fb.style.color = "var(--color-success)";
+    fb.innerHTML = `✓ ${escapeHtml(j.label)} applied — Sheena will reflect the $${j.discountAmount.toLocaleString()} savings on your payment link.`;
+  } catch (e) {
+    fb.style.color = "var(--color-danger)";
+    fb.textContent = "Couldn't reach the server: " + e.message;
+  }
+};
+
+window.submitBookingRequest = async function(e) {
+  e.preventDefault();
+  const ctx = window.__bookingCtx;
+  const form = document.getElementById('bookForm');
+  const btn = document.getElementById('bkSubmitBtn');
+  const fd = new FormData(form);
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  const payload = {
+    propertyId: ctx.p.id,
+    propertySlug: ctx.p.slug,
+    propertyName: ctx.p.name,
+    checkin: ctx.ci,
+    checkout: ctx.co,
+    guests: ctx.guests,
+    first: fd.get('first') || '',
+    last: fd.get('last') || '',
+    email: fd.get('email') || '',
+    phone: fd.get('phone') || '',
+    smsOptIn: fd.get('smsOptIn') === 'yes',
+    message: fd.get('message') || '',
+    promoCode: ctx.discount ? ctx.discount.code : ''
+  };
+
+  try {
+    const r = await fetch('/api/book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) {
+      btn.disabled = false; btn.textContent = original;
+      toast(`Couldn't send: ${j.error || 'please try again'}`);
+      return;
+    }
+    showSuccess(j);
+  } catch (err) {
+    btn.disabled = false; btn.textContent = original;
+    toast("Couldn't send — check your connection and try again.");
+  }
+};
+
+function showSuccess(resp) {
+  const ctx = window.__bookingCtx;
+  document.getElementById('bookLeft').innerHTML = `
+    <div class="success-card">
+      <div class="icon-circle">✓</div>
+      <h1 style="font-size: clamp(1.6rem, 3vw, 2.1rem); margin: 0 0 0.6rem;">Booking request received</h1>
+      <p style="color: var(--color-stone); margin: 0 0 0.5rem;">Reference #${resp.requestId}</p>
+      <p style="font-size: 1rem; line-height: 1.65; margin: 1rem 0 1.5rem;">
+        Thanks! Sheena reviews every direct request personally and will email you a secure payment link within minutes (during business hours).
+        Your card hasn't been charged.
+      </p>
+      <div style="display:flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+        <a href="/property.html?slug=${ctx.slug}" class="btn btn-outline">Back to property</a>
+        <a href="/search.html" class="btn btn-primary">Browse other stays</a>
+      </div>
+    </div>`;
+  // Clear the right column for a focused success state.
+  document.getElementById('bookRight').innerHTML = '';
 }
 </script>
 </body>

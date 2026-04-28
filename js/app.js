@@ -30,6 +30,26 @@ const Storage = {
   }
 };
 
+// Pull the latest admin overrides from the server (Turso) and write them to
+// this device's localStorage. Without this, mobile / new visitors only see
+// whatever was last cached in their own browser — admin edits from another
+// device never reach them. Runs eagerly on script load; pages that need
+// fresh data await window.__overridesReady before rendering. A 3-second
+// timeout guarantees a slow API never wedges the page.
+window.__overridesReady = (async () => {
+  const fetchOverrides = (async () => {
+    try {
+      const r = await fetch("/api/admin/overrides", { cache: "no-store" });
+      const j = await r.json();
+      if (j && j.ok && j.data && typeof j.data === "object") {
+        Storage.set("nyris.overrides", j.data);
+      }
+    } catch {}
+  })();
+  const timeout = new Promise(resolve => setTimeout(resolve, 3000));
+  await Promise.race([fetchOverrides, timeout]);
+})();
+
 // ===== Wishlist =====
 const Wishlist = {
   key: "nyris.wishlist",
@@ -87,6 +107,51 @@ function applyOverrides(props) {
   if (o.heroTitle) NYRIS.brand.heroTitle = o.heroTitle;
   if (o.heroSubtitle) NYRIS.brand.heroSubtitle = o.heroSubtitle;
   if (o.heroImage) NYRIS.brand.heroImage = o.heroImage;
+
+  // Public contact info — admin-edited email + phone. Footer + contact page
+  // read NYRIS.brand.email/.phone, so mutating in place propagates everywhere.
+  if (o.contact) {
+    if (o.contact.email) NYRIS.brand.email = o.contact.email;
+    if (o.contact.phone) NYRIS.brand.phone = o.contact.phone;
+  }
+
+  // Per-property field overrides (name, tagline, basePrice, cleaningFee, experiences, …)
+  if (o.props) {
+    for (const p of props) {
+      const ov = o.props[p.slug];
+      if (!ov) continue;
+      if (ov.name) p.name = ov.name;
+      if (ov.tagline) p.tagline = ov.tagline;
+      if (ov.basePrice != null) p.basePrice = Number(ov.basePrice);
+      if (ov.cleaningFee != null) p.cleaningFee = Number(ov.cleaningFee);
+      if (Array.isArray(ov.experiences)) p.experiences = ov.experiences.filter(s => s && s.trim());
+      // Per-property Hospitable booking widget snippet. Hospitable gives a
+      // unique snippet per property, so the per-property field is the right
+      // home — wins over the site-wide template in payments.
+      if (ov.hospitableEmbed && ov.hospitableEmbed.trim()) p.hospitableEmbed = ov.hospitableEmbed;
+      // Channel URL overrides — admin-edited URLs that supersede whatever
+      // Hospitable returns for /api/hospitable/listings. Stored flat on the
+      // override but exposed as a structured map for the property page.
+      const channels = {};
+      if (ov.airbnbUrl) channels.airbnb = ov.airbnbUrl;
+      if (ov.vrboUrl) channels.vrbo = ov.vrboUrl;
+      if (ov.bookingUrl) channels.booking = ov.bookingUrl;
+      if (Object.keys(channels).length) p.channelUrlOverrides = channels;
+    }
+  }
+
+  // Destination overrides (name, state, tagline, image)
+  if (o.destinations && Array.isArray(NYRIS.destinations)) {
+    for (const d of NYRIS.destinations) {
+      const od = o.destinations[d.slug];
+      if (!od) continue;
+      if (od.name) d.name = od.name;
+      if (od.state) d.state = od.state;
+      if (od.tagline) d.tagline = od.tagline;
+      if (od.image) d.image = od.image;
+    }
+  }
+
   if (o.featuredOrder && Array.isArray(o.featuredOrder)) {
     const ordered = [];
     for (const slug of o.featuredOrder) {
@@ -117,11 +182,18 @@ function renderHeader(active = "") {
   const el = document.querySelector("#site-header") || document.querySelector(".site-header");
   if (!el) return;
   el.classList.add("site-header");
+  const t = (window.Theme && window.Theme.get()) || { brandName: NYRIS.brand.name };
+  const logoHtml = (window.Theme && window.Theme.logoMark(t)) || ICON.logo;
+  // If a custom logo (URL or inline SVG) is set, the logo replaces both the
+  // icon AND the company name — admins typically upload full wordmarks.
+  const customLogo = !!(t.logoUrl || t.logoSvg);
+  const brandInner = customLogo
+    ? logoHtml
+    : `${logoHtml}<span data-brand-name>${escapeHtml(t.brandName)}</span>`;
   el.innerHTML = `
     <div class="nav-inner">
-      <a href="/" class="brand-mark" aria-label="Nyris Retreats home">
-        ${ICON.logo}
-        <span>Nyris Retreats</span>
+      <a href="/" class="brand-mark${customLogo ? ' brand-mark-custom' : ''}" aria-label="${escapeHtml(t.brandName)} home">
+        ${brandInner}
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="/search.html" class="${active==='stays'?'active':''}">All stays</a>
@@ -163,12 +235,17 @@ function renderFooter() {
   if (!el) return;
   el.classList.add("site-footer");
   const yr = new Date().getFullYear();
+  const t = (window.Theme && window.Theme.get()) || { brandName: NYRIS.brand.name };
+  const logoHtml = (window.Theme && window.Theme.logoMark(t)) || ICON.logo;
+  const customLogo = !!(t.logoUrl || t.logoSvg);
+  const footerBrandInner = customLogo
+    ? logoHtml
+    : `${logoHtml}<span data-brand-name>${escapeHtml(t.brandName)}</span>`;
   el.innerHTML = `
     <div class="footer-grid">
       <div class="footer-brand">
-        <div class="brand-mark" style="color: var(--color-cream);">
-          ${ICON.logo}
-          <span>Nyris Retreats</span>
+        <div class="brand-mark${customLogo ? ' brand-mark-custom' : ''}" style="color: var(--color-cream);">
+          ${footerBrandInner}
         </div>
         <p style="margin-top: 1rem;">Curated, Superhost-managed vacation homes — every one a Top 1% Guest Favorite. Skip the platform fees and book direct.</p>
         <p style="margin-top: 1rem; font-size: 0.85rem;">${NYRIS.brand.email} &middot; ${NYRIS.brand.phone}</p>
@@ -227,10 +304,16 @@ function initReveal() {
 function propertyCard(p, opts = {}) {
   const liked = Wishlist.has(p.id);
   const compareOn = Compare.has(p.id);
+  // If admin photo overrides have already loaded for this page-view, apply them
+  // here at render time so there's no flash. Otherwise applyToCards() will run
+  // after PhotoOverrides.load() resolves and update the cards in place.
+  const images = (PhotoOverrides && PhotoOverrides._data) ? PhotoOverrides.imagesFor(p) : p.images;
   return `
   <article class="prop-card" data-id="${p.id}">
-    <div class="prop-card-media" data-images='${JSON.stringify(p.images.slice(0, 5))}'>
-      <img class="prop-card-img" src="${p.images[0]}" alt="${escapeHtml(p.name)}" loading="lazy"/>
+    <div class="prop-card-media" data-images='${JSON.stringify(images.slice(0, 5))}'>
+      <a class="prop-card-media-link" href="/property.html?slug=${p.slug}" aria-label="${escapeHtml(p.name)}">
+        <img class="prop-card-img" src="${images[0]}" alt="${escapeHtml(p.name)}" loading="lazy"/>
+      </a>
       <div class="prop-card-badges">
         ${p.isGuestFavorite ? `<span class="badge badge-favorite">${ICON.badge.replace('<svg','<svg width="11" height="11"')} Guest Favorite</span>` : ''}
         ${p.isNew ? `<span class="badge badge-new">New</span>` : ''}
@@ -293,6 +376,46 @@ function bindPropertyCards(scope = document) {
       e.preventDefault(); e.stopPropagation();
       idx = (idx + 1) % imgs.length; update();
     });
+
+    // Touch swipe for mobile — left = next photo, right = previous. We need
+    // to also suppress the synthetic click that fires on touchend, otherwise
+    // every swipe would also navigate to the property page via the
+    // .prop-card-media-link wrapping the <img>.
+    let touchStart = null;
+    let swiped = false;
+    media.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { touchStart = null; return; }
+      const t = e.touches[0];
+      touchStart = { x: t.clientX, y: t.clientY, time: Date.now() };
+      swiped = false;
+    }, { passive: true });
+    media.addEventListener('touchend', (e) => {
+      if (!touchStart) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchStart.x;
+      const dy = t.clientY - touchStart.y;
+      const dt = Date.now() - touchStart.time;
+      touchStart = null;
+      // Horizontal-dominant movement of >30px in <500ms = swipe. Anything
+      // else (slow drift, vertical scroll, taps) is left alone so vertical
+      // page scrolling and tap-to-navigate keep working.
+      if (dt < 500 && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+        swiped = true;
+        if (dx < 0) idx = (idx + 1) % imgs.length;
+        else        idx = (idx - 1 + imgs.length) % imgs.length;
+        update();
+      }
+    }, { passive: true });
+    const link = media.querySelector('.prop-card-media-link');
+    if (link) {
+      link.addEventListener('click', (e) => {
+        if (swiped) {
+          e.preventDefault();
+          e.stopPropagation();
+          swiped = false;
+        }
+      });
+    }
   });
 }
 
@@ -315,6 +438,54 @@ function renderCompareBar() {
   document.addEventListener('compare:changed', sync);
   sync();
 }
+
+// ===== Photo grid (full-screen scrollable grid; clicking a photo opens Lightbox) =====
+const PhotoGrid = {
+  open(images) {
+    let g = document.querySelector('#photoGrid');
+    if (!g) {
+      g = document.createElement('div');
+      g.id = 'photoGrid';
+      g.className = 'photo-grid-overlay';
+      g.innerHTML = `
+        <div class="photo-grid-header">
+          <button class="photo-grid-close" aria-label="Close">${ICON.close}</button>
+          <div class="photo-grid-title"></div>
+        </div>
+        <div class="photo-grid-body"><div class="photo-grid"></div></div>`;
+      document.body.appendChild(g);
+      g.querySelector('.photo-grid-close').onclick = () => PhotoGrid.close();
+    }
+    const grid = g.querySelector('.photo-grid');
+    grid.innerHTML = images.map((src, i) => `
+      <button type="button" class="photo-grid-tile" data-idx="${i}" aria-label="Open photo ${i+1}">
+        <img src="${src}" alt="" loading="${i<6 ? 'eager' : 'lazy'}"/>
+      </button>`).join('');
+    grid.onclick = (e) => {
+      const btn = e.target.closest('button[data-idx]');
+      if (!btn) return;
+      Lightbox.open(images, Number(btn.dataset.idx));
+    };
+    g.querySelector('.photo-grid-title').textContent = `${images.length} photo${images.length === 1 ? '' : 's'}`;
+    g.querySelector('.photo-grid-body').scrollTop = 0;
+    // Listener attached BEFORE Lightbox's so when both are open and Esc fires,
+    // PhotoGrid runs first, sees the lightbox is open and bails — then
+    // Lightbox closes itself. Next Esc closes the grid.
+    document.addEventListener('keydown', PhotoGrid._key);
+    document.body.style.overflow = 'hidden';
+    g.classList.add('open');
+  },
+  _key(e) {
+    if (e.key !== 'Escape') return;
+    if (document.querySelector('#lightbox.open')) return;
+    PhotoGrid.close();
+  },
+  close() {
+    document.querySelector('#photoGrid')?.classList.remove('open');
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', PhotoGrid._key);
+  }
+};
 
 // ===== Lightbox =====
 const Lightbox = {
@@ -356,6 +527,56 @@ const Lightbox = {
   }
 };
 
+// =============================================================================
+// PhotoOverrides — admin-edited photo lists (cover, captions, custom uploads).
+// Loaded once per page from /api/photos, then merged with each property's static
+// images. The first item is used as the card cover.
+// =============================================================================
+const PhotoOverrides = {
+  _data: null,
+  _promise: null,
+  async load() {
+    if (this._promise) return this._promise;
+    this._promise = (async () => {
+      try {
+        const r = await fetch("/api/photos");
+        const j = await r.json();
+        this._data = j.ok ? (j.overrides || {}) : {};
+      } catch { this._data = {}; }
+      return this._data;
+    })();
+    return this._promise;
+  },
+  // Returns the effective image list for a property, with overrides applied.
+  imagesFor(property) {
+    const ov = this._data?.[property.id];
+    if (!ov || ov.length === 0) return property.images;
+    // Admin's order is authoritative. Append any base images not in admin list.
+    const overrideUrls = new Set(ov.map(p => p.url));
+    const remainingBase = (property.images || []).filter(u => !overrideUrls.has(u));
+    return [...ov.map(p => p.url), ...remainingBase];
+  },
+  // Re-apply overrides to all property cards on the page after load completes.
+  applyToCards() {
+    document.querySelectorAll(".prop-card[data-id]").forEach(card => {
+      const id = card.dataset.id;
+      const property = NYRIS.properties.find(p => p.id === id);
+      if (!property) return;
+      const images = this.imagesFor(property);
+      const media = card.querySelector(".prop-card-media");
+      const img = card.querySelector(".prop-card-img");
+      if (!media || !img) return;
+      const newFirst = images[0];
+      if (img.src !== newFirst) {
+        img.style.opacity = "0";
+        setTimeout(() => { img.src = newFirst; img.style.opacity = "1"; }, 100);
+      }
+      // Update the carousel's image list so prev/next reflect overrides too
+      media.dataset.images = JSON.stringify(images.slice(0, 5));
+    });
+  }
+};
+
 // ===== Format helpers =====
 function fmtPrice(n) { return '$' + Number(n).toLocaleString(); }
 function nightsBetween(a, b) {
@@ -368,7 +589,10 @@ function isoToday(offset = 0) {
 }
 
 // ===== Init on every page =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Wait for the eager server-side overrides fetch (with built-in 3s timeout)
+  // so the footer + applyOverrides see fresh admin edits, not stale local data.
+  if (window.__overridesReady) await window.__overridesReady;
   if (typeof NYRIS !== 'undefined') {
     NYRIS.properties = applyOverrides(NYRIS.properties);
   }
@@ -376,4 +600,8 @@ document.addEventListener('DOMContentLoaded', () => {
   renderFooter();
   initReveal();
   renderCompareBar();
+
+  // Fire-and-update: load admin photo overrides in the background and re-apply
+  // them to any rendered property cards once they arrive.
+  PhotoOverrides.load().then(() => PhotoOverrides.applyToCards());
 });

@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css"/>
+<link rel="stylesheet" href="/css/styles.css?v=67"/>
+<script src="/js/theme.js?v=67"></script>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%231F3D2B' d='M4 26 L16 6 L28 26 Z'/%3E%3C/svg%3E"/>
 <script>window.__activeNav = "experiences";</script>
 </head>
@@ -18,9 +19,9 @@
 <main>
   <section style="background: var(--color-cream-dark); padding: 5rem 1.5rem 3rem;">
     <div class="container-narrow reveal" style="text-align:center;">
-      <span class="section-eyebrow">Beyond the property</span>
-      <h1 style="font-size: clamp(2.4rem, 5vw, 3.6rem); margin: 0 0 1rem;">A trip is more than the bed.</h1>
-      <p style="font-size: 1.1rem; color: var(--color-stone); max-width: 640px; margin: 0 auto;">Every Nyris property comes with Sheena's personal recommendations — the spots she'd send her own family. Here's a region-by-region preview.</p>
+      <span class="section-eyebrow" id="expHeroEyebrow">Beyond the property</span>
+      <h1 id="expHeroTitle" style="font-size: clamp(2.4rem, 5vw, 3.6rem); margin: 0 0 1rem;">A trip is more than the bed.</h1>
+      <p id="expHeroSubtitle" style="font-size: 1.1rem; color: var(--color-stone); max-width: 640px; margin: 0 auto;">Every Nyris property comes with Sheena's personal recommendations — the spots she'd send her own family. Here's a region-by-region preview.</p>
     </div>
   </section>
 
@@ -30,19 +31,45 @@
 
   <section class="section" style="background: var(--color-sand); border-radius: 24px; max-width: 1320px; margin: 2rem auto;">
     <div class="container reveal" style="text-align:center;">
-      <h2 class="section-title">Want something custom?</h2>
-      <p class="section-subtitle" style="margin: 0 auto 2rem;">Sheena coordinates everything from chef-prepared welcome dinners to private yoga, surf lessons, and boat charters. Just ask.</p>
-      <a href="/contact.html?topic=experiences" class="btn btn-primary">Request a custom experience</a>
+      <h2 id="expCtaTitle" class="section-title">Want something custom?</h2>
+      <p id="expCtaSubtitle" class="section-subtitle" style="margin: 0 auto 2rem;">Sheena coordinates everything from chef-prepared welcome dinners to private yoga, surf lessons, and boat charters. Just ask.</p>
+      <a id="expCtaButton" href="/contact.html?topic=experiences" class="btn btn-primary">Request a custom experience</a>
     </div>
   </section>
 </main>
 
 <footer id="site-footer"></footer>
 
-<script src="/js/data.js"></script>
-<script src="/js/app.js"></script>
+<script src="/js/data.js?v=67"></script>
+<script src="/js/app.js?v=67"></script>
 <script>
-(function() {
+(async function() {
+  // Wait for the server-side overrides fetch kicked off by app.js so visitors
+  // on devices without local admin data still see the latest copy.
+  if (window.__overridesReady) await window.__overridesReady;
+  // Apply admin overrides up-front so destination tagline/image and per-
+  // property experiences edits land before this page renders. Idempotent
+  // with the DOMContentLoaded call in app.js.
+  if (typeof applyOverrides === "function" && typeof NYRIS !== "undefined") {
+    NYRIS.properties = applyOverrides(NYRIS.properties);
+  }
+  // Page-chrome overrides (intro + CTA), edited in admin → Site content →
+  // Experiences page. Subtitles allow simple HTML (e.g. <em>) by design.
+  if (typeof Overrides !== "undefined") {
+    const ep = Overrides.get().experiencesPage;
+    if (ep) {
+      if (ep.heroEyebrow) document.getElementById('expHeroEyebrow').textContent = ep.heroEyebrow;
+      if (ep.heroTitle) document.getElementById('expHeroTitle').textContent = ep.heroTitle;
+      if (ep.heroSubtitle) document.getElementById('expHeroSubtitle').innerHTML = ep.heroSubtitle;
+      if (ep.ctaTitle) document.getElementById('expCtaTitle').textContent = ep.ctaTitle;
+      if (ep.ctaSubtitle) document.getElementById('expCtaSubtitle').innerHTML = ep.ctaSubtitle;
+      const btn = document.getElementById('expCtaButton');
+      if (btn) {
+        if (ep.ctaButtonText) btn.textContent = ep.ctaButtonText;
+        if (ep.ctaButtonLink) btn.setAttribute('href', ep.ctaButtonLink);
+      }
+    }
+  }
   const root = document.getElementById('expRoot');
   const byDest = {};
   for (const p of NYRIS.properties) {

@@ -58,7 +58,108 @@ Once deployed:
 3. Vercel gives you DNS records — point your registrar at them
 4. SSL provisions automatically; usually live within 5 minutes
 
-## 4. Production hardening (do before going live)
+## 4. Connect integrations (Hospitable, PriceLabs, Turso)
+
+### Easiest path: the in-admin Setup Wizard (zero manual env vars)
+
+The fastest way to activate everything is the wizard built into `/admin`. It:
+
+1. Asks for a one-time Vercel API token ([create one here](https://vercel.com/account/tokens))
+2. Auto-detects which Vercel project to configure
+3. Walks you through getting Turso credentials (4 CLI commands or the dashboard)
+4. Generates a `CRON_SECRET`
+5. Sets `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, and `CRON_SECRET` env vars on the project — automatically
+6. Triggers a production redeploy
+7. Shows the `CRON_SECRET` once at the end so you can paste it into GitHub Actions for the 15-min schedule
+
+The Vercel token is **never stored** server-side — it's used in-flight only for the activation request, then forgotten.
+
+When the redeploy completes (~30 seconds), the cron and admin storage are live. Open the PriceLabs tab → Auto-sync panel to confirm.
+
+### Photo upload — Vercel Blob (one click)
+
+The admin → Photos tab has a "+ Add custom photo" button that opens a dialog with two tabs: **Upload from computer** (drag-drop or file picker) and **Paste URL**. Uploads go to Vercel Blob, which serves them from a global CDN.
+
+To enable: open your Vercel project → **Storage** → **Create Database** → **Blob** → **Connect to project**. Vercel auto-injects the `BLOB_READ_WRITE_TOKEN` env var. Free tier includes 1 GB storage + 1 GB bandwidth/month — far more than typical property photo libraries need.
+
+If Blob isn't configured, the upload button still works via the URL paste tab. The upload tab will show a clear inline message linking to the Storage setup page.
+
+Photo limits: JPEG/PNG/WebP/AVIF/GIF, up to 5 MB per file. For larger images, compress at [squoosh.app](https://squoosh.app) first.
+
+### Manual path (alternative)
+
+If you'd rather set the env vars yourself, the dashboard route is:
+
+**A. From the admin dashboard (recommended)** — once Turso is connected, you can paste keys directly into the admin UI's Hospitable API and PriceLabs tabs. They're encrypted at rest (AES-256-GCM) before being stored, and the raw values are never returned to the browser. Replace or remove keys with one click.
+
+**B. Via Vercel env vars** — works without Turso, but you have to redeploy to update keys. Admin-saved keys (option A) take precedence over env vars when both are present.
+
+To unlock multi-device admin sync and admin-managed API keys, add these env vars in Vercel → Project → **Settings → Environment Variables** (set for Production, Preview, and Development):
+
+| Key | Required for | Where to get it |
+|---|---|---|
+| `TURSO_DATABASE_URL` | Multi-device admin + admin-saved API keys | [Turso dashboard](https://app.turso.tech) → DB → Show URL |
+| `TURSO_AUTH_TOKEN` | Same as above | Turso dashboard → DB → Tokens → Create |
+| `SECRETS_KEY` | Stronger encryption key for admin-saved API keys *(recommended)* | Generate with `openssl rand -base64 32` |
+| `HOSPITABLE_API_KEY` | *Optional* — only if you don't want to enter via admin UI | [Hospitable → Settings → API](https://my.hospitable.com/settings/api) |
+| `PRICELABS_API_KEY` | *Optional* — only if you don't want to enter via admin UI | [PriceLabs → Account → Integrations](https://app.pricelabs.co/account/integrations) |
+| `CRON_SECRET` | *Required for the 15-min PriceLabs price sync* | Generate with `openssl rand -base64 32` |
+
+### Automated price sync (every 15 minutes)
+
+The endpoint `/api/cron/sync-pricelabs` does the work. On each run it:
+
+1. Reads your saved Pricelabs↔Nyris property mapping
+2. Calls PriceLabs `listing_prices` for every mapped property (today → +90 days)
+3. Upserts the daily prices into the `daily_prices` table in Turso
+4. Logs the run to `sync_log` (visible in the admin → PriceLabs tab → "Auto-sync" panel)
+
+**Required to run at all:**
+- Turso must be configured (cron has nowhere else to read the API key or store prices)
+- The PriceLabs API key must be saved server-side — either via the admin UI (with Turso connected) or as `PRICELABS_API_KEY` env var. Browser-stored keys are not accessible to a scheduled job.
+- `CRON_SECRET` env var must be set (used to authenticate the cron request)
+
+**Two scheduler options** — pick one:
+
+**Option A — GitHub Actions (recommended on Vercel Hobby).** A workflow at `.github/workflows/sync-prices.yml` calls the endpoint every 15 minutes from GitHub's free runners. Setup:
+
+1. Push the project to GitHub (the workflow is committed already)
+2. In your GitHub repo: **Settings → Secrets and variables → Actions → New repository secret**
+   - `SITE_URL` = `https://nyris-retreats.vercel.app` (or your deployed URL)
+   - `CRON_SECRET` = same value as the `CRON_SECRET` env var in Vercel
+3. Open the **Actions** tab — the "PriceLabs price sync" workflow should appear. The first run will fire on the next 15-minute mark.
+4. Manual trigger anytime via Actions → workflow → "Run workflow"
+
+Free for this use case (≤3,000 runs/month, well within GitHub's 2,000 free minutes since each run takes ~5s).
+
+**Option B — Vercel Cron (requires Pro plan for sub-daily).** `vercel.json` ships with a daily backstop (`0 6 * * *`). On Vercel Pro you can change it to `*/15 * * * *` and remove the GitHub workflow:
+
+```json
+"crons": [{ "path": "/api/cron/sync-pricelabs", "schedule": "*/15 * * * *" }]
+```
+
+Other example schedules: `*/30 * * * *` (every 30 min) · `0 */2 * * *` (every 2 hours) · `0 6 * * *` (daily at 06:00 UTC).
+
+### Setting up Turso (1 minute)
+
+```bash
+# install once
+brew install tursodatabase/tap/turso
+# or: curl -sSfL https://get.tur.so/install.sh | bash
+
+turso auth signup            # or: turso auth login
+turso db create nyris-retreats
+turso db show nyris-retreats --url            # → TURSO_DATABASE_URL
+turso db tokens create nyris-retreats         # → TURSO_AUTH_TOKEN
+```
+
+Paste the URL and token into Vercel env vars. Schema migrations run automatically on first request — no manual DB setup needed.
+
+After adding any env var, redeploy: `vercel --prod` (or push to git if you've connected GitHub).
+
+In the admin dashboard, the **Hospitable API** and **PriceLabs** tabs show a green "Connected" indicator when the env vars are picked up.
+
+## 5. Production hardening (do before going live)
 
 The build is feature-complete but a few things should be swapped for production:
 
