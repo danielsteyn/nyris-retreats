@@ -4,8 +4,12 @@
 
 (async function() {
   if (window.__overridesReady) await window.__overridesReady;
-  const o = (window.Overrides && window.Overrides.get()) || {};
-  const a = o.aboutPage;
+  // Overrides is a top-level `const` declared in app.js — script-scope,
+  // not on window. typeof guard avoids ReferenceError if app.js hasn't
+  // loaded for any reason (CDN issue, ad blocker, etc.).
+  if (typeof Overrides === 'undefined') return;
+  const o = Overrides.get();
+  const a = o && o.aboutPage;
   if (!a) return;
 
   if (a.hero) {
