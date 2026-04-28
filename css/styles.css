@@ -533,7 +533,17 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    Direct-booking perks below. */
 #hospInlineWidget,
 #hospInlineWidget > * { width: 100%; }
-#hospInlineWidget iframe { display: block; width: 100% !important; max-width: 100%; border: 0; }
+#hospInlineWidget iframe { display: block; width: 100% !important; max-width: 100%; border: 0; margin: 0 auto; }
+
+/* On mobile, Hospitable renders the calendar / Guests / Reserve column
+   left-aligned inside the iframe at ~285px regardless of the iframe's
+   actual width — leaving visible whitespace on the right when the iframe
+   spans the full column. We can't reach across the iframe boundary to
+   recenter their CSS, so cap the iframe width to match their content and
+   center it; the perks card below stays full-width below as before. */
+@media (max-width: 640px) {
+  #hospInlineWidget iframe { max-width: 320px !important; }
+}
 
 /* Always-on-top floating calendar — JS sets exact top/left via fixed-positioning
    anchored to the trigger button. z-index sits above the sticky header (50)
