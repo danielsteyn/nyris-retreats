@@ -246,7 +246,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .search-bar .search-submit:active { transform: scale(0.97); }
 
 /* === Sections === */
-.section { padding: 6rem 1.5rem; }
+.section { padding: 6rem 1.5rem; scroll-margin-top: 80px; }
 .section-narrow { padding: 4rem 1.5rem; }
 .container { max-width: 1400px; margin: 0 auto; }
 .container-narrow { max-width: 980px; margin: 0 auto; }
