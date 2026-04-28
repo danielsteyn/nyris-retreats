@@ -264,8 +264,8 @@ function renderFooter() {
   el.classList.add("site-footer");
   const yr = new Date().getFullYear();
   const t = (window.Theme && window.Theme.get()) || { brandName: NYRIS.brand.name };
-  const logoHtml = (window.Theme && window.Theme.logoMark(t)) || ICON.logo;
-  const customLogo = !!(t.logoUrl || t.logoSvg);
+  const logoHtml = (window.Theme && window.Theme.logoMark(t, 'footer')) || ICON.logo;
+  const customLogo = !!(t.logoFooterUrl || t.logoUrl || t.logoSvg);
   const footerBrandInner = customLogo
     ? logoHtml
     : `${logoHtml}<span data-brand-name>${escapeHtml(t.brandName)}</span>`;

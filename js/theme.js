@@ -11,6 +11,7 @@
     brandTagline: "Top 1% Guest Favorite stays. Curated by a Superhost.",
     logoUrl: "", // empty -> use default SVG mark
     logoSvg: "", // optional inline SVG override
+    logoFooterUrl: "", // optional separate logo for the dark footer; falls back to logoUrl
     fontDisplay: "Cormorant Garamond",
     fontBody: "Inter",
     fontDisplayWeight: "500",
@@ -148,6 +149,7 @@
       next.brandTagline = cur.brandTagline;
       next.logoUrl = cur.logoUrl;
       next.logoSvg = cur.logoSvg;
+      next.logoFooterUrl = cur.logoFooterUrl;
       this.set(next);
       return next;
     },
@@ -200,8 +202,14 @@
       if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
       link.href = svg;
     },
-    logoMark(t = null) {
+    logoMark(t = null, variant = 'header') {
       t = t || this.get();
+      // Footer can override the image with logoFooterUrl — useful when the
+      // header logo is dark on a light bar but the footer needs a light
+      // variant on the dark band. Falls back to the header logo otherwise.
+      if (variant === 'footer' && t.logoFooterUrl) {
+        return `<img class="brand-mark-img" src="${escapeAttr(t.logoFooterUrl)}" alt="${escapeAttr(t.brandName)}"/>`;
+      }
       if (t.logoUrl) {
         // Sized to fit the header bar; wordmarks taller than this get scaled down.
         return `<img class="brand-mark-img" src="${escapeAttr(t.logoUrl)}" alt="${escapeAttr(t.brandName)}"/>`;

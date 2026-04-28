@@ -166,11 +166,25 @@ async function adminLogin(e) {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pass = document.getElementById('loginPass').value;
-  if (email === ADMIN.demoEmail && pass === ADMIN.demoPass) {
+  // Pull the admin email from server overrides if set, falling back to the
+  // baked-in demo email so first-time logins still work. The remote probe
+  // is best-effort — if the API is unreachable, fall back to overrides
+  // already cached locally and finally to the demo email.
+  let allowedEmail = ADMIN.demoEmail;
+  try {
+    const o = await Store.getOverrides();
+    if (o && typeof o.adminEmail === 'string' && o.adminEmail.trim()) {
+      allowedEmail = o.adminEmail.trim().toLowerCase();
+    }
+  } catch {
+    const cached = Overrides.get();
+    if (cached && cached.adminEmail) allowedEmail = cached.adminEmail.trim().toLowerCase();
+  }
+  if (email === allowedEmail && pass === ADMIN.demoPass) {
     Storage.set(ADMIN.authKey, { email, expires: Date.now() + 1000 * 60 * 60 * 8 });
     await showDashboard();
   } else {
-    toast("Wrong email or password. Try sheena@nyrisretreats.com / nyris2026");
+    toast("Wrong email or password.");
   }
 }
 
@@ -294,6 +308,7 @@ async function showDashboard() {
   initHostTab(o);
   initWhyBookTab(o);
   initAboutTab(o);
+  initAccountTab(o);
   initExpPageTab(o);
   initContactTab(o);
   initInboxTab();
@@ -1041,6 +1056,26 @@ function openAboutHeroUpload() {
     }
   });
 }
+
+// =============================================================================
+// Admin account tab — sign-in email lives in o.adminEmail (server overrides
+// so it propagates to every device). Password is still hardcoded in ADMIN.* —
+// see the inline note in the tab panel for the security caveat.
+// =============================================================================
+function initAccountTab(o) {
+  document.getElementById('aAccountEmail').value = (o && o.adminEmail) || ADMIN.demoEmail;
+}
+async function saveAdminAccount() {
+  const email = document.getElementById('aAccountEmail').value.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    toast("Enter a valid email address.");
+    return;
+  }
+  const o = await Store.getOverrides();
+  o.adminEmail = email;
+  await Store.saveOverrides(o);
+  toast("Admin email saved. Sign in with it next time.");
+}
 function openHostUpload() {
   openUploadDialog({
     title: "Upload host portrait",
@@ -1693,6 +1728,7 @@ function initBrandingTab() {
   else if (t.logoSvg) mode = 'svg';
   document.getElementById('bLogoUrl').value = t.logoUrl || '';
   document.getElementById('bLogoSvg').value = t.logoSvg || '';
+  document.getElementById('bLogoFooterUrl').value = t.logoFooterUrl || '';
   setLogoMode(mode);
 
   // Fonts
@@ -1782,6 +1818,7 @@ function gatherBranding() {
     brandTagline: document.getElementById('bBrandTagline').value.trim(),
     logoUrl: mode === 'url' ? document.getElementById('bLogoUrl').value.trim() : '',
     logoSvg: mode === 'svg' ? document.getElementById('bLogoSvg').value.trim() : '',
+    logoFooterUrl: document.getElementById('bLogoFooterUrl').value.trim(),
     fontDisplay: document.getElementById('bFontDisplay').value,
     fontBody: document.getElementById('bFontBody').value,
     colors: {
@@ -2062,6 +2099,19 @@ function openLogoUpload() {
       setLogoMode("url");
       if (typeof updateBrandPreview === "function") updateBrandPreview();
       toast("Logo image uploaded. Click Save branding to apply.");
+    }
+  });
+}
+function openFooterLogoUpload() {
+  openUploadDialog({
+    title: "Upload footer logo",
+    subtitle: "Optional light-on-dark variant for the footer band.",
+    pathPrefix: "branding/footer",
+    captionField: false,
+    onUploaded: (url) => {
+      const inp = document.getElementById("bLogoFooterUrl");
+      if (inp) inp.value = url;
+      toast("Footer logo uploaded. Click Save branding to apply.");
     }
   });
 }
