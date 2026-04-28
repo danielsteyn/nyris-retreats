@@ -66,6 +66,22 @@
         },
         radius: { card: "12px", button: "10px" }
       }
+    },
+    luxury: {
+      name: "Luxury — Champagne & Navy",
+      description: "High-contrast Bodoni serif, deep navy text, champagne-gold accents, ivory surfaces — magazine-luxury feel.",
+      theme: {
+        fontDisplay: "Bodoni Moda",
+        fontBody: "Inter",
+        colors: {
+          primary: "#1B2638", primaryDark: "#0E1828", primaryLight: "#2E3F5A",
+          accent: "#B89968", accentDark: "#967649",
+          cream: "#FBF7EE", creamDark: "#F2ECDB", sand: "#E8DFC8",
+          charcoal: "#1B1B1B", stone: "#6E6960",
+          success: "#2C7A5A", danger: "#9B3A2E"
+        },
+        radius: { card: "18px", button: "999px" }
+      }
     }
   };
 
