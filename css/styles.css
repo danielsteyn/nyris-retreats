@@ -119,9 +119,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .brand-mark-img,
 .brand-mark-svg svg {
   display: block;
-  height: 32px;
+  height: 48px;
   width: auto;
-  max-width: 240px;
+  max-width: 360px;
   object-fit: contain;
 }
 .brand-mark-svg { display: inline-flex; align-items: center; }
