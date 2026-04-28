@@ -293,10 +293,13 @@
     </div>
   `;
 
-  // Bind gallery thumbnails to lightbox
+  // Bind gallery clicks: cover photo (idx 0) opens the full photo grid
+  // (overview), other thumbnails open the lightbox at that image.
   window.__propImages = p.images;
   document.querySelectorAll('.detail-gallery > div').forEach((d, i) => {
-    d.onclick = () => Lightbox.open(p.images, i);
+    d.onclick = i === 0
+      ? () => PhotoGrid.open(window.__propImages)
+      : () => Lightbox.open(p.images, i);
   });
 
   // Decide which booking surface to show based on the admin's provider
@@ -323,7 +326,9 @@
       if (i < newImages.length) {
         if (img && img.src !== newImages[i]) img.src = newImages[i];
         d.hidden = false;
-        d.onclick = () => Lightbox.open(newImages, i);
+        d.onclick = i === 0
+          ? () => PhotoGrid.open(newImages)
+          : () => Lightbox.open(newImages, i);
       } else {
         // Override has fewer photos than the static fallback we initially
         // rendered — hide the orphan thumbnail wrappers so the layout
