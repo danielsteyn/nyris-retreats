@@ -975,6 +975,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .nav-links { display: none; }
   .mobile-menu-btn { display: inline-flex; }
   .nav-actions .btn { display: none; }
+  /* Hide the wishlist heart on mobile — the drawer already has a Wishlist
+     link, and dropping it gives the larger logo more room. The hamburger
+     (mobile-menu-btn) is excluded so it stays visible. */
+  .nav-actions .icon-btn:not(.mobile-menu-btn) { display: none; }
   .brand-mark-img, .brand-mark-svg svg { height: 56px; }
   /* Top-align hero content on mobile so the eyebrow pill never gets
      pushed behind the sticky header (vertical-centering on short phones
