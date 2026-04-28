@@ -121,9 +121,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: block;
   height: 48px;
   width: auto;
-  /* Caps at 360px on desktop but never takes more than half the viewport,
-     so the menu button on the right side stays visible on narrow phones. */
-  max-width: min(360px, 50vw);
+  /* Caps at 360px on desktop but never takes more than 65% of the viewport,
+     so the menu button on the right stays visible on narrow phones while
+     the logo still reads at a useful size. */
+  max-width: min(360px, 65vw);
   object-fit: contain;
 }
 .brand-mark-svg { display: inline-flex; align-items: center; }
@@ -974,8 +975,12 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .nav-links { display: none; }
   .mobile-menu-btn { display: inline-flex; }
   .nav-actions .btn { display: none; }
+  .brand-mark-img, .brand-mark-svg svg { height: 56px; }
+  /* Switch the hero from vertical-center to top-aligned with padding so
+     the eyebrow pill never sits right against the sticky header above. */
+  .hero { min-height: 88vh; align-items: flex-start; }
+  .hero-content { padding-top: 6rem; padding-bottom: 3rem; }
   .section { padding: 4rem 1.5rem; }
-  .hero { min-height: 88vh; }
   .search-bar { flex-direction: column; border-radius: 24px; padding: 0.5rem; gap: 4px; }
   .search-bar .search-field { padding: 0.75rem 1.25rem; border-radius: 18px; }
   .search-bar .search-field + .search-field { border-left: 0; border-top: 1px solid var(--color-line); }
