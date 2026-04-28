@@ -121,7 +121,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   display: block;
   height: 48px;
   width: auto;
-  max-width: 360px;
+  /* Caps at 360px on desktop but never takes more than half the viewport,
+     so the menu button on the right side stays visible on narrow phones. */
+  max-width: min(360px, 50vw);
   object-fit: contain;
 }
 .brand-mark-svg { display: inline-flex; align-items: center; }
