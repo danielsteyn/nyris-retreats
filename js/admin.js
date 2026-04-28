@@ -293,6 +293,7 @@ async function showDashboard() {
   initHeroTab(o);
   initHostTab(o);
   initWhyBookTab(o);
+  initAboutTab(o);
   initExpPageTab(o);
   initContactTab(o);
   initInboxTab();
@@ -898,6 +899,144 @@ function openWhyBookUpload() {
     onUploaded: (url) => {
       const f = document.getElementById('aWBImage');
       if (f) { f.value = url; f.dispatchEvent(new Event('input', { bubbles: true })); }
+      toast("Image uploaded. Click Save changes to apply.");
+    }
+  });
+}
+
+// =============================================================================
+// Our Story page tab — edits /about.html via o.aboutPage overrides.
+// Stored as { hero, lead, body1, body2, quote, quoteCaption, bulletsTitle,
+//             bullets:[{title,body}], cta:{text,link}, stats:[{num,label}] }
+// =============================================================================
+const ABOUT_DEFAULTS = {
+  hero: {
+    image: "https://assets.hospitable.com/property_images/1605954/0nHIh9LmL4RykThYVcEetYU1C6Fm43PrGrZGHKJx.jpg",
+    eyebrow: "Our story",
+    title: "Six homes. One Superhost. Zero compromises."
+  },
+  lead: "Nyris Retreats started with a frustration: too many vacation rentals over-promise on the photos and under-deliver on the stay. The fix wasn't a bigger portfolio — it was a smaller one, hosted personally, where every detail is owned by one person.",
+  body1: "That person is Sheena — the Superhost behind every Nyris property. She doesn't manage at scale; she manages with care. She knows which beach house has the better sunset deck, which cabin needs the heated pool turned on, which condo has the best dolphin-watching balcony, and which guest just asked about a high chair so it's already at the door.",
+  body2: "The result is a portfolio that, to date, has earned a 5.0 average across 200+ stays — and every property is a Top 1% Guest Favorite, Airbnb's most exclusive tier, awarded based on reviews, ratings, and reliability.",
+  quote: "\"I wish every Airbnb owner took as much pride and detail as Sheena does.\"",
+  quoteCaption: "— Verified guest, March 2026",
+  bulletsTitle: "What \"Superhost-managed\" actually means",
+  bullets: [
+    { title: "Most messages answered within minutes.", body: "Real human, no chatbot. If you have a question at 9pm on a Tuesday, you'll have an answer by 9:05." },
+    { title: "Personal local recommendations sent before you arrive.", body: "Not a generic tourist PDF — a curated list of where she'd send her own family." },
+    { title: "Stocked starter pantries.", body: "Coffee, paper towels, dish soap, salt and pepper, beach toys where it makes sense — so you don't lose your first hour at the grocery store." },
+    { title: "Hot tubs sanitized after every checkout.", body: "Every property treated like she'd treat her own family's stay." },
+    { title: "Direct booking perks.", body: "Skip the platform service fees, get first dibs on flexible check-in, lock in our best-rate guarantee." }
+  ],
+  cta: { text: "Browse the portfolio", link: "/search.html" },
+  stats: [
+    { num: "5.0", label: "Average rating across 6 properties" },
+    { num: "208+", label: "Five-star stays delivered" },
+    { num: "Top 1%", label: "Every property is Guest Favorite" },
+    { num: "< 5 min", label: "Median response time" }
+  ]
+};
+function initAboutTab(o) {
+  const a = (o && o.aboutPage) || {};
+  const h = a.hero || {};
+  document.getElementById('aABHeroImg').value = h.image ?? ABOUT_DEFAULTS.hero.image;
+  document.getElementById('aABEyebrow').value = h.eyebrow ?? ABOUT_DEFAULTS.hero.eyebrow;
+  document.getElementById('aABTitle').value = h.title ?? ABOUT_DEFAULTS.hero.title;
+  document.getElementById('aABLead').value = a.lead ?? ABOUT_DEFAULTS.lead;
+  document.getElementById('aABBody1').value = a.body1 ?? ABOUT_DEFAULTS.body1;
+  document.getElementById('aABBody2').value = a.body2 ?? ABOUT_DEFAULTS.body2;
+  document.getElementById('aABQuote').value = a.quote ?? ABOUT_DEFAULTS.quote;
+  document.getElementById('aABQuoteCaption').value = a.quoteCaption ?? ABOUT_DEFAULTS.quoteCaption;
+  document.getElementById('aABBulletsTitle').value = a.bulletsTitle ?? ABOUT_DEFAULTS.bulletsTitle;
+  // Bullets — fixed at 5 (matches default markup). Render rows.
+  const bullets = (Array.isArray(a.bullets) && a.bullets.length === 5) ? a.bullets : ABOUT_DEFAULTS.bullets;
+  renderAboutBullets(bullets);
+  // CTA
+  const cta = a.cta || ABOUT_DEFAULTS.cta;
+  document.getElementById('aABCtaText').value = cta.text || '';
+  document.getElementById('aABCtaLink').value = cta.link || '';
+  // Stats — fixed at 4
+  const stats = (Array.isArray(a.stats) && a.stats.length === 4) ? a.stats : ABOUT_DEFAULTS.stats;
+  renderAboutStats(stats);
+}
+function renderAboutBullets(bullets) {
+  const list = document.getElementById('aABBulletsList');
+  list.innerHTML = '';
+  bullets.forEach((b, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'border: 1px solid var(--color-line); border-radius: 10px; padding: 0.85rem; background: white;';
+    row.innerHTML = `
+      <label class="form-label">Bullet ${i + 1} — title</label>
+      <input class="form-control about-bullet-title" data-i="${i}" value="${escapeAttr(b.title || '')}"/>
+      <label class="form-label" style="margin-top: 0.5rem;">Bullet ${i + 1} — body</label>
+      <textarea class="form-control about-bullet-body" data-i="${i}" rows="2" style="resize: vertical;">${escapeHtml(b.body || '')}</textarea>
+    `;
+    list.appendChild(row);
+  });
+}
+function renderAboutStats(stats) {
+  const list = document.getElementById('aABStatsList');
+  list.innerHTML = '';
+  stats.forEach((s, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid; grid-template-columns: 1fr 2fr; gap: 0.75rem; align-items:end; border: 1px solid var(--color-line); border-radius: 10px; padding: 0.85rem; background: white;';
+    row.innerHTML = `
+      <div><label class="form-label">Stat ${i + 1} — number</label><input class="form-control about-stat-num" data-i="${i}" value="${escapeAttr(s.num || '')}"/></div>
+      <div><label class="form-label">Stat ${i + 1} — label</label><input class="form-control about-stat-label" data-i="${i}" value="${escapeAttr(s.label || '')}"/></div>
+    `;
+    list.appendChild(row);
+  });
+}
+async function saveAbout() {
+  const o = await Store.getOverrides();
+  const bullets = [];
+  for (let i = 0; i < 5; i++) {
+    const t = document.querySelector(`.about-bullet-title[data-i="${i}"]`)?.value.trim() || '';
+    const b = document.querySelector(`.about-bullet-body[data-i="${i}"]`)?.value.trim() || '';
+    bullets.push({ title: t, body: b });
+  }
+  const stats = [];
+  for (let i = 0; i < 4; i++) {
+    const n = document.querySelector(`.about-stat-num[data-i="${i}"]`)?.value.trim() || '';
+    const l = document.querySelector(`.about-stat-label[data-i="${i}"]`)?.value.trim() || '';
+    stats.push({ num: n, label: l });
+  }
+  o.aboutPage = {
+    hero: {
+      image: document.getElementById('aABHeroImg').value.trim(),
+      eyebrow: document.getElementById('aABEyebrow').value.trim(),
+      title: document.getElementById('aABTitle').value.trim()
+    },
+    lead: document.getElementById('aABLead').value.trim(),
+    body1: document.getElementById('aABBody1').value.trim(),
+    body2: document.getElementById('aABBody2').value.trim(),
+    quote: document.getElementById('aABQuote').value.trim(),
+    quoteCaption: document.getElementById('aABQuoteCaption').value.trim(),
+    bulletsTitle: document.getElementById('aABBulletsTitle').value.trim(),
+    bullets,
+    cta: {
+      text: document.getElementById('aABCtaText').value.trim(),
+      link: document.getElementById('aABCtaLink').value.trim()
+    },
+    stats
+  };
+  await Store.saveOverrides(o);
+  toast("Our Story page saved. Reload /about.html to see it live.");
+}
+async function resetAbout() {
+  if (!confirm("Reset Our Story page to defaults?")) return;
+  const o = await Store.getOverrides();
+  delete o.aboutPage;
+  await Store.saveOverrides(o);
+  initAboutTab(o);
+  toast("Our Story page reset.");
+}
+function openAboutHeroUpload() {
+  openUploadDialog({
+    pathPrefix: "branding/about",
+    onUploaded: (url) => {
+      const f = document.getElementById('aABHeroImg');
+      if (f) f.value = url;
       toast("Image uploaded. Click Save changes to apply.");
     }
   });
@@ -1943,6 +2082,38 @@ function openHeroUpload() {
 }
 
 // =============================================================================
+// Resilient loader for the Vercel Blob client SDK. esm.sh is the primary
+// source; jsDelivr is the fallback. Either CDN being reachable is enough.
+// Cached after first success so subsequent uploads don't refetch.
+let _blobClientPromise = null;
+function loadBlobClient() {
+  if (_blobClientPromise) return _blobClientPromise;
+  const sources = [
+    "https://esm.sh/@vercel/blob@2.3.3/client",
+    "https://cdn.jsdelivr.net/npm/@vercel/blob@2.3.3/client/+esm"
+  ];
+  _blobClientPromise = (async () => {
+    let lastErr;
+    for (const src of sources) {
+      try {
+        const mod = await import(src);
+        if (mod && typeof mod.upload === "function") return mod;
+        lastErr = new Error(`Loaded ${src} but it had no 'upload' export`);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw new Error(
+      "Couldn't load the Vercel Blob upload client from any CDN. " +
+      "Check your network, then retry. " +
+      "(Last error: " + (lastErr && lastErr.message ? lastErr.message : lastErr) + ")"
+    );
+  })();
+  // If the chain throws, drop the cached rejection so the next click retries.
+  _blobClientPromise.catch(() => { _blobClientPromise = null; });
+  return _blobClientPromise;
+}
+
 // Generic upload dialog (Upload from PC | Paste URL tabs)
 // Used by: property photos, branding logo, hero image. Pass an onUploaded
 // callback that receives (url, caption) when the user confirms either tab.
@@ -2115,8 +2286,11 @@ async function doPhotoUpload() {
     btn.textContent = "Uploading…";
     status.textContent = `Uploading ${file.name} · ${(file.size / 1024).toFixed(0)} KB${original.size !== file.size ? ` (was ${(original.size / 1024 / 1024).toFixed(1)} MB)` : ""}…`;
 
-    // Load the Vercel Blob client lib from a CDN. This avoids a build step.
-    const { upload } = await import("https://esm.sh/@vercel/blob@2.3.3/client");
+    // Load the Vercel Blob client lib from a CDN. We avoid a build step by
+    // dynamic-importing the ESM bundle. Try esm.sh first, fall back to
+    // jsDelivr if it's unreachable (some networks block esm.sh; jsDelivr
+    // is reachable from a different IP range / CDN backbone).
+    const { upload } = await loadBlobClient();
 
     // Build a pathname under the upload's pathPrefix.
     const safeName = file.name.replace(/[^a-z0-9._-]/gi, "_").slice(0, 60) || "photo";

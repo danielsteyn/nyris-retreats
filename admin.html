@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=74"/>
-<script src="/js/theme.js?v=74"></script>
+<link rel="stylesheet" href="/css/styles.css?v=75"/>
+<script src="/js/theme.js?v=75"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -69,6 +69,7 @@
         <button class="tab-btn active" data-tab="hero" data-section="content">Homepage</button>
         <button class="tab-btn" data-tab="host" data-section="content">Meet your host</button>
         <button class="tab-btn" data-tab="whyBook" data-section="content">Why book direct</button>
+        <button class="tab-btn" data-tab="aboutPage" data-section="content">Our Story</button>
         <button class="tab-btn" data-tab="experiencesPage" data-section="content">Experiences page</button>
         <button class="tab-btn" data-tab="contact" data-section="content">Contact info</button>
         <button class="tab-btn" data-tab="branding" data-section="content">Branding & theme</button>
@@ -240,6 +241,52 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Our Story page tab -->
+    <div class="tab-panel" id="tab-aboutPage" style="display:none;">
+      <div style="max-width: 720px;">
+        <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Our Story page</h2>
+        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Edit the public <a href="/about.html" target="_blank" style="color: var(--color-primary); text-decoration: underline;">/about.html</a> page — hero, body copy, pull-quote, the "Superhost-managed" bullets, the call-to-action, and the four trust stats at the bottom.</p>
+
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Hero</h3>
+        <div style="margin-bottom: 1rem;">
+          <label class="form-label">Background image</label>
+          <div style="display:flex; gap: 0.5rem;">
+            <input class="form-control" id="aABHeroImg" placeholder="Paste a URL or click Upload"/>
+            <button type="button" class="btn btn-outline btn-sm" onclick="openAboutHeroUpload()">Upload</button>
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;"><label class="form-label">Eyebrow</label><input class="form-control" id="aABEyebrow"/></div>
+        <div style="margin-bottom: 1.5rem;"><label class="form-label">Headline</label><input class="form-control" id="aABTitle"/></div>
+
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Story</h3>
+        <div style="margin-bottom: 1rem;"><label class="form-label">Lead paragraph</label><textarea class="form-control" id="aABLead" rows="3" style="resize: vertical;"></textarea></div>
+        <div style="margin-bottom: 1rem;"><label class="form-label">Body paragraph 1</label><textarea class="form-control" id="aABBody1" rows="4" style="resize: vertical;"></textarea></div>
+        <div style="margin-bottom: 1.5rem;"><label class="form-label">Body paragraph 2</label><textarea class="form-control" id="aABBody2" rows="3" style="resize: vertical;"></textarea></div>
+
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Pull-quote</h3>
+        <div style="margin-bottom: 1rem;"><label class="form-label">Quote</label><textarea class="form-control" id="aABQuote" rows="2" style="resize: vertical;"></textarea></div>
+        <div style="margin-bottom: 1.5rem;"><label class="form-label">Caption (e.g. "— Verified guest, March 2026")</label><input class="form-control" id="aABQuoteCaption"/></div>
+
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">"Superhost-managed" bullets</h3>
+        <div style="margin-bottom: 1rem;"><label class="form-label">Section heading</label><input class="form-control" id="aABBulletsTitle"/></div>
+        <div id="aABBulletsList" style="display:flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;"></div>
+
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Call-to-action</h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+          <div><label class="form-label">Button label</label><input class="form-control" id="aABCtaText"/></div>
+          <div><label class="form-label">Button link</label><input class="form-control" id="aABCtaLink"/></div>
+        </div>
+
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Trust stats (footer strip)</h3>
+        <div id="aABStatsList" style="display:flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;"></div>
+
+        <div style="display:flex; gap: 0.75rem;">
+          <button class="btn btn-primary" onclick="saveAbout()">Save changes</button>
+          <button class="btn btn-ghost" onclick="resetAbout()">Reset to defaults</button>
         </div>
       </div>
     </div>
@@ -1044,8 +1091,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=74"></script>
-<script src="/js/app.js?v=74"></script>
-<script src="/js/admin.js?v=74"></script>
+<script src="/js/data.js?v=75"></script>
+<script src="/js/app.js?v=75"></script>
+<script src="/js/admin.js?v=75"></script>
 </body>
 </html>
