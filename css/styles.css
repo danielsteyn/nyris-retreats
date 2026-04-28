@@ -852,17 +852,18 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    at 360px) on the right; the rest of the viewport is the backdrop, which
    dims and blurs the page behind so the menu items always have contrast
    regardless of theme or scroll position. Click backdrop to close. */
-/* Backdrop scrim covers everything LEFT of the drawer (not the whole
-   viewport), so the drawer's translucency shows the actual page blurred
-   underneath rather than the dim scrim. Click-to-close still works because
-   the scrim catches every click outside the drawer. */
+/* Backdrop covers the FULL viewport so the page is uniformly blurred as
+   the drawer slides in — without that the blur reads as a fixed bar on
+   the left that the drawer slides up to meet. The drawer sits on top with
+   its own translucency + blur, so the dim scrim showing through it gets
+   absorbed by the cream tint. Slightly lighter dim (0.35 vs 0.5) keeps
+   the drawer from looking muddy. */
 .mobile-drawer-backdrop {
-  position: fixed; top: 0; bottom: 0; left: 0;
-  right: min(85vw, 360px);
+  position: fixed; inset: 0;
   z-index: 99;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s var(--ease-out);
