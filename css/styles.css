@@ -155,6 +155,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background-size: cover; background-position: center;
   animation: heroZoom 18s ease-out infinite alternate;
 }
+/* Carousel mode: 2+ background images stacked with crossfade. All slides
+   share the same heroZoom animation so they move together; only opacity
+   changes on the 15s interval. */
+.hero.has-carousel .hero-img {
+  opacity: 0;
+  transition: opacity 1.5s ease;
+}
+.hero.has-carousel .hero-img.active { opacity: 1; }
 .hero .hero-overlay {
   position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(180deg, rgba(20,30,25,0.45) 0%, rgba(20,30,25,0.25) 40%, rgba(20,30,25,0.65) 100%);
