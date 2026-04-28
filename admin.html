@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=83"/>
-<script src="/js/theme.js?v=83"></script>
+<link rel="stylesheet" href="/css/styles.css?v=84"/>
+<script src="/js/theme.js?v=84"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -25,15 +25,10 @@
       <p style="color: var(--color-stone); margin: 0; font-size: 0.92rem;">Sign in to manage your direct-booking site.</p>
     </div>
     <form onsubmit="adminLogin(event)">
-      <div style="margin-bottom: 1rem;"><label class="form-label">Email</label><input class="form-control" type="email" id="loginEmail" required value="sheena@nyrisretreats.com"/></div>
+      <div style="margin-bottom: 1rem;"><label class="form-label">Email</label><input class="form-control" type="email" id="loginEmail" required/></div>
       <div style="margin-bottom: 1.5rem;"><label class="form-label">Password</label><input class="form-control" type="password" id="loginPass" required placeholder="••••••••"/></div>
       <button class="btn btn-primary" type="submit" style="width:100%;">Sign in</button>
     </form>
-    <div style="margin-top: 1.5rem; padding: 1rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.85rem; color: var(--color-stone);">
-      <strong style="color: var(--color-charcoal);">Demo credentials:</strong><br/>
-      Email: <code>sheena@nyrisretreats.com</code><br/>
-      Password: <code>nyris2026</code>
-    </div>
   </div>
 </section>
 
@@ -73,6 +68,7 @@
         <button class="tab-btn" data-tab="experiencesPage" data-section="content">Experiences page</button>
         <button class="tab-btn" data-tab="contact" data-section="content">Contact info</button>
         <button class="tab-btn" data-tab="branding" data-section="content">Branding & theme</button>
+        <button class="tab-btn" data-tab="account" data-section="content">Admin account</button>
         <button class="tab-btn" data-tab="order" data-section="content">Featured order</button>
         <button class="tab-btn" data-tab="destinations" data-section="content">Destinations</button>
         <button class="tab-btn" data-tab="photos" data-section="catalog">Photos</button>
@@ -438,6 +434,15 @@
             <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">SVG inherits brand color via <code>currentColor</code>.</p>
           </div>
 
+          <div style="margin-top: 1.25rem; padding: 1rem 1.25rem; background: var(--color-cream-dark); border-radius: 10px;">
+            <label class="form-label">Footer logo (optional)</label>
+            <div style="display:flex; gap: 0.5rem;">
+              <input class="form-control" id="bLogoFooterUrl" placeholder="Paste a URL or click Upload"/>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openFooterLogoUpload()">Upload</button>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Use this if your header logo doesn't read well on the dark footer band — e.g. upload a light variant. Falls back to the header logo when blank.</p>
+          </div>
+
           <h3 style="font-size: 1.05rem; margin: 2rem 0 1rem;">Typography</h3>
           <div style="margin-bottom: 1rem;"><label class="form-label">Display font (brand wordmark + headlines)</label><select class="form-control" id="bFontDisplay"></select></div>
           <div style="margin-bottom: 1rem;"><label class="form-label">Body font</label><select class="form-control" id="bFontBody"></select></div>
@@ -466,6 +471,24 @@
         <div>
           <label class="form-label">Live preview</label>
           <div id="brandPreview" style="background: var(--color-cream); border: 1px solid var(--color-line); border-radius: 18px; padding: 2rem; min-height: 480px; position: sticky; top: 90px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin account tab -->
+    <div class="tab-panel" id="tab-account" style="display:none;">
+      <div style="max-width: 560px;">
+        <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Admin account</h2>
+        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Set the email that signs into <code>/admin</code>. Saves through the same overrides pipeline as the rest of the site, so the change applies across every device.</p>
+
+        <div style="margin-bottom: 1.5rem;"><label class="form-label">Sign-in email</label><input class="form-control" type="email" id="aAccountEmail"/></div>
+
+        <div style="display:flex; gap: 0.75rem;">
+          <button class="btn btn-primary" onclick="saveAdminAccount()">Save email</button>
+        </div>
+
+        <div style="margin-top: 2rem; padding: 1rem 1.25rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.88rem; color: var(--color-stone); line-height: 1.55;">
+          <strong style="color: var(--color-charcoal);">Heads-up about the password.</strong> Auth is currently a client-side check (the password lives in <code>js/admin.js</code>). Anyone who reads the source can find it. Rotating the password securely needs server-side hash storage — it's on the roadmap. For now the email change makes guessing harder, but please don't rely on this for true security.
         </div>
       </div>
     </div>
@@ -1091,8 +1114,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=83"></script>
-<script src="/js/app.js?v=83"></script>
-<script src="/js/admin.js?v=83"></script>
+<script src="/js/data.js?v=84"></script>
+<script src="/js/app.js?v=84"></script>
+<script src="/js/admin.js?v=84"></script>
 </body>
 </html>
