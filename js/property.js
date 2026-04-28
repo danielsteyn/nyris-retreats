@@ -77,7 +77,7 @@
     </div>
 
     <!-- Body grid -->
-    <div style="display:grid; grid-template-columns: 1.6fr 1fr; gap: 4rem; margin-top: 3rem;" class="detail-grid">
+    <div class="detail-grid">
       <!-- Left -->
       <div>
         <!-- Quick info -->
@@ -177,7 +177,7 @@
           </div>
 
           ${p.reviewCount > 0 ? `
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding: 2rem 0; border-top: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); margin-bottom: 2rem;">
+          <div class="rating-bars">
             <div>
               <div class="rating-bar"><span class="label">Cleanliness</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
               <div class="rating-bar"><span class="label">Communication</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
@@ -189,7 +189,7 @@
               <div class="rating-bar"><span class="label">Value</span><div class="bar"><div style="width:100%"></div></div><span class="val">5.0</span></div>
             </div>
           </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;" class="review-grid">
+          <div class="review-grid">
             ${p.reviews.map(r => `
               <div class="review-card">
                 <div style="display:flex; align-items:center; gap: 0.75rem; margin-bottom: 0.75rem;">
