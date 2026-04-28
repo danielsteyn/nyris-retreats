@@ -976,10 +976,13 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .mobile-menu-btn { display: inline-flex; }
   .nav-actions .btn { display: none; }
   .brand-mark-img, .brand-mark-svg svg { height: 56px; }
-  /* Switch the hero from vertical-center to top-aligned with padding so
-     the eyebrow pill never sits right against the sticky header above. */
+  /* Top-align hero content on mobile so the eyebrow pill never gets
+     pushed behind the sticky header (vertical-centering on short phones
+     overflowed the content past the hero's top edge). 1.5rem matches the
+     eyebrow's own margin-bottom so the gap above the pill mirrors the
+     gap below it to the headline. */
   .hero { min-height: 88vh; align-items: flex-start; }
-  .hero-content { padding-top: 6rem; padding-bottom: 3rem; }
+  .hero-content { padding-top: 1.5rem; padding-bottom: 3rem; }
   .section { padding: 4rem 1.5rem; }
   .search-bar { flex-direction: column; border-radius: 24px; padding: 0.5rem; gap: 4px; }
   .search-bar .search-field { padding: 0.75rem 1.25rem; border-radius: 18px; }
