@@ -1486,9 +1486,18 @@ function applyPreset(key) {
 // data-template hook). Brand name / tagline / logo are preserved by
 // Theme.applyTemplate. Re-init the tab so every form field reflects the new
 // state — otherwise the user sees stale color pickers / font selects.
-function applyTemplate(key) {
+// Persists through Store.saveOverrides so picking a template on desktop
+// shows up on guest mobile devices too.
+async function applyTemplate(key) {
   if (!Theme.TEMPLATES[key]) return;
-  Theme.applyTemplate(key);
+  const next = Theme.applyTemplate(key);
+  try {
+    const o = await Store.getOverrides();
+    o.theme = next;
+    await Store.saveOverrides(o);
+  } catch (e) {
+    console.warn("Remote template save failed; saved locally only", e);
+  }
   initBrandingTab();
   toast(`Applied template: ${Theme.TEMPLATES[key].name}`);
 }
@@ -1544,14 +1553,31 @@ function updateBrandPreview() {
     </div>
   `;
 }
-function saveBranding() {
+async function saveBranding() {
   const t = gatherBranding();
-  Theme.set(t);
+  Theme.set(t); // localStorage + apply on this device for instant feedback
+  // Persist to server overrides so visitors on other devices / browsers
+  // (mobile, guests, signed-out tabs) get the same theme. Without this
+  // the theme stays trapped in admin's localStorage only.
+  try {
+    const o = await Store.getOverrides();
+    o.theme = t;
+    await Store.saveOverrides(o);
+  } catch (e) {
+    console.warn("Remote theme save failed; saved locally only", e);
+  }
   toast("Branding saved. Applied site-wide.");
 }
-function resetBranding() {
+async function resetBranding() {
   if (!confirm("Reset all branding to defaults?")) return;
   Theme.reset();
+  try {
+    const o = await Store.getOverrides();
+    delete o.theme;
+    await Store.saveOverrides(o);
+  } catch (e) {
+    console.warn("Remote theme reset failed; reset locally only", e);
+  }
   initBrandingTab();
   toast("Branding reset to defaults.");
 }
