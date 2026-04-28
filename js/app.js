@@ -206,7 +206,7 @@ function renderHeader(active = "") {
       </a>
       <nav class="nav-links" aria-label="Primary">
         <a href="/search.html" class="${active==='stays'?'active':''}">All stays</a>
-        <a href="/index.html#featured" class="${active==='destinations'?'active':''}">Destinations</a>
+        <a href="/index.html#portfolio" class="${active==='destinations'?'active':''}">Destinations</a>
         <a href="/experiences.html" class="${active==='experiences'?'active':''}">Experiences</a>
         <a href="/about.html" class="${active==='about'?'active':''}">Our Story</a>
         <a href="/faq.html" class="${active==='faq'?'active':''}">FAQ</a>
@@ -232,7 +232,7 @@ function renderHeader(active = "") {
       <div class="mobile-drawer" id="mobileDrawer">
         <button class="icon-btn close-drawer" onclick="closeDrawer()" aria-label="Close menu">${ICON.close}</button>
         <a href="/search.html">All stays</a>
-        <a href="/index.html#featured">Destinations</a>
+        <a href="/index.html#portfolio">Destinations</a>
         <a href="/experiences.html">Experiences</a>
         <a href="/about.html">Our Story</a>
         <a href="/faq.html">FAQ</a>
