@@ -818,15 +818,35 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* === Mobile drawer === */
+/* Side-panel drawer + blurred/darkened backdrop. Drawer takes ~85vw (capped
+   at 360px) on the right; the rest of the viewport is the backdrop, which
+   dims and blurs the page behind so the menu items always have contrast
+   regardless of theme or scroll position. Click backdrop to close. */
+.mobile-drawer-backdrop {
+  position: fixed; inset: 0; z-index: 99;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s var(--ease-out);
+}
+.mobile-drawer-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
 .mobile-drawer {
-  position: fixed; inset: 0; z-index: 100;
+  position: fixed; top: 0; bottom: 0; right: 0;
+  width: min(85vw, 360px); z-index: 100;
   background: var(--color-cream);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15);
   transform: translateX(100%); transition: transform 0.35s var(--ease-out), visibility 0s linear 0.35s;
   padding: 5rem 1.5rem 2rem;
   display: flex; flex-direction: column;
   /* Inert when closed — prevents accidental clicks on hidden links and stops
      it being revealed if anything ever pushes the body beyond its viewport. */
   visibility: hidden; pointer-events: none;
+  overflow-y: auto;
 }
 .mobile-drawer.open {
   transform: translateX(0);
@@ -834,7 +854,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   transition: transform 0.35s var(--ease-out), visibility 0s linear 0s;
 }
 .mobile-drawer a {
-  font-family: var(--font-display); font-size: 2rem; padding: 0.85rem 0;
+  font-family: var(--font-display); font-size: 1.6rem; padding: 0.85rem 0;
   border-bottom: 1px solid var(--color-line); color: var(--color-charcoal);
 }
 .mobile-drawer .close-drawer {

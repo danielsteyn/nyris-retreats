@@ -43,6 +43,15 @@ window.__overridesReady = (async () => {
       const j = await r.json();
       if (j && j.ok && j.data && typeof j.data === "object") {
         Storage.set("nyris.overrides", j.data);
+        // Server theme is authoritative — overwrite local cache so visitors
+        // on devices that never saw /admin still get the admin-saved theme.
+        // Theme.js already applied localStorage (or DEFAULTS) during head
+        // load; this re-applies with the server value, causing a brief
+        // flash on first visit but matching the override pattern used for
+        // hero text and brand name elsewhere on the site.
+        if (j.data.theme && window.Theme) {
+          window.Theme.set(j.data.theme);
+        }
       }
     } catch {}
   })();
@@ -210,24 +219,43 @@ function renderHeader(active = "") {
         <button class="icon-btn mobile-menu-btn" aria-label="Open menu" onclick="openDrawer()">${ICON.menu}</button>
       </div>
     </div>
-    <div class="mobile-drawer" id="mobileDrawer">
-      <button class="icon-btn close-drawer" onclick="closeDrawer()" aria-label="Close menu">${ICON.close}</button>
-      <a href="/search.html">All stays</a>
-      <a href="/index.html#destinations">Destinations</a>
-      <a href="/experiences.html">Experiences</a>
-      <a href="/about.html">Our Story</a>
-      <a href="/faq.html">FAQ</a>
-      <a href="/wishlist.html">Wishlist</a>
-      <a href="/contact.html">Contact</a>
-      <a href="/admin.html">Host login</a>
-    </div>`;
+  `;
+  // Portal the drawer + backdrop to <body> so they escape the header's
+  // backdrop-filter containing block — without this, position:fixed inside
+  // the header is bounded by the header's box, leaving the drawer trapped
+  // as a tiny rectangle in the top-left.
+  let drawer = document.getElementById("mobileDrawer");
+  if (!drawer) {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = `
+      <div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" onclick="closeDrawer()"></div>
+      <div class="mobile-drawer" id="mobileDrawer">
+        <button class="icon-btn close-drawer" onclick="closeDrawer()" aria-label="Close menu">${ICON.close}</button>
+        <a href="/search.html">All stays</a>
+        <a href="/index.html#destinations">Destinations</a>
+        <a href="/experiences.html">Experiences</a>
+        <a href="/about.html">Our Story</a>
+        <a href="/faq.html">FAQ</a>
+        <a href="/wishlist.html">Wishlist</a>
+        <a href="/contact.html">Contact</a>
+        <a href="/admin.html">Host login</a>
+      </div>`;
+    document.body.appendChild(wrap.firstElementChild); // backdrop
+    document.body.appendChild(wrap.firstElementChild); // drawer
+  }
 
   window.addEventListener("scroll", () => {
     el.classList.toggle("scrolled", window.scrollY > 8);
   }, { passive: true });
 }
-function openDrawer() { document.getElementById("mobileDrawer")?.classList.add("open"); }
-function closeDrawer() { document.getElementById("mobileDrawer")?.classList.remove("open"); }
+function openDrawer() {
+  document.getElementById("mobileDrawer")?.classList.add("open");
+  document.getElementById("mobileDrawerBackdrop")?.classList.add("open");
+}
+function closeDrawer() {
+  document.getElementById("mobileDrawer")?.classList.remove("open");
+  document.getElementById("mobileDrawerBackdrop")?.classList.remove("open");
+}
 
 // ===== Build footer =====
 function renderFooter() {
