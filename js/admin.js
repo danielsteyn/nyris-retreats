@@ -292,6 +292,7 @@ async function showDashboard() {
   const o = await Store.getOverrides();
   initHeroTab(o);
   initHostTab(o);
+  initWhyBookTab(o);
   initExpPageTab(o);
   initContactTab(o);
   initInboxTab();
@@ -684,9 +685,54 @@ function initHeroTab(o) {
   document.getElementById('aHEyebrow').value = o.heroEyebrow || "Top 1% Guest Favorite · Superhost-managed";
   document.getElementById('aHTitle').value = o.heroTitle || "Stay where the reviews don't lie.";
   document.getElementById('aHSub').value = o.heroSubtitle || "Hand-picked vacation homes across the Gulf Coast, Texas Hill Country, and Broken Bow. 5.0 stars across 200+ stays. Book direct — skip the platform fees.";
-  document.getElementById('aHImg').value = o.heroImage || "https://assets.hospitable.com/property_images/1597444/Lm15xbpAlhpFK2m1TVqQMu9kKk5JXukcSaaWLfEP.jpg";
+  // Hero photos: first one (primary) lives in aHImg, rest in the extras list.
+  // The carousel is built from [primary, ...extras] at render time. Legacy
+  // installs only had o.heroImage; treat o.heroImages as authoritative when
+  // present (admin saves it; old data falls through to the single field).
+  const all = (Array.isArray(o.heroImages) && o.heroImages.length)
+    ? o.heroImages
+    : (o.heroImage ? [o.heroImage] : []);
+  const primary = all[0] || "https://assets.hospitable.com/property_images/1597444/Lm15xbpAlhpFK2m1TVqQMu9kKk5JXukcSaaWLfEP.jpg";
+  const extras = all.slice(1);
+  document.getElementById('aHImg').value = primary;
+  renderHeroExtras(extras);
   ['aHEyebrow','aHTitle','aHSub','aHImg'].forEach(id => document.getElementById(id).addEventListener('input', updateHeroPreview));
   updateHeroPreview();
+}
+function renderHeroExtras(urls) {
+  const list = document.getElementById('aHExtraList');
+  list.innerHTML = '';
+  urls.forEach((url, i) => list.appendChild(buildHeroExtraRow(url, i + 1)));
+}
+function buildHeroExtraRow(url, n) {
+  const row = document.createElement('div');
+  row.className = 'hero-extra-row';
+  row.style.cssText = 'display:flex; gap:0.5rem; align-items:center;';
+  row.innerHTML = `
+    <input class="form-control hero-extra-url" placeholder="Image URL or click Upload" value="${escapeAttr(url)}"/>
+    <button type="button" class="btn btn-outline btn-sm" data-action="upload">Upload</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-action="remove" aria-label="Remove photo ${n}">×</button>
+  `;
+  row.querySelector('[data-action="upload"]').onclick = () => {
+    openUploadDialog({
+      pathPrefix: "branding/hero",
+      onUploaded: (url) => {
+        row.querySelector('.hero-extra-url').value = url;
+        toast("Image uploaded. Click Save changes to apply.");
+      }
+    });
+  };
+  row.querySelector('[data-action="remove"]').onclick = () => row.remove();
+  return row;
+}
+function addHeroExtra() {
+  document.getElementById('aHExtraList').appendChild(buildHeroExtraRow('', document.querySelectorAll('.hero-extra-row').length + 1));
+}
+function gatherHeroImages() {
+  const primary = document.getElementById('aHImg').value.trim();
+  const extras = Array.from(document.querySelectorAll('.hero-extra-url'))
+    .map(i => i.value.trim()).filter(Boolean);
+  return [primary, ...extras].filter(Boolean);
 }
 function updateHeroPreview() {
   document.getElementById('phEyebrow').textContent = document.getElementById('aHEyebrow').value;
@@ -699,13 +745,15 @@ async function saveHero() {
   o.heroEyebrow = document.getElementById('aHEyebrow').value.trim();
   o.heroTitle = document.getElementById('aHTitle').value.trim();
   o.heroSubtitle = document.getElementById('aHSub').value.trim();
-  o.heroImage = document.getElementById('aHImg').value.trim();
+  const images = gatherHeroImages();
+  o.heroImages = images;
+  o.heroImage = images[0] || ''; // keep legacy field in sync for older code paths
   await Store.saveOverrides(o);
   toast("Hero saved. Reload the homepage to see it live.");
 }
 async function resetHero() {
   const o = await Store.getOverrides();
-  delete o.heroEyebrow; delete o.heroTitle; delete o.heroSubtitle; delete o.heroImage;
+  delete o.heroEyebrow; delete o.heroTitle; delete o.heroSubtitle; delete o.heroImage; delete o.heroImages;
   await Store.saveOverrides(o);
   initHeroTab(o);
   toast("Hero reset.");
@@ -769,6 +817,90 @@ async function resetHost() {
   await Store.saveOverrides(o);
   initHostTab(o);
   toast("Host section reset.");
+}
+
+// =============================================================================
+// Why book direct tab — homepage value-prop section
+// =============================================================================
+const WHY_BOOK_DEFAULTS = {
+  eyebrow: "Why book direct",
+  title: "Same homes. Better stay. Lower price.",
+  bullets: [
+    { title: "Skip the platform fees.", body: "Save 14–18% versus Airbnb or Vrbo. Same homes, same Superhost — the savings come back to you." },
+    { title: "Direct line to your host.", body: "Most messages answered within minutes. Real human, no chatbot escalation tree." },
+    { title: "Flexible check-in when we can.", body: "Direct guests get first dibs on early arrival or late checkout — just ask." },
+    { title: "Best-rate guarantee.", body: "See the same home cheaper elsewhere? We'll match it. No fine print." }
+  ],
+  image: "https://assets.hospitable.com/property_images/1605954/0nHIh9LmL4RykThYVcEetYU1C6Fm43PrGrZGHKJx.jpg",
+  quote: "\"Cleanest Airbnb I've rented to date.\"",
+  quoteCaption: "★ 5.0 · Spring break family · Apr 2026"
+};
+function initWhyBookTab(o) {
+  const w = (o && o.whyBook) || {};
+  const bullets = Array.isArray(w.bullets) && w.bullets.length === 4 ? w.bullets : WHY_BOOK_DEFAULTS.bullets;
+  document.getElementById('aWBEyebrow').value = w.eyebrow ?? WHY_BOOK_DEFAULTS.eyebrow;
+  document.getElementById('aWBTitle').value = w.title ?? WHY_BOOK_DEFAULTS.title;
+  for (let i = 0; i < 4; i++) {
+    const b = bullets[i] || WHY_BOOK_DEFAULTS.bullets[i];
+    document.getElementById(`aWBB${i}Title`).value = b.title || '';
+    document.getElementById(`aWBB${i}Body`).value = b.body || '';
+  }
+  document.getElementById('aWBImage').value = w.image ?? WHY_BOOK_DEFAULTS.image;
+  document.getElementById('aWBQuote').value = w.quote ?? WHY_BOOK_DEFAULTS.quote;
+  document.getElementById('aWBQuoteCaption').value = w.quoteCaption ?? WHY_BOOK_DEFAULTS.quoteCaption;
+  ['aWBEyebrow','aWBTitle','aWBB0Title','aWBB0Body','aWBB1Title','aWBB1Body','aWBB2Title','aWBB2Body','aWBB3Title','aWBB3Body','aWBImage','aWBQuote','aWBQuoteCaption'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateWhyBookPreview);
+  });
+  updateWhyBookPreview();
+}
+function updateWhyBookPreview() {
+  document.getElementById('phWBEyebrow').textContent = document.getElementById('aWBEyebrow').value;
+  document.getElementById('phWBTitle').textContent = document.getElementById('aWBTitle').value;
+  const ul = document.getElementById('phWBBullets');
+  let html = '';
+  for (let i = 0; i < 4; i++) {
+    const t = document.getElementById(`aWBB${i}Title`).value;
+    const b = document.getElementById(`aWBB${i}Body`).value;
+    html += `<li style="padding: 0.4rem 0; border-bottom: 1px solid var(--color-line);"><strong>${escapeHtml(t)}</strong> <span style="color: var(--color-stone);">${escapeHtml(b)}</span></li>`;
+  }
+  ul.innerHTML = html;
+  document.getElementById('phWBImage').src = document.getElementById('aWBImage').value;
+  document.getElementById('phWBQuote').textContent = document.getElementById('aWBQuote').value;
+  document.getElementById('phWBQuoteCaption').textContent = document.getElementById('aWBQuoteCaption').value;
+}
+async function saveWhyBook() {
+  const o = await Store.getOverrides();
+  o.whyBook = {
+    eyebrow: document.getElementById('aWBEyebrow').value.trim(),
+    title: document.getElementById('aWBTitle').value.trim(),
+    bullets: [0,1,2,3].map(i => ({
+      title: document.getElementById(`aWBB${i}Title`).value.trim(),
+      body: document.getElementById(`aWBB${i}Body`).value.trim()
+    })),
+    image: document.getElementById('aWBImage').value.trim(),
+    quote: document.getElementById('aWBQuote').value.trim(),
+    quoteCaption: document.getElementById('aWBQuoteCaption').value.trim()
+  };
+  await Store.saveOverrides(o);
+  toast("Why-book section saved. Reload the homepage to see it live.");
+}
+async function resetWhyBook() {
+  const o = await Store.getOverrides();
+  delete o.whyBook;
+  await Store.saveOverrides(o);
+  initWhyBookTab(o);
+  toast("Why-book section reset.");
+}
+function openWhyBookUpload() {
+  openUploadDialog({
+    pathPrefix: "branding/whybook",
+    onUploaded: (url) => {
+      const f = document.getElementById('aWBImage');
+      if (f) { f.value = url; f.dispatchEvent(new Event('input', { bubbles: true })); }
+      toast("Image uploaded. Click Save changes to apply.");
+    }
+  });
 }
 function openHostUpload() {
   openUploadDialog({

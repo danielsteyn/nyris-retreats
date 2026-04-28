@@ -18,7 +18,37 @@
   if (o.heroTitle) document.getElementById('heroTitle').textContent = o.heroTitle;
   if (o.heroSubtitle) document.getElementById('heroSubtitle').textContent = o.heroSubtitle;
   if (o.heroEyebrow) document.getElementById('heroEyebrow').textContent = o.heroEyebrow;
-  if (o.heroImage) document.getElementById('heroImg').style.backgroundImage = `url('${o.heroImage}')`;
+  // Hero background photos. Admin can save an array under o.heroImages; legacy
+  // installs only had o.heroImage (single). Single → just set background.
+  // Multiple → build a crossfade carousel, 15s interval, 1.5s soft transition;
+  // all slides share the same Ken Burns zoom so they move together.
+  const heroImages = (Array.isArray(o.heroImages) && o.heroImages.length)
+    ? o.heroImages.filter(Boolean)
+    : (o.heroImage ? [o.heroImage] : []);
+  if (heroImages.length === 1) {
+    document.getElementById('heroImg').style.backgroundImage = `url('${heroImages[0]}')`;
+  } else if (heroImages.length > 1) {
+    const heroEl = document.querySelector('.hero');
+    const first = document.getElementById('heroImg');
+    heroEl.classList.add('has-carousel');
+    first.style.backgroundImage = `url('${heroImages[0]}')`;
+    first.classList.add('active');
+    let cursor = first;
+    for (let i = 1; i < heroImages.length; i++) {
+      const div = document.createElement('div');
+      div.className = 'hero-img';
+      div.style.backgroundImage = `url('${heroImages[i]}')`;
+      cursor.parentNode.insertBefore(div, cursor.nextSibling);
+      cursor = div;
+    }
+    let idx = 0;
+    const slides = heroEl.querySelectorAll('.hero-img');
+    setInterval(() => {
+      slides[idx].classList.remove('active');
+      idx = (idx + 1) % slides.length;
+      slides[idx].classList.add('active');
+    }, 15000);
+  }
 
   // Meet-your-host section overrides. Body fields accept simple HTML (e.g. <em>).
   if (o.host) {
@@ -33,6 +63,26 @@
       if (h.buttonText) btn.textContent = h.buttonText;
       if (h.buttonLink) btn.setAttribute('href', h.buttonLink);
     }
+  }
+
+  // Why book direct section overrides — eyebrow, title, 4 bullets, image,
+  // and the testimonial quote/caption pinned to the photo card.
+  if (o.whyBook) {
+    const w = o.whyBook;
+    if (w.eyebrow) document.getElementById('whyEyebrow').textContent = w.eyebrow;
+    if (w.title) document.getElementById('whyTitle').textContent = w.title;
+    if (Array.isArray(w.bullets)) {
+      w.bullets.forEach((b, i) => {
+        if (!b) return;
+        const t = document.querySelector(`[data-why-bullet="${i}-title"]`);
+        const p = document.querySelector(`[data-why-bullet="${i}-body"]`);
+        if (t && b.title) t.textContent = b.title;
+        if (p && b.body) p.textContent = b.body;
+      });
+    }
+    if (w.image) document.getElementById('whyImage')?.setAttribute('src', w.image);
+    if (w.quote) document.getElementById('whyQuote').textContent = w.quote;
+    if (w.quoteCaption) document.getElementById('whyQuoteCaption').textContent = w.quoteCaption;
   }
 
   // Stats

@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=73"/>
-<script src="/js/theme.js?v=73"></script>
+<link rel="stylesheet" href="/css/styles.css?v=74"/>
+<script src="/js/theme.js?v=74"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -68,6 +68,7 @@
       <div class="tab-row">
         <button class="tab-btn active" data-tab="hero" data-section="content">Homepage</button>
         <button class="tab-btn" data-tab="host" data-section="content">Meet your host</button>
+        <button class="tab-btn" data-tab="whyBook" data-section="content">Why book direct</button>
         <button class="tab-btn" data-tab="experiencesPage" data-section="content">Experiences page</button>
         <button class="tab-btn" data-tab="contact" data-section="content">Contact info</button>
         <button class="tab-btn" data-tab="branding" data-section="content">Branding & theme</button>
@@ -101,6 +102,12 @@
             </div>
             <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Wide image works best — at least 1920×1080. Upload uses the same drag-and-drop dialog as property photos.</p>
           </div>
+
+          <h3 style="font-size: 1rem; margin: 1.5rem 0 0.5rem;">Additional background photos</h3>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0 0 0.75rem;">Add more photos to crossfade through automatically — each slide holds for 15 seconds, with a soft 1.5-second transition. All slides share the same Ken Burns zoom so they move together. The image above is shown first.</p>
+          <div id="aHExtraList" style="display:flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;"></div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addHeroExtra()" style="margin-bottom: 1.5rem;">+ Add another photo</button>
+
           <div style="display:flex; gap: 0.75rem;">
             <button class="btn btn-primary" onclick="saveHero()">Save changes</button>
             <button class="btn btn-ghost" onclick="resetHero()">Reset</button>
@@ -161,6 +168,75 @@
                 <p id="phHostBody1" style="font-size: 0.78rem; line-height: 1.55; opacity: 0.9; margin: 0 0 0.6rem;"></p>
                 <p id="phHostBody2" style="font-size: 0.78rem; line-height: 1.55; opacity: 0.9; margin: 0 0 0.9rem;"></p>
                 <a id="phHostBtn" class="btn btn-accent btn-sm" href="#" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;"></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Why book direct tab -->
+    <div class="tab-panel" id="tab-whyBook" style="display:none;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="two-col">
+        <div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Why book direct</h2>
+          <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Edit the value-prop section on the homepage — eyebrow, headline, four bullet points, image, and the testimonial pinned to the photo.</p>
+
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Eyebrow text</label><input class="form-control" id="aWBEyebrow"/></div>
+          <div style="margin-bottom: 1.5rem;"><label class="form-label">Headline</label><input class="form-control" id="aWBTitle"/></div>
+
+          <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Bullets</h3>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Bullet 1 — title</label><input class="form-control" id="aWBB0Title"/>
+            <label class="form-label" style="margin-top: 0.5rem;">Bullet 1 — body</label><textarea class="form-control" id="aWBB0Body" rows="2" style="resize: vertical;"></textarea>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Bullet 2 — title</label><input class="form-control" id="aWBB1Title"/>
+            <label class="form-label" style="margin-top: 0.5rem;">Bullet 2 — body</label><textarea class="form-control" id="aWBB1Body" rows="2" style="resize: vertical;"></textarea>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Bullet 3 — title</label><input class="form-control" id="aWBB2Title"/>
+            <label class="form-label" style="margin-top: 0.5rem;">Bullet 3 — body</label><textarea class="form-control" id="aWBB2Body" rows="2" style="resize: vertical;"></textarea>
+          </div>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Bullet 4 — title</label><input class="form-control" id="aWBB3Title"/>
+            <label class="form-label" style="margin-top: 0.5rem;">Bullet 4 — body</label><textarea class="form-control" id="aWBB3Body" rows="2" style="resize: vertical;"></textarea>
+          </div>
+
+          <h3 style="font-size: 1rem; margin: 1.5rem 0 1rem;">Photo + testimonial</h3>
+          <div style="margin-bottom: 1.25rem;">
+            <label class="form-label">Image</label>
+            <div style="display:flex; gap: 0.5rem;">
+              <input class="form-control" id="aWBImage" placeholder="Paste a URL or click Upload"/>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openWhyBookUpload()">Upload</button>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Portrait orientation works best (4:5).</p>
+          </div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Testimonial quote</label><input class="form-control" id="aWBQuote"/></div>
+          <div style="margin-bottom: 1.5rem;"><label class="form-label">Testimonial caption</label><input class="form-control" id="aWBQuoteCaption"/></div>
+
+          <div style="display:flex; gap: 0.75rem;">
+            <button class="btn btn-primary" onclick="saveWhyBook()">Save changes</button>
+            <button class="btn btn-ghost" onclick="resetWhyBook()">Reset</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Live preview</label>
+          <div id="whyBookPreview" style="border: 1px solid var(--color-line); border-radius: 18px; padding: 1.5rem; background: var(--color-cream); position: sticky; top: 90px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; align-items:center;">
+              <div>
+                <span id="phWBEyebrow" style="display:inline-block; font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-stone); margin-bottom: 0.4rem;"></span>
+                <h2 id="phWBTitle" style="font-size: clamp(0.95rem, 1.6vw, 1.25rem); margin: 0 0 0.85rem; line-height: 1.15;"></h2>
+                <ul id="phWBBullets" style="list-style:none; padding: 0; margin: 0; font-size: 0.72rem;"></ul>
+              </div>
+              <div style="position: relative;">
+                <div style="border-radius: 10px; overflow:hidden; aspect-ratio: 4/5; background: #ddd;">
+                  <img id="phWBImage" alt="Property" style="width:100%; height:100%; object-fit:cover; display:block;"/>
+                </div>
+                <div style="position: absolute; bottom: -10px; right: -10px; background: white; padding: 0.5rem 0.65rem; border-radius: 8px; box-shadow: var(--shadow-md); max-width: 140px;">
+                  <div id="phWBQuote" style="font-family: var(--font-display); font-size: 0.78rem; line-height: 1.2; color: var(--color-charcoal);"></div>
+                  <div id="phWBQuoteCaption" style="font-size: 0.6rem; color: var(--color-stone); margin-top: 0.2rem;"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -968,8 +1044,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=73"></script>
-<script src="/js/app.js?v=73"></script>
-<script src="/js/admin.js?v=73"></script>
+<script src="/js/data.js?v=74"></script>
+<script src="/js/app.js?v=74"></script>
+<script src="/js/admin.js?v=74"></script>
 </body>
 </html>
