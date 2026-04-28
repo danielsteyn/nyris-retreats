@@ -30,6 +30,26 @@ const Storage = {
   }
 };
 
+// Pull the latest admin overrides from the server (Turso) and write them to
+// this device's localStorage. Without this, mobile / new visitors only see
+// whatever was last cached in their own browser — admin edits from another
+// device never reach them. Runs eagerly on script load; pages that need
+// fresh data await window.__overridesReady before rendering. A 3-second
+// timeout guarantees a slow API never wedges the page.
+window.__overridesReady = (async () => {
+  const fetchOverrides = (async () => {
+    try {
+      const r = await fetch("/api/admin/overrides", { cache: "no-store" });
+      const j = await r.json();
+      if (j && j.ok && j.data && typeof j.data === "object") {
+        Storage.set("nyris.overrides", j.data);
+      }
+    } catch {}
+  })();
+  const timeout = new Promise(resolve => setTimeout(resolve, 3000));
+  await Promise.race([fetchOverrides, timeout]);
+})();
+
 // ===== Wishlist =====
 const Wishlist = {
   key: "nyris.wishlist",
@@ -88,6 +108,13 @@ function applyOverrides(props) {
   if (o.heroSubtitle) NYRIS.brand.heroSubtitle = o.heroSubtitle;
   if (o.heroImage) NYRIS.brand.heroImage = o.heroImage;
 
+  // Public contact info — admin-edited email + phone. Footer + contact page
+  // read NYRIS.brand.email/.phone, so mutating in place propagates everywhere.
+  if (o.contact) {
+    if (o.contact.email) NYRIS.brand.email = o.contact.email;
+    if (o.contact.phone) NYRIS.brand.phone = o.contact.phone;
+  }
+
   // Per-property field overrides (name, tagline, basePrice, cleaningFee, experiences, …)
   if (o.props) {
     for (const p of props) {
@@ -98,6 +125,18 @@ function applyOverrides(props) {
       if (ov.basePrice != null) p.basePrice = Number(ov.basePrice);
       if (ov.cleaningFee != null) p.cleaningFee = Number(ov.cleaningFee);
       if (Array.isArray(ov.experiences)) p.experiences = ov.experiences.filter(s => s && s.trim());
+      // Per-property Hospitable booking widget snippet. Hospitable gives a
+      // unique snippet per property, so the per-property field is the right
+      // home — wins over the site-wide template in payments.
+      if (ov.hospitableEmbed && ov.hospitableEmbed.trim()) p.hospitableEmbed = ov.hospitableEmbed;
+      // Channel URL overrides — admin-edited URLs that supersede whatever
+      // Hospitable returns for /api/hospitable/listings. Stored flat on the
+      // override but exposed as a structured map for the property page.
+      const channels = {};
+      if (ov.airbnbUrl) channels.airbnb = ov.airbnbUrl;
+      if (ov.vrboUrl) channels.vrbo = ov.vrboUrl;
+      if (ov.bookingUrl) channels.booking = ov.bookingUrl;
+      if (Object.keys(channels).length) p.channelUrlOverrides = channels;
     }
   }
 
@@ -272,7 +311,9 @@ function propertyCard(p, opts = {}) {
   return `
   <article class="prop-card" data-id="${p.id}">
     <div class="prop-card-media" data-images='${JSON.stringify(images.slice(0, 5))}'>
-      <img class="prop-card-img" src="${images[0]}" alt="${escapeHtml(p.name)}" loading="lazy"/>
+      <a class="prop-card-media-link" href="/property.html?slug=${p.slug}" aria-label="${escapeHtml(p.name)}">
+        <img class="prop-card-img" src="${images[0]}" alt="${escapeHtml(p.name)}" loading="lazy"/>
+      </a>
       <div class="prop-card-badges">
         ${p.isGuestFavorite ? `<span class="badge badge-favorite">${ICON.badge.replace('<svg','<svg width="11" height="11"')} Guest Favorite</span>` : ''}
         ${p.isNew ? `<span class="badge badge-new">New</span>` : ''}
@@ -335,6 +376,46 @@ function bindPropertyCards(scope = document) {
       e.preventDefault(); e.stopPropagation();
       idx = (idx + 1) % imgs.length; update();
     });
+
+    // Touch swipe for mobile — left = next photo, right = previous. We need
+    // to also suppress the synthetic click that fires on touchend, otherwise
+    // every swipe would also navigate to the property page via the
+    // .prop-card-media-link wrapping the <img>.
+    let touchStart = null;
+    let swiped = false;
+    media.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { touchStart = null; return; }
+      const t = e.touches[0];
+      touchStart = { x: t.clientX, y: t.clientY, time: Date.now() };
+      swiped = false;
+    }, { passive: true });
+    media.addEventListener('touchend', (e) => {
+      if (!touchStart) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touchStart.x;
+      const dy = t.clientY - touchStart.y;
+      const dt = Date.now() - touchStart.time;
+      touchStart = null;
+      // Horizontal-dominant movement of >30px in <500ms = swipe. Anything
+      // else (slow drift, vertical scroll, taps) is left alone so vertical
+      // page scrolling and tap-to-navigate keep working.
+      if (dt < 500 && Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+        swiped = true;
+        if (dx < 0) idx = (idx + 1) % imgs.length;
+        else        idx = (idx - 1 + imgs.length) % imgs.length;
+        update();
+      }
+    }, { passive: true });
+    const link = media.querySelector('.prop-card-media-link');
+    if (link) {
+      link.addEventListener('click', (e) => {
+        if (swiped) {
+          e.preventDefault();
+          e.stopPropagation();
+          swiped = false;
+        }
+      });
+    }
   });
 }
 
@@ -357,6 +438,54 @@ function renderCompareBar() {
   document.addEventListener('compare:changed', sync);
   sync();
 }
+
+// ===== Photo grid (full-screen scrollable grid; clicking a photo opens Lightbox) =====
+const PhotoGrid = {
+  open(images) {
+    let g = document.querySelector('#photoGrid');
+    if (!g) {
+      g = document.createElement('div');
+      g.id = 'photoGrid';
+      g.className = 'photo-grid-overlay';
+      g.innerHTML = `
+        <div class="photo-grid-header">
+          <button class="photo-grid-close" aria-label="Close">${ICON.close}</button>
+          <div class="photo-grid-title"></div>
+        </div>
+        <div class="photo-grid-body"><div class="photo-grid"></div></div>`;
+      document.body.appendChild(g);
+      g.querySelector('.photo-grid-close').onclick = () => PhotoGrid.close();
+    }
+    const grid = g.querySelector('.photo-grid');
+    grid.innerHTML = images.map((src, i) => `
+      <button type="button" class="photo-grid-tile" data-idx="${i}" aria-label="Open photo ${i+1}">
+        <img src="${src}" alt="" loading="${i<6 ? 'eager' : 'lazy'}"/>
+      </button>`).join('');
+    grid.onclick = (e) => {
+      const btn = e.target.closest('button[data-idx]');
+      if (!btn) return;
+      Lightbox.open(images, Number(btn.dataset.idx));
+    };
+    g.querySelector('.photo-grid-title').textContent = `${images.length} photo${images.length === 1 ? '' : 's'}`;
+    g.querySelector('.photo-grid-body').scrollTop = 0;
+    // Listener attached BEFORE Lightbox's so when both are open and Esc fires,
+    // PhotoGrid runs first, sees the lightbox is open and bails — then
+    // Lightbox closes itself. Next Esc closes the grid.
+    document.addEventListener('keydown', PhotoGrid._key);
+    document.body.style.overflow = 'hidden';
+    g.classList.add('open');
+  },
+  _key(e) {
+    if (e.key !== 'Escape') return;
+    if (document.querySelector('#lightbox.open')) return;
+    PhotoGrid.close();
+  },
+  close() {
+    document.querySelector('#photoGrid')?.classList.remove('open');
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', PhotoGrid._key);
+  }
+};
 
 // ===== Lightbox =====
 const Lightbox = {
@@ -460,7 +589,10 @@ function isoToday(offset = 0) {
 }
 
 // ===== Init on every page =====
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Wait for the eager server-side overrides fetch (with built-in 3s timeout)
+  // so the footer + applyOverrides see fresh admin edits, not stale local data.
+  if (window.__overridesReady) await window.__overridesReady;
   if (typeof NYRIS !== 'undefined') {
     NYRIS.properties = applyOverrides(NYRIS.properties);
   }

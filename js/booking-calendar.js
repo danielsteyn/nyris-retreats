@@ -30,15 +30,17 @@ async function openBookingCalendar(pickFor, triggerEl) {
   const cal = document.getElementById(window.BkCal.targets.container);
   if (!cal) return;
   window.BkCal.pickFor = pickFor;
-  // The triggerEl param is optional — when called from inline onclick it's
-  // not passed. Look it up by display ID as a fallback.
-  if (!triggerEl) {
-    const dispId = pickFor === "checkin" ? window.BkCal.targets.checkinDisplay : window.BkCal.targets.checkoutDisplay;
-    triggerEl = document.getElementById(dispId)?.closest(".date-trigger");
+  if (!cal.hasAttribute("hidden")) { positionCalendar(); renderCalendar(); return; }
+  // The calendar element may live inside a parent that creates its own
+  // stacking context (e.g., the hero on the home page uses
+  // `isolation: isolate`). Portal it to <body> so both backdrop and
+  // calendar are siblings of body and z-index ordering works correctly.
+  if (cal.parentNode !== document.body) {
+    document.body.appendChild(cal);
   }
-  if (!cal.hasAttribute("hidden")) { positionCalendar(triggerEl); renderCalendar(); return; }
+  ensureCalendarBackdrop();
   cal.removeAttribute("hidden");
-  positionCalendar(triggerEl);
+  positionCalendar();
 
   if (!window.BkCal.monthAnchor) {
     const t = new Date(); t.setUTCDate(1); t.setUTCHours(0, 0, 0, 0);
@@ -46,64 +48,63 @@ async function openBookingCalendar(pickFor, triggerEl) {
   }
   if (!window.BkCal.data) await loadCalendarData();
   renderCalendar();
-  positionCalendar(triggerEl);  // re-clamp now that DOM has real height
+  positionCalendar();  // re-clamp now that DOM has real height
 
   setTimeout(() => {
     document.addEventListener("click", outsideCalendarClose, { capture: true });
     window.addEventListener("resize", repositionCalendar);
-    window.addEventListener("scroll", repositionCalendar, true);
   }, 0);
 }
 
-function positionCalendar(triggerEl) {
+function ensureCalendarBackdrop() {
+  let bd = document.getElementById("bkCalBackdrop");
+  if (!bd) {
+    bd = document.createElement("div");
+    bd.id = "bkCalBackdrop";
+    bd.className = "bkcal-backdrop";
+    bd.addEventListener("click", closeBookingCalendar);
+    document.body.appendChild(bd);
+  }
+  bd.classList.add("show");
+}
+
+function hideCalendarBackdrop() {
+  const bd = document.getElementById("bkCalBackdrop");
+  if (bd) bd.classList.remove("show");
+}
+
+function positionCalendar() {
   const cal = document.getElementById(window.BkCal.targets.container);
-  if (!cal || !triggerEl) return;
-  const rect = triggerEl.getBoundingClientRect();
+  if (!cal) return;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const margin = 16;
   const calWidth = Math.min(680, vw - margin * 2);
   cal.style.width = calWidth + "px";
-
-  // Render once first to know its height; if not yet, use a sensible default
-  const rawHeight = cal.offsetHeight || 480;
-  const calHeight = Math.min(rawHeight, vh - margin * 2);
-
-  // Prefer below the trigger; flip above if it would overflow
-  let top = rect.bottom + 8;
-  if (top + calHeight > vh - margin) {
-    const above = rect.top - 8 - calHeight;
-    if (above >= margin) top = above;
-    else top = Math.max(margin, vh - calHeight - margin);
-  }
-
-  // Horizontally clamp; align to trigger when possible
-  let left = rect.left;
-  if (left + calWidth > vw - margin) left = vw - calWidth - margin;
-  if (left < margin) left = margin;
-
-  cal.style.top = top + "px";
-  cal.style.left = left + "px";
-  cal.style.right = "auto";
-  cal.style.transform = "none";
   cal.style.maxHeight = (vh - margin * 2) + "px";
   cal.style.overflowY = "auto";
-  // Remember which trigger anchored it so reposition can re-read on scroll
-  cal._triggerEl = triggerEl;
+  // Always center the calendar on the screen using fixed positioning +
+  // translate. The CSS handles the translate; here we just clear any
+  // leftover inline positioning from older builds.
+  cal.style.top = "";
+  cal.style.left = "";
+  cal.style.right = "";
+  cal.style.bottom = "";
+  cal.style.transform = "";
 }
 
 function repositionCalendar() {
   const cal = document.getElementById(window.BkCal.targets.container);
   if (!cal || cal.hasAttribute("hidden")) return;
-  positionCalendar(cal._triggerEl);
+  positionCalendar();
 }
 
 function closeBookingCalendar() {
   const cal = document.getElementById(window.BkCal.targets.container);
   if (cal) cal.setAttribute("hidden", "");
+  hideCalendarBackdrop();
   document.removeEventListener("click", outsideCalendarClose, { capture: true });
   window.removeEventListener("resize", repositionCalendar);
-  window.removeEventListener("scroll", repositionCalendar, true);
 }
 
 function outsideCalendarClose(e) {

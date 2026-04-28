@@ -58,6 +58,33 @@ function apiFetch(url, opts = {}) {
 }
 
 // =============================================================================
+// PropertyContext — shared "current property" state for the property-scoped
+// tabs (Photos, Property details, Experiences). Always stored as slug; the
+// id↔slug helpers translate for tabs that key by id (Photos uses property.id
+// in its <select>, Experiences uses slug). Persists across reloads in
+// localStorage so the host returns to the property they were last editing.
+// =============================================================================
+const PropertyContext = (function() {
+  const KEY = "nyris.admin.lastProperty";
+  let _slug = null;
+  const subs = new Set();
+  try { _slug = localStorage.getItem(KEY) || null; } catch {}
+  return {
+    get() { return _slug; },
+    set(slug) {
+      if (!slug || slug === _slug) { _slug = slug || null; return; }
+      _slug = slug;
+      try { localStorage.setItem(KEY, slug); } catch {}
+      subs.forEach(fn => { try { fn(slug); } catch {} });
+    },
+    subscribe(fn) { subs.add(fn); return () => subs.delete(fn); },
+    bySlug(slug) { return slug ? (NYRIS.properties.find(p => p.slug === slug) || null) : null; },
+    byId(id) { return id ? (NYRIS.properties.find(p => p.id === id) || null) : null; },
+    notify() { subs.forEach(fn => { try { fn(_slug); } catch {} }); }
+  };
+})();
+
+// =============================================================================
 // Storage layer — Turso (remote) with localStorage fallback
 // =============================================================================
 const RemoteStore = {
@@ -169,6 +196,82 @@ function bindTabs() {
   });
 }
 
+// Section bar above the tab row — toggles which group of tabs is visible
+// without changing data-tab values or the existing bindTabs() behavior.
+// CSS does the hiding via [data-active-section]; JS only sets the attribute
+// and ensures the active sub-tab belongs to the active section.
+function bindTabSections() {
+  const bar = document.getElementById('tabBar');
+  if (!bar) return;
+  document.querySelectorAll('.tab-section-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const section = btn.dataset.section;
+      bar.dataset.activeSection = section;
+      document.querySelectorAll('.tab-section-btn').forEach(b => b.classList.toggle('active', b === btn));
+      // If the currently active sub-tab isn't in this section, switch to the
+      // first tab in the new section so we never show an orphan panel.
+      const activeBtn = bar.querySelector('.tab-btn.active');
+      if (!activeBtn || activeBtn.dataset.section !== section) {
+        const firstInSection = bar.querySelector(`.tab-btn[data-section="${section}"]`);
+        if (firstInSection) firstInSection.click();
+      }
+    });
+  });
+}
+
+// Switch to a tab by data-tab value, optionally setting the property context
+// for property-scoped tabs. Called by cross-tab shortcut links.
+function gotoTab(tabId, slug) {
+  if (slug) PropertyContext.set(slug);
+  // Make sure the section containing the target tab is active first, so the
+  // .tab-btn we click isn't display:none.
+  const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+  if (!targetBtn) return;
+  const section = targetBtn.dataset.section;
+  if (section) {
+    const bar = document.getElementById('tabBar');
+    if (bar) bar.dataset.activeSection = section;
+    document.querySelectorAll('.tab-section-btn').forEach(b => b.classList.toggle('active', b.dataset.section === section));
+  }
+  targetBtn.click();
+  const panel = document.getElementById('tab-' + tabId);
+  if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Update every "current property" chip on the page. Called by
+// PropertyContext.subscribe and once on init.
+function renderCurrentPropertyChips(slug) {
+  const prop = PropertyContext.bySlug(slug);
+  document.querySelectorAll('[data-tab-chip]').forEach(el => {
+    if (prop) {
+      el.textContent = `Editing: ${prop.name}`;
+      el.hidden = false;
+    } else {
+      el.textContent = '';
+      el.hidden = true;
+    }
+  });
+  // Also highlight the matching card on the Property details tab.
+  document.querySelectorAll('[data-prop-card]').forEach(card => {
+    card.classList.toggle('is-current-property', card.dataset.propCard === slug);
+  });
+}
+
+// Render the cross-tab shortcut links under the Photos selector. Single
+// source of truth for the "open this property in another tab" pattern.
+function renderPhotoCrossLinks(slug) {
+  const wrap = document.getElementById('photoCrossLinks');
+  if (!wrap) return;
+  if (!slug) { wrap.innerHTML = ''; return; }
+  const prop = PropertyContext.bySlug(slug);
+  if (!prop) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <span class="cross-tab-links-label">Also for ${escapeHtml(prop.name)}:</span>
+    <button type="button" class="cross-tab-link" onclick="gotoTab('properties', '${escapeAttr(slug)}')">Edit details →</button>
+    <button type="button" class="cross-tab-link" onclick="gotoTab('experiences', '${escapeAttr(slug)}')">Edit experiences →</button>
+  `;
+}
+
 // =============================================================================
 // Dashboard init
 // =============================================================================
@@ -188,6 +291,12 @@ async function showDashboard() {
   // Load overrides (remote-aware)
   const o = await Store.getOverrides();
   initHeroTab(o);
+  initHostTab(o);
+  initExpPageTab(o);
+  initContactTab(o);
+  initInboxTab();
+  initBookingsTab();
+  initBookingsPaymentsTab();
   initBrandingTab();
   initPhotosTab();
   initPropertiesTab(o);
@@ -301,8 +410,15 @@ function initExperiencesTab(o) {
   const sel = document.getElementById("expPropSelect");
   if (!sel) return;
   sel.innerHTML = NYRIS.properties.map(p => `<option value="${escapeAttr(p.slug)}">${escapeHtml(p.name)} — ${p.city}, ${p.state}</option>`).join("");
-  sel.addEventListener("change", () => loadExperiencesFor(sel.value));
+  // Restore last-selected property if present.
+  const ctxSlug = PropertyContext.get();
+  if (ctxSlug && PropertyContext.bySlug(ctxSlug)) sel.value = ctxSlug;
+  sel.addEventListener("change", () => {
+    PropertyContext.set(sel.value);
+    loadExperiencesFor(sel.value);
+  });
   loadExperiencesFor(sel.value);
+  if (!ctxSlug && sel.value) PropertyContext.set(sel.value);
 }
 
 async function loadExperiencesFor(slug) {
@@ -596,10 +712,705 @@ async function resetHero() {
 }
 
 // =============================================================================
+// Meet your host tab — edits the homepage host introduction block.
+// Stored under o.host = { eyebrow, title, body1, body2, buttonText, buttonLink, image }
+// =============================================================================
+const HOST_DEFAULTS = {
+  eyebrow: "Meet your host",
+  title: "Sheena. Superhost. Sweat-the-details host.",
+  body1: 'Every Nyris Retreats home is personally managed by Sheena — an experienced Superhost whose calendar across the portfolio reads like a five-star streak. Coffee stocked. Beach toys waiting. Local tips sent before you arrive. The kind of hosting where reviews start with <em>"This was the cleanest stay we\'ve ever had"</em> and end with <em>"We\'re already planning to come back."</em>',
+  body2: "She doesn't outsource it. That's why every property is a Top 1% Guest Favorite — Airbnb's elite tier — and why direct guests get answers in minutes, not hours.",
+  buttonText: "Read our story",
+  buttonLink: "/about.html",
+  image: "https://assets.hospitable.com/property_images/1574508/J4AWxWdNVx0riannl63U4j8SZgj4dWjTlS3fmQZo.jpg"
+};
+function initHostTab(o) {
+  const h = o.host || {};
+  document.getElementById('aMHEyebrow').value = h.eyebrow ?? HOST_DEFAULTS.eyebrow;
+  document.getElementById('aMHTitle').value = h.title ?? HOST_DEFAULTS.title;
+  document.getElementById('aMHBody1').value = h.body1 ?? HOST_DEFAULTS.body1;
+  document.getElementById('aMHBody2').value = h.body2 ?? HOST_DEFAULTS.body2;
+  document.getElementById('aMHBtnText').value = h.buttonText ?? HOST_DEFAULTS.buttonText;
+  document.getElementById('aMHBtnLink').value = h.buttonLink ?? HOST_DEFAULTS.buttonLink;
+  document.getElementById('aMHImage').value = h.image ?? HOST_DEFAULTS.image;
+  ['aMHEyebrow','aMHTitle','aMHBody1','aMHBody2','aMHBtnText','aMHBtnLink','aMHImage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateHostPreview);
+  });
+  updateHostPreview();
+}
+function updateHostPreview() {
+  document.getElementById('phHostEyebrow').textContent = document.getElementById('aMHEyebrow').value;
+  document.getElementById('phHostTitle').textContent = document.getElementById('aMHTitle').value;
+  document.getElementById('phHostBody1').innerHTML = document.getElementById('aMHBody1').value;
+  document.getElementById('phHostBody2').innerHTML = document.getElementById('aMHBody2').value;
+  const btn = document.getElementById('phHostBtn');
+  btn.textContent = document.getElementById('aMHBtnText').value;
+  btn.setAttribute('href', document.getElementById('aMHBtnLink').value || '#');
+  document.getElementById('phHostImage').src = document.getElementById('aMHImage').value;
+}
+async function saveHost() {
+  const o = await Store.getOverrides();
+  o.host = {
+    eyebrow: document.getElementById('aMHEyebrow').value.trim(),
+    title: document.getElementById('aMHTitle').value.trim(),
+    body1: document.getElementById('aMHBody1').value.trim(),
+    body2: document.getElementById('aMHBody2').value.trim(),
+    buttonText: document.getElementById('aMHBtnText').value.trim(),
+    buttonLink: document.getElementById('aMHBtnLink').value.trim(),
+    image: document.getElementById('aMHImage').value.trim()
+  };
+  await Store.saveOverrides(o);
+  toast("Host section saved. Reload the homepage to see it live.");
+}
+async function resetHost() {
+  const o = await Store.getOverrides();
+  delete o.host;
+  await Store.saveOverrides(o);
+  initHostTab(o);
+  toast("Host section reset.");
+}
+function openHostUpload() {
+  openUploadDialog({
+    title: "Upload host portrait",
+    subtitle: "Portrait orientation (4:5) works best.",
+    pathPrefix: "branding/host",
+    captionField: false,
+    onUploaded: (url) => {
+      const inp = document.getElementById("aMHImage");
+      if (inp) inp.value = url;
+      if (typeof updateHostPreview === "function") updateHostPreview();
+      toast("Host image uploaded. Click Save changes to apply.");
+    }
+  });
+}
+
+// =============================================================================
+// Experiences page tab — edits the public /experiences.html intro + CTA.
+// Stored under o.experiencesPage = { heroEyebrow, heroTitle, heroSubtitle,
+// ctaTitle, ctaSubtitle, ctaButtonText, ctaButtonLink }.
+// =============================================================================
+const EXP_PAGE_DEFAULTS = {
+  heroEyebrow: "Beyond the property",
+  heroTitle: "A trip is more than the bed.",
+  heroSubtitle: "Every Nyris property comes with Sheena's personal recommendations — the spots she'd send her own family. Here's a region-by-region preview.",
+  ctaTitle: "Want something custom?",
+  ctaSubtitle: "Sheena coordinates everything from chef-prepared welcome dinners to private yoga, surf lessons, and boat charters. Just ask.",
+  ctaButtonText: "Request a custom experience",
+  ctaButtonLink: "/contact.html?topic=experiences"
+};
+function initExpPageTab(o) {
+  if (!document.getElementById('aEPEyebrow')) return;
+  const ep = o.experiencesPage || {};
+  document.getElementById('aEPEyebrow').value = ep.heroEyebrow ?? EXP_PAGE_DEFAULTS.heroEyebrow;
+  document.getElementById('aEPTitle').value = ep.heroTitle ?? EXP_PAGE_DEFAULTS.heroTitle;
+  document.getElementById('aEPSub').value = ep.heroSubtitle ?? EXP_PAGE_DEFAULTS.heroSubtitle;
+  document.getElementById('aEPCtaTitle').value = ep.ctaTitle ?? EXP_PAGE_DEFAULTS.ctaTitle;
+  document.getElementById('aEPCtaSub').value = ep.ctaSubtitle ?? EXP_PAGE_DEFAULTS.ctaSubtitle;
+  document.getElementById('aEPCtaText').value = ep.ctaButtonText ?? EXP_PAGE_DEFAULTS.ctaButtonText;
+  document.getElementById('aEPCtaLink').value = ep.ctaButtonLink ?? EXP_PAGE_DEFAULTS.ctaButtonLink;
+  ['aEPEyebrow','aEPTitle','aEPSub','aEPCtaTitle','aEPCtaSub','aEPCtaText','aEPCtaLink'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateExpPagePreview);
+  });
+  updateExpPagePreview();
+}
+function updateExpPagePreview() {
+  document.getElementById('phEPEyebrow').textContent = document.getElementById('aEPEyebrow').value;
+  document.getElementById('phEPTitle').textContent = document.getElementById('aEPTitle').value;
+  document.getElementById('phEPSub').innerHTML = document.getElementById('aEPSub').value;
+  document.getElementById('phEPCtaTitle').textContent = document.getElementById('aEPCtaTitle').value;
+  document.getElementById('phEPCtaSub').innerHTML = document.getElementById('aEPCtaSub').value;
+  const btn = document.getElementById('phEPCtaBtn');
+  btn.textContent = document.getElementById('aEPCtaText').value;
+  btn.setAttribute('href', document.getElementById('aEPCtaLink').value || '#');
+}
+async function saveExpPage() {
+  const o = await Store.getOverrides();
+  o.experiencesPage = {
+    heroEyebrow: document.getElementById('aEPEyebrow').value.trim(),
+    heroTitle: document.getElementById('aEPTitle').value.trim(),
+    heroSubtitle: document.getElementById('aEPSub').value.trim(),
+    ctaTitle: document.getElementById('aEPCtaTitle').value.trim(),
+    ctaSubtitle: document.getElementById('aEPCtaSub').value.trim(),
+    ctaButtonText: document.getElementById('aEPCtaText').value.trim(),
+    ctaButtonLink: document.getElementById('aEPCtaLink').value.trim()
+  };
+  await Store.saveOverrides(o);
+  toast("Experiences page saved. Reload the page to see it live.");
+}
+async function resetExpPage() {
+  const o = await Store.getOverrides();
+  delete o.experiencesPage;
+  await Store.saveOverrides(o);
+  initExpPageTab(o);
+  toast("Experiences page reset.");
+}
+
+// =============================================================================
+// Contact info tab — public email + phone, used in the footer on every page
+// and on the Contact page's Direct contact card. Stored under o.contact =
+// { email, phone }. applyOverrides() in app.js patches NYRIS.brand.{email,phone}
+// so existing render paths keep working without per-page changes.
+// =============================================================================
+function initContactTab(o) {
+  if (!document.getElementById('aContactEmail')) return;
+  const c = o.contact || {};
+  const n = o.notifications || {};
+  const fallback = (NYRIS && NYRIS.brand) ? NYRIS.brand : {};
+  document.getElementById('aContactEmail').value = c.email ?? fallback.email ?? '';
+  document.getElementById('aContactPhone').value = c.phone ?? fallback.phone ?? '';
+  document.getElementById('aNotifyTo').value = n.toEmail ?? '';
+  document.getElementById('aNotifyFrom').value = n.fromEmail ?? '';
+  const hospField = document.getElementById('aNotifyHospitable');
+  if (hospField) hospField.value = n.hospitableForwardEmail ?? '';
+  // Stripe + provider config now lives in the Bookings & Payments tab — no
+  // longer loaded here.
+  ['aContactEmail', 'aContactPhone'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateContactPreview);
+  });
+  updateContactPreview();
+  refreshResendKeyMeta();
+}
+async function refreshResendKeyMeta() {
+  const meta = document.getElementById('aResendKeyMeta');
+  if (!meta) return;
+  try {
+    const r = await fetch('/api/admin/secrets');
+    const j = await r.json();
+    // Endpoint returns { ok, items: [...] }, not { keys: [...] }.
+    const found = (j.items || []).find(k => k.key === 'resend_api_key');
+    if (found && found.last4) {
+      meta.innerHTML = `Saved · ending in <strong>${found.last4}</strong> · <a href="#" onclick="removeResendKey(event)">Remove</a>`;
+    } else {
+      meta.textContent = "Get a free key at resend.com. Stored encrypted in Turso.";
+    }
+  } catch {
+    // Silent — meta stays at default text.
+  }
+}
+async function saveResendKey() {
+  const input = document.getElementById('aResendKey');
+  const value = (input.value || '').trim();
+  if (!value) { toast("Paste a Resend API key first."); return; }
+  if (value.length < 8) { toast("That looks too short to be a real key."); return; }
+  try {
+    const r = await fetch('/api/admin/secrets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'resend_api_key', value })
+    });
+    const j = await r.json();
+    if (!j.ok) { toast(j.error || "Save failed"); return; }
+    input.value = '';
+    toast(`Resend key saved · ending in ${value.slice(-4)}`);
+    refreshResendKeyMeta();
+  } catch (e) {
+    toast("Save failed — couldn't reach the server.");
+  }
+}
+async function removeResendKey(e) {
+  if (e) e.preventDefault();
+  if (!confirm("Remove the Resend API key? Email notifications will stop until you save a new one.")) return;
+  try {
+    await fetch('/api/admin/secrets?key=resend_api_key', { method: 'DELETE' });
+  } catch {}
+  toast("Resend key removed.");
+  refreshResendKeyMeta();
+}
+async function sendTestEmail(target) {
+  const resultEl = document.getElementById('testEmailResult');
+  if (!resultEl) return;
+  resultEl.innerHTML = `<div style="padding: 0.75rem 1rem; background: var(--color-cream-dark); border-radius: 8px; font-size: 0.9rem;">Sending test email to ${target === 'hospitable' ? 'Hospitable forwarding address' : 'notification recipient'}…</div>`;
+  try {
+    const r = await fetch('/api/admin/test-email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      resultEl.innerHTML = `<div style="padding: 0.75rem 1rem; background: rgba(44,122,90,0.1); border: 1px solid rgba(44,122,90,0.3); color: var(--color-success); border-radius: 8px; font-size: 0.9rem;">
+        <strong>✓ Test sent</strong> · from <code>${escapeHtml(j.from || '')}</code> to <code>${escapeHtml(j.to || '')}</code>${j.messageId ? ` · message ${escapeHtml(j.messageId)}` : ''}<br/>
+        <span style="color: var(--color-stone); font-size: 0.85rem;">Check the recipient's inbox (and spam folder) within 1–2 minutes.</span>
+      </div>`;
+    } else {
+      const hint = j.hint ? `<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(177,74,63,0.2); font-size: 0.85rem; color: var(--color-charcoal);">${escapeHtml(j.hint)}</div>` : '';
+      resultEl.innerHTML = `<div style="padding: 0.75rem 1rem; background: rgba(177,74,63,0.1); border: 1px solid rgba(177,74,63,0.3); color: var(--color-danger); border-radius: 8px; font-size: 0.9rem;">
+        <strong>✕ Test failed</strong> · ${escapeHtml(j.error || 'unknown error')}${j.from ? `<br/><span style="color: var(--color-stone);">from <code>${escapeHtml(j.from)}</code> to <code>${escapeHtml(j.to || '—')}</code></span>` : ''}
+        ${hint}
+      </div>`;
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<div style="padding: 0.75rem 1rem; background: rgba(177,74,63,0.1); color: var(--color-danger); border-radius: 8px; font-size: 0.9rem;">✕ ${escapeHtml(String(e))}</div>`;
+  }
+}
+
+async function saveNotifications() {
+  const o = await Store.getOverrides();
+  const toEmail = document.getElementById('aNotifyTo').value.trim();
+  const fromEmail = document.getElementById('aNotifyFrom').value.trim();
+  const hospField = document.getElementById('aNotifyHospitable');
+  const hospitableForwardEmail = hospField ? hospField.value.trim() : '';
+  if (!toEmail && !fromEmail && !hospitableForwardEmail) {
+    delete o.notifications;
+  } else {
+    o.notifications = {};
+    if (toEmail) o.notifications.toEmail = toEmail;
+    if (fromEmail) o.notifications.fromEmail = fromEmail;
+    if (hospitableForwardEmail) o.notifications.hospitableForwardEmail = hospitableForwardEmail;
+  }
+  await Store.saveOverrides(o);
+  toast("Notification settings saved.");
+}
+
+// Bookings & Payments tab — provider toggle + Stripe key + Hospitable URL.
+// Storage shape:
+//   o.payments = {
+//     provider: "stripe" | "hospitable",
+//     stripePublishableKey: "pk_…",
+//     hospitableBookingUrlTemplate: "https://booking.hospitable.com/{propertyId}",
+//     hospitableBookingNewTab: true | false
+//   }
+function initBookingsPaymentsTab() {
+  const toggle = document.getElementById('paymentProviderToggle');
+  if (!toggle) return;
+  // Wire the provider toggle to show/hide the matching sub-panel.
+  toggle.querySelectorAll('input[name="paymentProvider"]').forEach(input => {
+    input.addEventListener('change', () => syncProviderUI(input.value));
+  });
+
+  // Load saved values from overrides.
+  Store.getOverrides().then(o => {
+    const pay = (o && o.payments) || {};
+    const provider = pay.provider || 'stripe';
+    const radio = toggle.querySelector(`input[name="paymentProvider"][value="${provider}"]`);
+    if (radio) radio.checked = true;
+    syncProviderUI(provider);
+    const stripeField = document.getElementById('aPaymentsStripePub');
+    if (stripeField) stripeField.value = pay.stripePublishableKey || '';
+    const urlField = document.getElementById('aPaymentsHospUrl');
+    if (urlField) urlField.value = pay.hospitableBookingUrlTemplate || '';
+    const newTabField = document.getElementById('aPaymentsHospNewTab');
+    if (newTabField) newTabField.checked = pay.hospitableBookingNewTab !== false; // default ON
+    const embedField = document.getElementById('aPaymentsHospEmbed');
+    if (embedField) embedField.value = pay.hospitableWidgetEmbed || '';
+  });
+}
+function syncProviderUI(provider) {
+  document.querySelectorAll('.provider-card').forEach(c => {
+    c.classList.toggle('is-active', c.dataset.provider === provider);
+  });
+  const stripePanel = document.getElementById('providerPanelStripe');
+  const hospPanel = document.getElementById('providerPanelHospitable');
+  if (stripePanel) stripePanel.classList.toggle('is-active', provider === 'stripe');
+  if (hospPanel) hospPanel.classList.toggle('is-active', provider === 'hospitable');
+}
+async function savePayments() {
+  const o = await Store.getOverrides();
+  const provider = (document.querySelector('input[name="paymentProvider"]:checked') || {}).value || 'stripe';
+  const stripeField = document.getElementById('aPaymentsStripePub');
+  const stripePublishableKey = stripeField ? stripeField.value.trim() : '';
+  const urlField = document.getElementById('aPaymentsHospUrl');
+  const hospitableBookingUrlTemplate = urlField ? urlField.value.trim() : '';
+  const newTabField = document.getElementById('aPaymentsHospNewTab');
+  const hospitableBookingNewTab = newTabField ? !!newTabField.checked : true;
+  const embedField = document.getElementById('aPaymentsHospEmbed');
+  const hospitableWidgetEmbed = embedField ? embedField.value : '';
+
+  // Validate Stripe key shape only when present (it's optional in hospitable mode).
+  if (stripePublishableKey && !/^pk_(live|test)_[A-Za-z0-9]+$/.test(stripePublishableKey)) {
+    toast("That doesn't look like a Stripe publishable key (should start with pk_live_ or pk_test_).");
+    return;
+  }
+  // Hospitable URL must include a placeholder if provided.
+  if (hospitableBookingUrlTemplate && !/\{(propertyId|slug)\}/.test(hospitableBookingUrlTemplate)) {
+    toast("Hospitable URL needs a {propertyId} or {slug} placeholder.");
+    return;
+  }
+  // Block saving "hospitable" provider with no URL — would silently break Reserve.
+  if (provider === 'hospitable' && !hospitableBookingUrlTemplate) {
+    toast("Paste your Hospitable booking URL template before switching providers.");
+    return;
+  }
+
+  o.payments = {
+    provider,
+    ...(stripePublishableKey ? { stripePublishableKey } : {}),
+    ...(hospitableBookingUrlTemplate ? { hospitableBookingUrlTemplate } : {}),
+    hospitableBookingNewTab,
+    ...(hospitableWidgetEmbed.trim() ? { hospitableWidgetEmbed } : {})
+  };
+  await Store.saveOverrides(o);
+  toast(`Saved — Reserve button now uses ${provider === 'stripe' ? 'Stripe checkout' : 'Hospitable Direct widget'}.`);
+}
+
+// Open the configured Hospitable URL with a real property's ID + sample dates
+// to verify the template is correct.
+function testHospitableBookingUrl() {
+  const result = document.getElementById('hospUrlTestResult');
+  const tpl = (document.getElementById('aPaymentsHospUrl').value || '').trim();
+  if (!tpl) {
+    result.innerHTML = `<span style="color: var(--color-danger);">Paste a URL template first.</span>`;
+    return;
+  }
+  if (!/\{(propertyId|slug)\}/.test(tpl)) {
+    result.innerHTML = `<span style="color: var(--color-danger);">Template needs <code>{propertyId}</code> or <code>{slug}</code>.</span>`;
+    return;
+  }
+  const prop = (NYRIS && NYRIS.properties && NYRIS.properties[0]) || null;
+  if (!prop) {
+    result.innerHTML = `<span style="color: var(--color-danger);">No properties available to test against.</span>`;
+    return;
+  }
+  // Sample dates: 30 days from today, 3 nights.
+  const start = new Date(); start.setDate(start.getDate() + 30);
+  const end = new Date(start); end.setDate(end.getDate() + 3);
+  const url = buildHospitableBookingUrl(tpl, prop, start.toISOString().slice(0,10), end.toISOString().slice(0,10), 2);
+  result.innerHTML = `Opening <code style="background: var(--color-cream-dark); padding: 0.1rem 0.4rem; border-radius: 4px;">${escapeHtml(url)}</code> in a new tab — verify it loads Hospitable's booking page.`;
+  window.open(url, '_blank', 'noopener');
+}
+function buildHospitableBookingUrl(template, property, checkin, checkout, guests) {
+  let url = template
+    .replace(/\{propertyId\}/g, encodeURIComponent(property.id))
+    .replace(/\{slug\}/g, encodeURIComponent(property.slug));
+  const sep = url.includes('?') ? '&' : '?';
+  const params = [];
+  if (checkin) params.push(`checkin=${encodeURIComponent(checkin)}`);
+  if (checkout) params.push(`checkout=${encodeURIComponent(checkout)}`);
+  if (guests) params.push(`guests=${encodeURIComponent(guests)}`);
+  return params.length ? url + sep + params.join('&') : url;
+}
+function updateContactPreview() {
+  document.getElementById('phContactEmail').textContent = document.getElementById('aContactEmail').value || '—';
+  document.getElementById('phContactPhone').textContent = document.getElementById('aContactPhone').value || '—';
+}
+async function saveContact() {
+  const o = await Store.getOverrides();
+  const email = document.getElementById('aContactEmail').value.trim();
+  const phone = document.getElementById('aContactPhone').value.trim();
+  if (!email && !phone) {
+    delete o.contact;
+  } else {
+    o.contact = { email, phone };
+  }
+  await Store.saveOverrides(o);
+  toast("Contact info saved. Reload public pages to see updates.");
+}
+async function resetContact() {
+  const o = await Store.getOverrides();
+  delete o.contact;
+  await Store.saveOverrides(o);
+  initContactTab(o);
+  toast("Contact info reset to defaults.");
+}
+
+// =============================================================================
+// Inbox tab — list /api/contact submissions; per-row actions (read/archive/delete).
+// Status pills show whether each submission was forwarded to Hospitable and
+// whether the host email went out via Resend.
+// =============================================================================
+function initInboxTab() {
+  if (!document.getElementById('inboxList')) return;
+  const showArchived = document.getElementById('inboxShowArchived');
+  if (showArchived && !showArchived._wired) {
+    showArchived.addEventListener('change', loadInbox);
+    showArchived._wired = true;
+  }
+  loadInbox();
+}
+async function loadInbox() {
+  const list = document.getElementById('inboxList');
+  const status = document.getElementById('inboxStatus');
+  const countEl = document.getElementById('inboxCount');
+  if (!list) return;
+  list.innerHTML = '<p style="color: var(--color-stone);">Loading…</p>';
+  if (status) status.textContent = '';
+  const showArchived = document.getElementById('inboxShowArchived')?.checked ? '1' : '0';
+  try {
+    const r = await fetch(`/api/admin/inbox?archived=${showArchived}&limit=200`);
+    const j = await r.json();
+    if (!j.ok) {
+      list.innerHTML = `<p style="color: var(--color-danger);">${escapeHtml(j.error || 'Failed to load.')}</p>`;
+      return;
+    }
+    updateInboxBadge(j.counts?.unread || 0);
+    if (countEl) {
+      const total = j.counts?.total || 0;
+      const unread = j.counts?.unread || 0;
+      countEl.hidden = total === 0;
+      countEl.textContent = unread > 0 ? `${unread} unread · ${total} total` : `${total} total`;
+    }
+    if (!j.submissions.length) {
+      list.innerHTML = `<div style="padding: 3rem 2rem; text-align:center; background: var(--color-cream-dark); border-radius: 14px;">
+        <strong style="display:block; margin-bottom: 0.4rem;">${showArchived === '1' ? 'No archived submissions.' : 'No submissions yet.'}</strong>
+        <p style="color: var(--color-stone); margin: 0;">Messages from your <a href="/contact.html" target="_blank" rel="noopener">contact page</a> will appear here.</p>
+      </div>`;
+      return;
+    }
+    list.innerHTML = j.submissions.map(renderInboxRow).join('');
+  } catch (e) {
+    list.innerHTML = `<p style="color: var(--color-danger);">Couldn't load inbox: ${escapeHtml(String(e))}</p>`;
+  }
+}
+function updateInboxBadge(unread) {
+  const badge = document.getElementById('inboxBadge');
+  if (!badge) return;
+  if (unread > 0) {
+    badge.textContent = String(unread);
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+function renderInboxRow(s) {
+  const fullName = [s.firstName, s.lastName].filter(Boolean).join(' ') || '(no name)';
+  const when = formatInboxDate(s.createdAt);
+  const subject = encodeURIComponent(`Re: your inquiry — ${s.topic}`);
+  const replyHref = `mailto:${encodeURIComponent(s.email)}?subject=${subject}`;
+  // SMS consent pill — only meaningful when a phone number was provided.
+  // Shown prominently next to the meta line so the host can decide whether
+  // texting is appropriate before opening the message.
+  let smsPill = '';
+  if (s.phone) {
+    smsPill = s.smsOptIn
+      ? `<span class="inbox-pill is-ok" title="Guest opted in to SMS">✓ SMS OK</span>`
+      : `<span class="inbox-pill is-fail" title="Guest did NOT opt in to SMS">✕ No SMS</span>`;
+  }
+  const hospOk = s.hospitable && s.hospitable.ok;
+  const hospSkipped = s.hospitable && s.hospitable.skipped;
+  const hospReason = s.hospitable?.error || (hospSkipped ? 'skipped' : 'failed');
+  const hospText = hospOk ? 'Forwarded to Hospitable' : `Hospitable: ${hospReason}`;
+  const emailOk = s.emailStatus && s.emailStatus.ok;
+  const emailSkipped = s.emailStatus && s.emailStatus.skipped;
+  const emailReason = s.emailStatus?.error || (emailSkipped ? 'skipped' : 'failed');
+  const emailText = emailOk ? `Email sent to ${s.emailStatus.to || ''}` : `Email: ${emailReason}`;
+  const cls = ['inbox-row'];
+  if (!s.read && !s.archived) cls.push('is-unread');
+  if (s.archived) cls.push('is-archived');
+  return `
+    <div class="${cls.join(' ')}" data-id="${s.id}">
+      <div>
+        <div class="inbox-from">${escapeHtml(fullName)} <span style="color: var(--color-stone); font-weight: 400;">&lt;${escapeHtml(s.email)}&gt;</span></div>
+        <div class="inbox-meta" style="display:flex; align-items:center; gap: 0.5rem; flex-wrap:wrap;">
+          <span><strong>${escapeHtml(s.topic || 'general')}</strong> · ${escapeHtml(when)}${s.phone ? ` · ${escapeHtml(s.phone)}` : ''}</span>
+          ${smsPill}
+        </div>
+      </div>
+      <div class="inbox-actions">
+        <a class="btn btn-outline btn-sm" href="${replyHref}">Reply</a>
+        ${s.read
+          ? `<button class="btn btn-ghost btn-sm" onclick="inboxAction(${s.id}, 'mark-unread')">Mark unread</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="inboxAction(${s.id}, 'mark-read')">Mark read</button>`}
+        ${s.archived
+          ? `<button class="btn btn-ghost btn-sm" onclick="inboxAction(${s.id}, 'unarchive')">Unarchive</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="inboxAction(${s.id}, 'archive')">Archive</button>`}
+        <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="inboxAction(${s.id}, 'delete')">Delete</button>
+      </div>
+      <div class="inbox-msg">${escapeHtml(s.message)}</div>
+      <div class="inbox-status">
+        <span class="inbox-pill ${hospOk ? 'is-ok' : (hospSkipped ? '' : 'is-fail')}">${hospOk ? '✓' : (hospSkipped ? '⊘' : '✕')} ${escapeHtml(hospText)}</span>
+        <span class="inbox-pill ${emailOk ? 'is-ok' : (emailSkipped ? '' : 'is-fail')}">${emailOk ? '✓' : (emailSkipped ? '⊘' : '✕')} ${escapeHtml(emailText)}</span>
+      </div>
+    </div>`;
+}
+function formatInboxDate(iso) {
+  if (!iso) return '';
+  // Turso CURRENT_TIMESTAMP returns "YYYY-MM-DD HH:MM:SS" in UTC; coerce.
+  const d = new Date(iso.replace(' ', 'T') + 'Z');
+  if (isNaN(d.getTime())) return iso;
+  const now = new Date();
+  const diffMs = now - d;
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 24 * 60) return `${Math.round(diffMin / 60)} h ago`;
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+async function inboxAction(id, action) {
+  if (action === 'delete' && !confirm("Delete this submission? It can't be recovered.")) return;
+  try {
+    const r = await fetch('/api/admin/inbox', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action })
+    });
+    const j = await r.json();
+    if (!j.ok) { toast(j.error || 'Action failed'); return; }
+    if (action === 'delete') toast('Submission deleted.');
+    loadInbox();
+  } catch (e) {
+    toast('Action failed: ' + e.message);
+  }
+}
+
+// =============================================================================
+// Bookings tab — direct booking requests from /book.html. Same UX patterns
+// as the Inbox tab (mark read/unread, archive, delete) plus status changes
+// (pending → confirmed | declined | cancelled) and a "Reply" mailto.
+// =============================================================================
+function initBookingsTab() {
+  if (!document.getElementById('bookingsList')) return;
+  const showArchived = document.getElementById('bookingsShowArchived');
+  if (showArchived && !showArchived._wired) {
+    showArchived.addEventListener('change', loadBookings);
+    showArchived._wired = true;
+  }
+  loadBookings();
+}
+async function loadBookings() {
+  const list = document.getElementById('bookingsList');
+  const status = document.getElementById('bookingsStatus');
+  const countEl = document.getElementById('bookingsCount');
+  if (!list) return;
+  list.innerHTML = '<p style="color: var(--color-stone);">Loading…</p>';
+  if (status) status.textContent = '';
+  const showArchived = document.getElementById('bookingsShowArchived')?.checked ? '1' : '0';
+  try {
+    const r = await fetch(`/api/admin/bookings?archived=${showArchived}&limit=200`);
+    const j = await r.json();
+    if (!j.ok) {
+      list.innerHTML = `<p style="color: var(--color-danger);">${escapeHtml(j.error || 'Failed to load.')}</p>`;
+      return;
+    }
+    updateBookingsBadge(j.counts?.pending || 0);
+    if (countEl) {
+      const total = j.counts?.total || 0;
+      const pending = j.counts?.pending || 0;
+      countEl.hidden = total === 0;
+      countEl.textContent = pending > 0 ? `${pending} pending · ${total} total` : `${total} total`;
+    }
+    if (!j.bookings.length) {
+      list.innerHTML = `<div style="padding: 3rem 2rem; text-align:center; background: var(--color-cream-dark); border-radius: 14px;">
+        <strong style="display:block; margin-bottom: 0.4rem;">${showArchived === '1' ? 'No archived booking requests.' : 'No booking requests yet.'}</strong>
+        <p style="color: var(--color-stone); margin: 0;">Direct booking requests from your property pages will appear here.</p>
+      </div>`;
+      return;
+    }
+    list.innerHTML = j.bookings.map(renderBookingRow).join('');
+  } catch (e) {
+    list.innerHTML = `<p style="color: var(--color-danger);">Couldn't load bookings: ${escapeHtml(String(e))}</p>`;
+  }
+}
+function updateBookingsBadge(pending) {
+  const badge = document.getElementById('bookingsBadge');
+  if (!badge) return;
+  if (pending > 0) {
+    badge.textContent = String(pending);
+    badge.hidden = false;
+  } else {
+    badge.hidden = true;
+  }
+}
+function renderBookingRow(b) {
+  const fullName = [b.firstName, b.lastName].filter(Boolean).join(' ') || '(no name)';
+  const when = formatInboxDate(b.createdAt);
+  const subject = encodeURIComponent(`Re: your booking request — ${b.propertyName || 'Nyris Retreats'}`);
+  const replyHref = `mailto:${encodeURIComponent(b.email)}?subject=${subject}`;
+  const propertyHref = b.propertySlug ? `/property.html?slug=${encodeURIComponent(b.propertySlug)}` : '#';
+
+  // SMS pill (only when phone present)
+  let smsPill = '';
+  if (b.phone) {
+    smsPill = b.smsOptIn
+      ? `<span class="inbox-pill is-ok" title="Guest opted in to SMS">✓ SMS OK</span>`
+      : `<span class="inbox-pill is-fail" title="Guest did NOT opt in to SMS">✕ No SMS</span>`;
+  }
+
+  // Status pill
+  const status = b.status || 'pending';
+  const statusPill = `<span class="booking-status-pill s-${status}">${status === 'pending' ? '⏳' : status === 'confirmed' ? '✓' : '✕'} ${escapeHtml(status)}</span>`;
+
+  // Channel status pills (Hospitable quote, host email, Hospitable forward)
+  const hospOk = b.hospitable && b.hospitable.ok;
+  const hospSkipped = b.hospitable && b.hospitable.skipped;
+  const hospReason = b.hospitable?.error || (hospSkipped ? 'skipped' : 'failed');
+  const hospText = hospOk ? `Quote ${b.hospitableQuoteId ? '#' + b.hospitableQuoteId : 'created'}` : `Hospitable quote: ${hospReason}`;
+  const emailOk = b.emailStatus && b.emailStatus.ok;
+  const emailSkipped = b.emailStatus && b.emailStatus.skipped;
+  const emailReason = b.emailStatus?.error || (emailSkipped ? 'skipped' : 'failed');
+  const emailText = emailOk ? `Email sent to ${b.emailStatus.to || ''}` : `Email: ${emailReason}`;
+  const fwdOk = b.forwardStatus && b.forwardStatus.ok;
+  const fwdSkipped = b.forwardStatus && b.forwardStatus.skipped;
+  const fwdReason = b.forwardStatus?.error || (fwdSkipped ? 'skipped' : 'failed');
+  const fwdText = fwdOk ? 'Forwarded to Hospitable Inbox' : `Hospitable Inbox: ${fwdReason}`;
+
+  // Pricing display
+  const priceLine = b.quotedTotal != null
+    ? `<strong>$${Number(b.quotedTotal).toLocaleString()} ${escapeHtml(b.quotedCurrency || 'USD')}</strong> ${hospOk ? '<span style="font-size: 0.75rem; color: var(--color-success);">· live Hospitable quote</span>' : '<span style="font-size: 0.75rem; color: var(--color-stone);">· estimated</span>'}`
+    : '<span style="color: var(--color-stone);">No quote captured</span>';
+
+  // Trip details mini-table
+  const cls = ['inbox-row'];
+  if (!b.read && !b.archived) cls.push('is-unread');
+  if (b.archived) cls.push('is-archived');
+
+  return `
+    <div class="${cls.join(' ')}" data-id="${b.id}">
+      <div>
+        <div class="inbox-from"><a href="${propertyHref}" target="_blank" rel="noopener" style="color: var(--color-charcoal);">${escapeHtml(b.propertyName || b.propertySlug || 'Property')}</a></div>
+        <div class="inbox-meta" style="display:flex; align-items:center; gap: 0.5rem; flex-wrap:wrap;">
+          <span><strong>${escapeHtml(fullName)}</strong> &lt;${escapeHtml(b.email)}&gt; · ${escapeHtml(when)}${b.phone ? ` · ${escapeHtml(b.phone)}` : ''}</span>
+          ${smsPill}
+          ${statusPill}
+        </div>
+      </div>
+      <div class="inbox-actions">
+        <a class="btn btn-outline btn-sm" href="${replyHref}">Reply</a>
+        ${b.status !== 'confirmed' ? `<button class="btn btn-primary btn-sm" onclick="bookingAction(${b.id}, 'set-status', 'confirmed')">Mark confirmed</button>` : ''}
+        ${b.status !== 'declined' && b.status !== 'cancelled' ? `<button class="btn btn-ghost btn-sm" onclick="bookingAction(${b.id}, 'set-status', 'declined')">Decline</button>` : ''}
+        ${b.read
+          ? `<button class="btn btn-ghost btn-sm" onclick="bookingAction(${b.id}, 'mark-unread')">Mark unread</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="bookingAction(${b.id}, 'mark-read')">Mark read</button>`}
+        ${b.archived
+          ? `<button class="btn btn-ghost btn-sm" onclick="bookingAction(${b.id}, 'unarchive')">Unarchive</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="bookingAction(${b.id}, 'archive')">Archive</button>`}
+        <button class="btn btn-ghost btn-sm" style="color: var(--color-danger);" onclick="bookingAction(${b.id}, 'delete')">Delete</button>
+      </div>
+      <table class="booking-trip-table">
+        <tr><td>Check-in</td><td><strong>${escapeHtml(b.checkin || '')}</strong></td></tr>
+        <tr><td>Check-out</td><td><strong>${escapeHtml(b.checkout || '')}</strong> · ${b.nights} night${b.nights === 1 ? '' : 's'}</td></tr>
+        <tr><td>Guests</td><td>${b.guests}</td></tr>
+        <tr><td>Total</td><td>${priceLine}</td></tr>
+        ${b.promoCode ? `<tr><td>Promo code</td><td><code style="background: var(--color-cream-dark); padding: 0.1rem 0.4rem; border-radius: 4px;">${escapeHtml(b.promoCode)}</code></td></tr>` : ''}
+      </table>
+      ${b.message ? `<div class="inbox-msg">${escapeHtml(b.message)}</div>` : ''}
+      <div class="inbox-status">
+        <span class="inbox-pill ${hospOk ? 'is-ok' : (hospSkipped ? '' : 'is-fail')}">${hospOk ? '✓' : (hospSkipped ? '⊘' : '✕')} ${escapeHtml(hospText)}</span>
+        <span class="inbox-pill ${emailOk ? 'is-ok' : (emailSkipped ? '' : 'is-fail')}">${emailOk ? '✓' : (emailSkipped ? '⊘' : '✕')} ${escapeHtml(emailText)}</span>
+        <span class="inbox-pill ${fwdOk ? 'is-ok' : (fwdSkipped ? '' : 'is-fail')}">${fwdOk ? '✓' : (fwdSkipped ? '⊘' : '✕')} ${escapeHtml(fwdText)}</span>
+      </div>
+    </div>`;
+}
+async function bookingAction(id, action, value) {
+  if (action === 'delete' && !confirm("Delete this booking request? It can't be recovered.")) return;
+  if (action === 'set-status' && value === 'declined' && !confirm("Decline this booking request? The guest won't be auto-notified — reply to them by email if needed.")) return;
+  try {
+    const r = await fetch('/api/admin/bookings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action, value })
+    });
+    const j = await r.json();
+    if (!j.ok) { toast(j.error || 'Action failed'); return; }
+    if (action === 'delete') toast('Booking request deleted.');
+    if (action === 'set-status') toast(`Marked ${value}.`);
+    loadBookings();
+  } catch (e) {
+    toast('Action failed: ' + e.message);
+  }
+}
+
+// =============================================================================
 // Branding tab
 // =============================================================================
 function initBrandingTab() {
   const t = Theme.get();
+
+  // Template selector — populated once, value reflects what's saved
+  const tplSel = document.getElementById('bTemplate');
+  const tplDesc = document.getElementById('bTemplateDesc');
+  tplSel.innerHTML = Object.entries(Theme.TEMPLATES)
+    .map(([k, v]) => `<option value="${k}">${v.name}</option>`).join('');
+  tplSel.value = Theme.TEMPLATES[t.templateId] ? t.templateId : 'default';
+  tplDesc.textContent = Theme.TEMPLATES[tplSel.value].description;
 
   // Brand identity
   document.getElementById('bBrandName').value = t.brandName;
@@ -671,10 +1482,22 @@ function applyPreset(key) {
   });
   updateBrandPreview();
 }
+// Switching template = full replace of the saved theme bundle (colors, fonts,
+// data-template hook). Brand name / tagline / logo are preserved by
+// Theme.applyTemplate. Re-init the tab so every form field reflects the new
+// state — otherwise the user sees stale color pickers / font selects.
+function applyTemplate(key) {
+  if (!Theme.TEMPLATES[key]) return;
+  Theme.applyTemplate(key);
+  initBrandingTab();
+  toast(`Applied template: ${Theme.TEMPLATES[key].name}`);
+}
 function gatherBranding() {
   const mode = document.getElementById('logoModeUrl').classList.contains('btn-primary') ? 'url'
     : document.getElementById('logoModeSvg').classList.contains('btn-primary') ? 'svg' : 'default';
+  const tplSel = document.getElementById('bTemplate');
   return {
+    templateId: (tplSel && tplSel.value) || 'default',
     brandName: document.getElementById('bBrandName').value.trim(),
     brandTagline: document.getElementById('bBrandTagline').value.trim(),
     logoUrl: mode === 'url' ? document.getElementById('bLogoUrl').value.trim() : '',
@@ -755,8 +1578,22 @@ let _currentPhotoProperty = null;
 function initPhotosTab() {
   const sel = document.getElementById('photoPropSelect');
   sel.innerHTML = NYRIS.properties.map(p => `<option value="${p.id}">${escapeHtml(p.name)} — ${p.city}, ${p.state}</option>`).join('');
-  sel.addEventListener('change', () => loadPropertyPhotos(sel.value));
+  // Restore last-selected property (slug → id translation) before binding
+  // change so the existing handler isn't fired twice on init.
+  const ctxSlug = PropertyContext.get();
+  const ctxProp = PropertyContext.bySlug(ctxSlug);
+  if (ctxProp) sel.value = ctxProp.id;
+  sel.addEventListener('change', () => {
+    const prop = PropertyContext.byId(sel.value);
+    if (prop) PropertyContext.set(prop.slug);
+    loadPropertyPhotos(sel.value);
+    renderPhotoCrossLinks(prop?.slug);
+  });
   loadPropertyPhotos(sel.value);
+  // Seed cross-tab links + sync context to whatever's selected on first load.
+  const initialProp = PropertyContext.byId(sel.value);
+  if (initialProp && !ctxSlug) PropertyContext.set(initialProp.slug);
+  renderPhotoCrossLinks(initialProp?.slug);
 }
 
 async function loadPropertyPhotos(propertyId) {
@@ -1233,14 +2070,59 @@ async function syncPropertyPhotos() {
   try {
     const r = await fetch(`/api/hospitable/property?uuid=${_currentPhotoProperty}`);
     const j = await r.json();
-    if (j.ok && j.images) {
-      status.textContent = `✓ ${j.images.length} photos pulled · ${new Date(j.fetchedAt).toLocaleTimeString()}`;
-      toast(`Pulled ${j.images.length} photos from Hospitable`);
-      loadPropertyPhotos(_currentPhotoProperty);
-    } else {
+    if (!j.ok || !j.images) {
       status.textContent = `⚠ ${j.error || 'sync failed'}`;
       if (j.mock) toast("Add HOSPITABLE_API_KEY to Vercel env vars to enable live sync");
+      return;
     }
+
+    // Merge fetched Hospitable photos with whatever the user has already
+    // customized (reordering, custom uploads, captions, hidden, cover).
+    // - Photos the user has saved (any source) keep their position + flags.
+    // - New Hospitable photos that aren't already in the saved list get
+    //   appended in the order Hospitable returned them.
+    // - Hospitable photos that are no longer in the API response are kept
+    //   (could be temporary), unless they were hidden and have no other
+    //   reason to keep them — we leave them alone for safety.
+    const fetched = j.images.map(i => ({
+      url: i.url,
+      caption: i.caption || "",
+      isCover: false,
+      isHidden: false,
+      source: "hospitable"
+    }));
+
+    const remote = await RemoteStore.getPhotos(_currentPhotoProperty);
+    const existing = (remote && remote.length) ? remote : [];
+    const existingByUrl = new Map(existing.map(p => [p.url, p]));
+    // Existing photos in user-defined order, but with caption refreshed
+    // from Hospitable when applicable.
+    const merged = existing.map(p => {
+      const f = fetched.find(x => x.url === p.url);
+      return f ? { ...p, caption: p.caption || f.caption } : p;
+    });
+    // Append any newly-discovered Hospitable photos
+    let added = 0;
+    for (const f of fetched) {
+      if (!existingByUrl.has(f.url)) {
+        merged.push(f);
+        added++;
+      }
+    }
+
+    // If there are still no override rows at all (first-time sync), also
+    // make sure the very first Hospitable photo is flagged as cover so
+    // the board has a sensible default.
+    if (existing.length === 0 && merged.length > 0 && !merged.some(p => p.isCover)) {
+      merged[0].isCover = true;
+    }
+
+    await RemoteStore.savePhotos(_currentPhotoProperty, merged);
+
+    const total = merged.filter(p => !p.isHidden).length;
+    status.textContent = `✓ ${j.images.length} from Hospitable · ${added} new · ${total} total · ${new Date(j.fetchedAt).toLocaleTimeString()}`;
+    toast(`Pulled ${j.images.length} from Hospitable (${added} new)`);
+    loadPropertyPhotos(_currentPhotoProperty);
   } catch (e) {
     status.textContent = `⚠ ${e.message}`;
   }
@@ -1254,7 +2136,7 @@ function initPropertiesTab(o) {
   wrap.innerHTML = NYRIS.properties.map(p => {
     const ov = (o.props && o.props[p.slug]) || {};
     return `
-      <div style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem;">
+      <div data-prop-card="${escapeAttr(p.slug)}" style="background: white; border: 1px solid var(--color-line); border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem;">
         <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 1.25rem;">
           <img src="${p.images[0]}" alt="" style="width: 80px; height: 60px; object-fit: cover; border-radius: 8px;"/>
           <div>
@@ -1270,9 +2152,34 @@ function initPropertiesTab(o) {
           <div><label class="form-label">Starting price ($/night)</label><input class="form-control" type="number" min="0" data-prop-slug="${p.slug}" data-prop-field="basePrice" placeholder="${p.basePrice}" value="${ov.basePrice || ''}"/></div>
           <div><label class="form-label">Cleaning fee ($)</label><input class="form-control" type="number" min="0" data-prop-slug="${p.slug}" data-prop-field="cleaningFee" placeholder="${p.cleaningFee != null ? p.cleaningFee : 165}" value="${ov.cleaningFee != null ? ov.cleaningFee : ''}"/></div>
         </div>
+        <details style="margin-top: 1rem;">
+          <summary style="cursor: pointer; font-size: 0.92rem; color: var(--color-stone); user-select: none;">Channel listing URLs (override Hospitable)</summary>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.65rem 0 0.85rem; line-height: 1.5;">By default, the property page pulls these from Hospitable's connected channels. Fill any of these to override Hospitable's URL for that channel. Leave blank to use Hospitable's value (or hide the link if Hospitable has none).</p>
+          <div style="display:grid; gap: 0.65rem;">
+            <div><label class="form-label">Airbnb URL</label><input class="form-control" type="url" data-prop-slug="${p.slug}" data-prop-field="airbnbUrl" placeholder="https://www.airbnb.com/rooms/12345678" value="${escapeAttr(ov.airbnbUrl || '')}" style="font-family: ui-monospace, monospace; font-size: 0.85rem;"/></div>
+            <div><label class="form-label">Vrbo URL</label><input class="form-control" type="url" data-prop-slug="${p.slug}" data-prop-field="vrboUrl" placeholder="https://www.vrbo.com/1234567" value="${escapeAttr(ov.vrboUrl || '')}" style="font-family: ui-monospace, monospace; font-size: 0.85rem;"/></div>
+            <div><label class="form-label">Booking.com URL</label><input class="form-control" type="url" data-prop-slug="${p.slug}" data-prop-field="bookingUrl" placeholder="https://www.booking.com/hotel/..." value="${escapeAttr(ov.bookingUrl || '')}" style="font-family: ui-monospace, monospace; font-size: 0.85rem;"/></div>
+          </div>
+        </details>
+        <details style="margin-top: 0.5rem;">
+          <summary style="cursor: pointer; font-size: 0.92rem; color: var(--color-stone); user-select: none;">Hospitable booking widget snippet (this property)</summary>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.65rem 0 0.85rem; line-height: 1.5;">Paste the widget code Hospitable gave you for <strong>this specific property</strong>. Get it at Hospitable → <em>Direct Bookings → Website tab</em> → click <em>Create a site</em> → choose <em>I already have a site</em> → check this property → three-dot menu → <em>Copy widget code</em>. When set + provider above is "Hospitable Direct widget", this replaces the default Reserve widget on this property's page only.</p>
+          <textarea class="form-control" data-prop-slug="${p.slug}" data-prop-field="hospitableEmbed" rows="5" placeholder="Paste this property's unique Hospitable widget snippet — script + div tags" style="font-family: ui-monospace, monospace; font-size: 0.8rem; resize: vertical;">${escapeHtml(ov.hospitableEmbed || '')}</textarea>
+        </details>
       </div>`;
   }).join('');
-  document.querySelectorAll('[data-prop-slug]').forEach(input => input.addEventListener('change', savePropOverride));
+  // Bind change (fires on blur for inputs/textareas) AND a debounced input
+  // (fires on every keystroke / paste). Without `input`, a paste-and-refresh
+  // sequence loses the snippet because `change` only fires on blur. The
+  // debouncer prevents writing to Turso on every keystroke.
+  document.querySelectorAll('[data-prop-slug]').forEach(el => {
+    el.addEventListener('change', savePropOverride);
+    let debounceTimer;
+    el.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => savePropOverride(e), 600);
+    });
+  });
 }
 async function savePropOverride(e) {
   const o = await Store.getOverrides();
@@ -2222,5 +3129,15 @@ document.addEventListener('DOMContentLoaded', () => {
     : `${Theme.logoMark(t)}<span data-brand-name>${t.brandName}</span>`;
 
   bindTabs();
-  if (isLoggedIn()) showDashboard();
+  bindTabSections();
+  PropertyContext.subscribe(renderCurrentPropertyChips);
+  // Initial chip render after dashboard renders. showDashboard() builds the
+  // tabs; we notify once after it returns so chips reflect any restored slug.
+  if (isLoggedIn()) {
+    showDashboard().then(() => {
+      renderCurrentPropertyChips(PropertyContext.get());
+      const slug = PropertyContext.get();
+      if (slug) renderPhotoCrossLinks(slug);
+    }).catch(() => {});
+  }
 });

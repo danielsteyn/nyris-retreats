@@ -1,24 +1,30 @@
 // Catch-all router for all /api/admin/* routes.
 // Consolidating to one Serverless Function to stay within Vercel Hobby's 12-function limit.
 
+import bookings from "./_bookings.js";
 import cronStatus from "./_cron-status.js";
 import discounts from "./_discounts.js";
+import inbox from "./_inbox.js";
 import overrides from "./_overrides.js";
 import photos from "./_photos.js";
 import secrets from "./_secrets.js";
 import syncLog from "./_sync-log.js";
+import testEmail from "./_test-email.js";
 import upload from "./_upload.js";
 import setupActivate from "./setup/_activate.js";
 import setupTursoTest from "./setup/_turso-test.js";
 import setupVercel from "./setup/_vercel.js";
 
 const ROUTES = {
+  "bookings": bookings,
   "cron-status": cronStatus,
   "discounts": discounts,
+  "inbox": inbox,
   "overrides": overrides,
   "photos": photos,
   "secrets": secrets,
   "sync-log": syncLog,
+  "test-email": testEmail,
   "upload": upload,
   "setup/activate": setupActivate,
   "setup/turso-test": setupTursoTest,

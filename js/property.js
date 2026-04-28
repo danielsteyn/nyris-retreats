@@ -4,6 +4,19 @@
 // Property page wires the calendar to this property below.
 
 (async function() {
+  // Wait for the server-side overrides fetch kicked off by app.js so the
+  // detail page renders with the latest admin-edited host/property/dest data
+  // even on devices that haven't visited admin themselves.
+  if (window.__overridesReady) await window.__overridesReady;
+  // Apply admin overrides BEFORE finding p — without this, per-property
+  // overrides (hospitableEmbed, name, basePrice, etc.) are not attached to
+  // the property object yet. app.js calls applyOverrides on DOMContentLoaded,
+  // but this IIFE awaits __overridesReady first and so wakes BEFORE the DCL
+  // handler runs (microtask FIFO ordering on the same promise). Other pages
+  // call applyOverrides at the top for exactly this reason.
+  if (typeof applyOverrides === 'function' && typeof NYRIS !== 'undefined') {
+    NYRIS.properties = applyOverrides(NYRIS.properties);
+  }
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('slug');
   const p = NYRIS.properties.find(x => x.slug === slug);
@@ -44,7 +57,7 @@
       <div style="display:flex; align-items:center; flex-wrap:wrap; gap: 0.85rem; font-size: 0.92rem; color: var(--color-charcoal);">
         <span style="display:inline-flex; align-items:center; gap:0.3rem;">${ICON.star} <strong>${p.rating.toFixed(1)}</strong></span>
         <span style="color: var(--color-stone);">·</span>
-        <span style="text-decoration: underline;">${p.reviewCount} review${p.reviewCount===1?'':'s'}</span>
+        <a href="/reviews.html?slug=${encodeURIComponent(p.slug)}" style="color: var(--color-charcoal); text-decoration: underline; font-weight: 500;">${p.reviewCount} review${p.reviewCount===1?'':'s'}</a>
         <span style="color: var(--color-stone);">·</span>
         <span>${p.city}, ${p.state}</span>
         ${p.isGuestFavorite ? `<span style="color: var(--color-stone);">·</span><span class="badge badge-favorite">${ICON.badge.replace('<svg','<svg width="11" height="11"')} Guest Favorite</span>` : ''}
@@ -60,7 +73,7 @@
       ${p.images.slice(0, 5).map((src, i) => `
         <div data-idx="${i}"><img src="${src}" alt="${escapeHtml(p.name)} photo ${i+1}" loading="${i<2?'eager':'lazy'}"/></div>
       `).join('')}
-      <button class="show-all" onclick="Lightbox.open(window.__propImages, 0)">Show all ${p.images.length} photos</button>
+      <button class="show-all" id="showAllPhotos" onclick="PhotoGrid.open(window.__propImages)"${p.images.length < 2 ? ' hidden' : ''}>Show all ${p.images.length} photos</button>
     </div>
 
     <!-- Body grid -->
@@ -158,8 +171,9 @@
 
         <!-- Reviews -->
         <div style="padding: 2rem 0;" id="reviewsSection">
-          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
             <h2 style="font-size: 1.4rem; margin: 0; display:inline-flex; align-items: center; gap: 0.5rem;">${ICON.star.replace('width="14" height="14"','width="22" height="22"')} ${p.rating.toFixed(1)} · ${p.reviewCount} review${p.reviewCount===1?'':'s'}</h2>
+            ${p.reviewCount > 0 ? `<a href="/reviews.html?slug=${encodeURIComponent(p.slug)}" style="margin-left:auto; font-size: 0.92rem; color: var(--color-primary); text-decoration: underline;">See all reviews →</a>` : ''}
           </div>
 
           ${p.reviewCount > 0 ? `
@@ -189,6 +203,9 @@
                 <p class="review-text">"${escapeHtml(r.text)}"</p>
               </div>
             `).join('')}
+          </div>
+          <div style="margin-top: 1.5rem; text-align: center;">
+            <a href="/reviews.html?slug=${encodeURIComponent(p.slug)}" class="btn btn-outline">Show all ${p.reviewCount} review${p.reviewCount===1?'':'s'}</a>
           </div>` : `
           <div style="text-align:center; padding: 2rem; background: var(--color-cream-dark); border-radius: 16px;">
             <strong style="font-size: 1.1rem;">A brand new listing — and the next 5-star streak waiting to happen.</strong>
@@ -200,7 +217,14 @@
 
       <!-- Right: booking widget -->
       <aside>
-        <div class="booking-widget">
+        <!-- Inline Hospitable Direct widget (admin-configurable). Renders
+             above the existing Reserve form so guests have both options. -->
+        <div id="hospInlineWidget" hidden style="margin-bottom: 1.25rem; max-width: 100%; overflow: hidden; isolation: isolate; contain: layout;"></div>
+        <!-- Default Reserve widget — hidden by default. applyBookingSurface
+             unhides it ONLY when admin → Bookings & Payments → provider is
+             "stripe". For Hospitable mode the embed above is the only surface,
+             so the Reserve form never flashes briefly while the embed loads. -->
+        <div class="booking-widget" hidden>
           <div class="price-row">
             <span class="price-from-label">from</span>
             <span class="price" id="bkHeadlinePrice">$${p.basePrice}</span>
@@ -245,6 +269,10 @@
           </ul>
         </div>
 
+        <!-- Channel listings (Airbnb, Vrbo, etc.) — populated after render
+             from /api/hospitable/listings if Hospitable has them on file. -->
+        <div id="channelLinks" hidden style="margin-top: 1.25rem;"></div>
+
         <!-- Compare button -->
         <button class="btn btn-outline" id="compareBtn" style="width: 100%; margin-top: 1rem;" onclick="toggleCompare('${p.id}')">+ Add to compare</button>
 
@@ -271,6 +299,20 @@
     d.onclick = () => Lightbox.open(p.images, i);
   });
 
+  // Decide which booking surface to show based on the admin's provider
+  // selection (admin → Integrations → Bookings & Payments):
+  //   provider="stripe"        → default Reserve widget + calendar
+  //   provider="hospitable" + embed configured → Hospitable embed REPLACES
+  //                              the Reserve widget inline
+  //   provider="hospitable" without embed → default Reserve widget, but its
+  //                              Reserve button opens the Hospitable URL
+  //                              (handled in bookSubmit further down).
+  applyBookingSurface(p);
+
+  // Pull connected-channel URLs (Airbnb, Vrbo, etc.) from Hospitable in the
+  // background. The slot stays hidden if Hospitable doesn't have any.
+  loadChannelLinks(p);
+
   // Defined after the gallery is rendered so it can swap images in place
   // when admin overrides arrive late (slow /api/photos on first visit).
   window.applyOverridesToGallery = function(newImages) {
@@ -278,9 +320,30 @@
     const wrappers = document.querySelectorAll('.detail-gallery > div');
     wrappers.forEach((d, i) => {
       const img = d.querySelector('img');
-      if (img && newImages[i] && img.src !== newImages[i]) img.src = newImages[i];
-      d.onclick = () => Lightbox.open(newImages, i);
+      if (i < newImages.length) {
+        if (img && img.src !== newImages[i]) img.src = newImages[i];
+        d.hidden = false;
+        d.onclick = () => Lightbox.open(newImages, i);
+      } else {
+        // Override has fewer photos than the static fallback we initially
+        // rendered — hide the orphan thumbnail wrappers so the layout
+        // doesn't show stale images that aren't in the lightbox anymore.
+        d.hidden = true;
+        d.onclick = null;
+      }
     });
+    // Keep the "Show all N photos" button label in sync with the actual
+    // count from the override. Without this, the count stays stuck at the
+    // static-data value forever after admin add/remove.
+    const showAll = document.getElementById('showAllPhotos');
+    if (showAll) {
+      if (newImages.length < 2) {
+        showAll.hidden = true;
+      } else {
+        showAll.hidden = false;
+        showAll.textContent = `Show all ${newImages.length} photos`;
+      }
+    }
   };
 
   // Mobile CTA
@@ -450,8 +513,194 @@ function bookSubmit(e, slug) {
   const g = document.getElementById('bkGuests').value;
   if (!ci || !co) { toast("Please pick check-in and checkout dates"); return; }
   if (new Date(co) <= new Date(ci)) { toast("Checkout must be after check-in"); return; }
-  // Demo: redirect to a "booking" confirmation flow
+
+  // Route based on the admin's chosen booking provider (admin → Integrations
+  // → Bookings & Payments). Default 'stripe' = our custom /book.html flow.
+  const o = (typeof Overrides !== 'undefined') ? Overrides.get() : {};
+  const pay = (o && o.payments) || {};
+  const provider = pay.provider || 'stripe';
+
+  if (provider === 'hospitable' && pay.hospitableBookingUrlTemplate) {
+    const property = NYRIS.properties.find(p => p.slug === slug);
+    if (property) {
+      const url = buildHospitableBookingUrl(pay.hospitableBookingUrlTemplate, property, ci, co, g);
+      const newTab = pay.hospitableBookingNewTab !== false; // default ON
+      if (newTab) window.open(url, '_blank', 'noopener');
+      else window.location.href = url;
+      return;
+    }
+    // Property lookup failed — fall through to /book.html as a safety net.
+  }
+
+  // Default / fallback: custom checkout page.
   window.location.href = `/book.html?slug=${slug}&checkin=${ci}&checkout=${co}&guests=${g}`;
+}
+
+// Builds a Hospitable Direct booking URL by substituting {propertyId} or
+// {slug} into the admin-configured template, then appending check-in,
+// check-out, and guests as query params. Mirrored in admin.js.
+function buildHospitableBookingUrl(template, property, checkin, checkout, guests) {
+  let url = template
+    .replace(/\{propertyId\}/g, encodeURIComponent(property.id))
+    .replace(/\{slug\}/g, encodeURIComponent(property.slug));
+  const sep = url.includes('?') ? '&' : '?';
+  const params = [];
+  if (checkin) params.push(`checkin=${encodeURIComponent(checkin)}`);
+  if (checkout) params.push(`checkout=${encodeURIComponent(checkout)}`);
+  if (guests) params.push(`guests=${encodeURIComponent(guests)}`);
+  return params.length ? url + sep + params.join('&') : url;
+}
+
+// Fetches the property's channel listings (Airbnb, Vrbo, …) from Hospitable
+// and renders simple "View on …" buttons. The container stays hidden when
+// no channels are returned (Hospitable account isn't connected, property
+// isn't synced, etc.) — silent failure is the right behavior for an optional
+// secondary booking surface.
+async function loadChannelLinks(property) {
+  const slot = document.getElementById('channelLinks');
+  if (!slot) return;
+
+  // Build the link map from two sources, in priority order:
+  //   1. Admin-edited overrides on the property (channelUrlOverrides) — wins
+  //   2. Hospitable's /api/hospitable/listings response — fills the rest
+  // Render as soon as we have at least one link, even if Hospitable hasn't
+  // resolved yet, so admin-set links show without a network round-trip.
+  const overrides = property.channelUrlOverrides || {};
+
+  const renderIfAny = (links) => {
+    const order = ['airbnb', 'vrbo', 'booking'];
+    const labels = { airbnb: 'View on Airbnb', vrbo: 'View on Vrbo', booking: 'View on Booking.com' };
+    const visible = order.filter(k => typeof links[k] === 'string' && links[k]);
+    if (!visible.length) { slot.hidden = true; slot.innerHTML = ''; return; }
+    slot.innerHTML = `
+      <div style="padding: 1.1rem 1.25rem; background: white; border: 1px solid var(--color-line); border-radius: 14px;">
+        <strong style="display:block; font-size: 0.92rem; margin-bottom: 0.65rem; color: var(--color-charcoal);">Also listed on</strong>
+        <div style="display:flex; flex-direction: column; gap: 0.5rem;">
+          ${visible.map(k => `<a href="${escapeHtml(links[k])}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center;">${labels[k]} →</a>`).join('')}
+        </div>
+      </div>`;
+    slot.hidden = false;
+  };
+
+  // First paint with admin overrides only (instant — no fetch needed).
+  renderIfAny({ ...overrides });
+
+  // Then fetch Hospitable to fill in any unset channels.
+  if (!property.id) return;
+  try {
+    const r = await fetch(`/api/hospitable/listings?uuid=${encodeURIComponent(property.id)}`);
+    const j = await r.json();
+    const fromHospitable = (j && j.links) || {};
+    // Admin overrides win — only add Hospitable URLs for channels admin
+    // hasn't explicitly set.
+    const merged = { ...fromHospitable, ...overrides };
+    renderIfAny(merged);
+  } catch {
+    // Silent — admin-only links remain visible from the first paint.
+  }
+}
+
+// Combines the site-wide and per-property snippets into one HTML string.
+// Per-property wins when the same container id appears in both (admin pasted
+// a full snippet into both fields). Scripts are deduped by src so the loader
+// only runs once.
+function mergeHospitableEmbeds(siteWide, perProperty) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = [siteWide, perProperty].filter(Boolean).join('\n');
+
+  const seenSrc = new Set();
+  tmp.querySelectorAll('script[src]').forEach(s => {
+    const src = s.getAttribute('src');
+    if (seenSrc.has(src)) s.remove();
+    else seenSrc.add(src);
+  });
+
+  // Walk in reverse so the per-property container (which appears later in
+  // source order) wins when the same id is present in both fields.
+  const seenId = new Set();
+  const ided = Array.from(tmp.querySelectorAll('[id]'));
+  for (let i = ided.length - 1; i >= 0; i--) {
+    const id = ided[i].getAttribute('id');
+    if (seenId.has(id)) ided[i].remove();
+    else seenId.add(id);
+  }
+
+  return tmp.innerHTML;
+}
+
+// Decides what the right column shows based on the admin's selected provider.
+// Stripe → show the default Reserve widget. Anything else (Hospitable) → keep
+// the Reserve widget hidden and mount the embed in its place. The Reserve
+// widget starts hidden in the template so it never flashes during render.
+function applyBookingSurface(property) {
+  const mount = document.getElementById('hospInlineWidget');
+  const reserveWidget = document.querySelector('.booking-widget');
+  const o = (typeof Overrides !== 'undefined') ? Overrides.get() : {};
+  const pay = (o && o.payments) || {};
+  const provider = pay.provider || 'stripe';
+
+  if (provider === 'stripe') {
+    if (mount) { mount.hidden = true; mount.innerHTML = ''; mount.style.minHeight = ''; }
+    if (reserveWidget) reserveWidget.hidden = false;
+    return;
+  }
+
+  // Hospitable mode — Reserve widget stays hidden. Concatenate site-wide and
+  // per-property snippets, deduping <script src> tags and duplicate container
+  // ids (per-property wins on conflict — admins commonly paste the full
+  // snippet into both fields).
+  if (reserveWidget) reserveWidget.hidden = true;
+  if (!mount) return;
+
+  const perPropertyEmbed = (property.hospitableEmbed || '').trim();
+  const siteWideEmbed = (pay.hospitableWidgetEmbed || '').trim();
+  if (!perPropertyEmbed && !siteWideEmbed) {
+    mount.hidden = true; mount.innerHTML = ''; mount.style.minHeight = '';
+    return;
+  }
+
+  mount.style.minHeight = '900px';
+
+  try {
+    const html = mergeHospitableEmbeds(siteWideEmbed, perPropertyEmbed)
+      .replace(/\{propertyId\}/g, property.id)
+      .replace(/\{slug\}/g, property.slug);
+    mount.innerHTML = html;
+    mount.hidden = false;
+
+    mount.querySelectorAll('script').forEach(oldScript => {
+      const newScript = document.createElement('script');
+      for (const a of oldScript.attributes) newScript.setAttribute(a.name, a.value);
+      if (oldScript.textContent) newScript.text = oldScript.textContent;
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+  } catch (e) {
+    console.warn('[booking] Hospitable embed failed to mount:', e);
+    mount.hidden = true; mount.innerHTML = ''; mount.style.minHeight = '';
+  }
+
+  // Hospitable's widget posts a height to the parent window so the host can
+  // resize the iframe to fit the content. Listen for any of the common
+  // shapes (Hospitable's snippets vary slightly across plan tiers) and
+  // adjust mount min-height + the iframe height accordingly.
+  if (!window.__hospResizeWired) {
+    window.__hospResizeWired = true;
+    window.addEventListener('message', (ev) => {
+      const d = ev && ev.data;
+      if (!d || typeof d !== 'object') return;
+      const fromHospitable = (typeof ev.origin === 'string' && /hospitable/i.test(ev.origin)) ||
+                             (typeof d.source === 'string' && /hospitable/i.test(d.source));
+      if (!fromHospitable) return;
+      // Common payload field names: height | newHeight | iframeHeight
+      const h = Number(d.height || d.newHeight || d.iframeHeight || 0);
+      if (!h || h < 200) return;
+      const m = document.getElementById('hospInlineWidget');
+      if (!m) return;
+      m.style.minHeight = h + 'px';
+      const iframe = m.querySelector('iframe');
+      if (iframe) iframe.style.height = h + 'px';
+    });
+  }
 }
 
 function shareProperty() {

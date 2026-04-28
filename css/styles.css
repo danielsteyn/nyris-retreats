@@ -111,26 +111,20 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .brand-mark:hover { color: var(--color-primary-dark); }
 
 /* When the admin uploads a custom logo (image or inline SVG), the logo
-   replaces both the default icon and the brand name text. We give it
-   more vertical room since wordmarks need it. */
-.brand-mark-custom {
-  gap: 0;
-}
+   replaces both the default icon and the brand name text. It's pinned to
+   the same total bounding box (~32px tall × ~240px wide) that the
+   default icon-plus-wordmark currently occupies, so swapping in a logo
+   doesn't expand the header or footer or shift surrounding nav. */
+.brand-mark-custom { gap: 0; }
 .brand-mark-img,
 .brand-mark-svg svg {
   display: block;
-  height: auto;
-  max-height: 40px;
+  height: 32px;
   width: auto;
-  max-width: 220px;
+  max-width: 240px;
   object-fit: contain;
 }
 .brand-mark-svg { display: inline-flex; align-items: center; }
-.site-footer .brand-mark-img,
-.site-footer .brand-mark-svg svg {
-  max-height: 44px;
-  max-width: 240px;
-}
 .nav-links {
   display: flex; align-items: center; gap: 1.75rem;
   font-size: 0.92rem; font-weight: 500; color: var(--color-charcoal);
@@ -270,6 +264,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   overflow: hidden; background: var(--color-sand);
   box-shadow: var(--shadow-sm);
 }
+/* Anchor wrapping the cover image so the entire photo (including any
+   watermark/badge baked into the image itself) navigates to the property
+   page. Decorative overlays sit above this via z-index; the interactive
+   controls (arrows, wishlist) keep stopPropagation in their click handlers
+   so they don't bubble to this link. */
+.prop-card-media-link {
+  display: block; width: 100%; height: 100%;
+  color: inherit; text-decoration: none;
+}
 .prop-card-img {
   width: 100%; height: 100%; object-fit: cover;
   transition: transform 0.6s var(--ease-out);
@@ -277,6 +280,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .prop-card-badges {
   position: absolute; top: 14px; left: 14px;
   display: flex; flex-direction: column; gap: 6px; z-index: 2;
+  pointer-events: none;
 }
 .badge {
   display: inline-flex; align-items: center; gap: 0.35rem;
@@ -302,6 +306,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .prop-card-dots {
   position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 5px; z-index: 2;
+  pointer-events: none;
 }
 .prop-card-dots span {
   width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.6);
@@ -409,6 +414,51 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .detail-gallery .show-all:hover { background: var(--color-cream); }
 
+/* === Photo grid (full-screen scrollable grid) === */
+.photo-grid-overlay {
+  position: fixed; inset: 0; z-index: 190;
+  background: var(--color-cream);
+  display: none; flex-direction: column;
+  overscroll-behavior: contain;
+}
+.photo-grid-overlay.open { display: flex; animation: fadeIn 0.2s; }
+.photo-grid-header {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--color-cream);
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid var(--color-line);
+}
+.photo-grid-close {
+  width: 40px; height: 40px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; color: var(--color-charcoal);
+  transition: background 0.15s; cursor: pointer;
+}
+.photo-grid-close:hover { background: rgba(0,0,0,0.06); }
+.photo-grid-title { font-size: 0.95rem; font-weight: 500; color: var(--color-charcoal); }
+.photo-grid-body {
+  flex: 1; overflow-y: auto; padding: 1.25rem;
+}
+.photo-grid {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 1280px; margin: 0 auto;
+}
+@media (min-width: 560px) { .photo-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .photo-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1200px) { .photo-grid { grid-template-columns: repeat(5, 1fr); } }
+.photo-grid-tile {
+  position: relative; padding: 0; border: 0;
+  background: var(--color-sand);
+  border-radius: 12px; overflow: hidden; cursor: pointer;
+  aspect-ratio: 4 / 3;
+  transition: opacity 0.15s;
+}
+.photo-grid-tile:hover { opacity: 0.92; }
+.photo-grid-tile:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.photo-grid-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 /* === Lightbox === */
 .lightbox {
   position: fixed; inset: 0; z-index: 200; background: rgba(20,25,22,0.95);
@@ -476,20 +526,46 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-form .date-trigger:hover { background: rgba(31,61,43,0.04); }
 .booking-form .date-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
+/* Hospitable Direct embed — force the rendered iframe to fill its wrapper
+   so the booking card lines up with the sibling perks/channel cards in the
+   right column. Without this, Hospitable's snippet lays the iframe out
+   narrower than the column and the booking card looks inset against the
+   Direct-booking perks below. */
+#hospInlineWidget,
+#hospInlineWidget > * { width: 100%; }
+#hospInlineWidget iframe { display: block; width: 100% !important; max-width: 100%; border: 0; }
+
 /* Always-on-top floating calendar — JS sets exact top/left via fixed-positioning
    anchored to the trigger button. z-index sits above the sticky header (50)
    and below the lightbox (200). */
+.bkcal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 9998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.bkcal-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
 .booking-calendar {
   position: fixed;
-  z-index: 100;
+  z-index: 9999;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: white;
   border: 1px solid var(--color-line);
   border-radius: 16px;
   box-shadow: var(--shadow-xl);
   padding: 1.25rem;
   width: min(680px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   color: var(--color-charcoal);
-  /* Default top/left set inline by JS when opened. */
 }
 .bkcal-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -839,4 +915,69 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .props-grid { grid-template-columns: 1fr; }
   .newsletter { padding: 2.5rem 1.25rem; }
   .newsletter form { flex-direction: column; }
+}
+
+/* === Theme template: "modern" (Airbnb-style) ===
+   Selected from admin → Branding & theme → Theme template. Color and font
+   choices come from the theme's CSS variables; this block handles the
+   structural changes that variables can't (sans-serif headings, tighter
+   radii, flatter buttons, white surfaces). */
+[data-template="modern"] h1,
+[data-template="modern"] h2,
+[data-template="modern"] h3,
+[data-template="modern"] h4,
+[data-template="modern"] h5,
+[data-template="modern"] .font-display {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.022em;
+}
+[data-template="modern"] .brand-mark {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.012em;
+}
+[data-template="modern"] .btn {
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+[data-template="modern"] .btn-primary,
+[data-template="modern"] .btn-accent { color: white; }
+[data-template="modern"] .btn-outline {
+  border-color: var(--color-charcoal);
+  color: var(--color-charcoal);
+}
+[data-template="modern"] .btn-outline:hover {
+  background: var(--color-charcoal);
+  color: white;
+}
+[data-template="modern"] .booking-widget,
+[data-template="modern"] .review-card,
+[data-template="modern"] .prop-card,
+[data-template="modern"] .book-card,
+[data-template="modern"] .amenity-item,
+[data-template="modern"] .form-control,
+[data-template="modern"] .field {
+  border-radius: 12px;
+}
+[data-template="modern"] .badge { border-radius: 8px; font-weight: 600; }
+[data-template="modern"] .detail-gallery,
+[data-template="modern"] .photo-grid-tile { border-radius: 14px; }
+
+/* Surfaces: airy white page, faintly cream cards (matches the booking-card
+   look in the modern reference). The booking widget on the property page
+   gets the cream tint so it reads as a distinct card against white. */
+[data-template="modern"] .site-header { background: rgba(255, 255, 255, 0.92); }
+[data-template="modern"] .site-header.scrolled { background: rgba(255, 255, 255, 0.98); }
+[data-template="modern"] .booking-widget {
+  background: var(--color-sand);
+  border: 1px solid var(--color-line);
+}
+
+/* The login screen + brand preview shouldn't show the serif wordmark when
+   the modern template is active — keep them sans like the rest of the site. */
+[data-template="modern"] .brand-mark span,
+[data-template="modern"] [data-brand-name] {
+  font-family: var(--font-body) !important;
 }

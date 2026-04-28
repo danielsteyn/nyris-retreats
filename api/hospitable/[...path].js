@@ -2,13 +2,19 @@
 
 import availability from "./_availability.js";
 import calendar from "./_calendar.js";
+import listings from "./_listings.js";
 import property from "./_property.js";
+import quote from "./_quote.js";
+import reviews from "./_reviews.js";
 import sync from "./_sync.js";
 
 const ROUTES = {
   "availability": availability,
   "calendar": calendar,
+  "listings": listings,
   "property": property,
+  "quote": quote,
+  "reviews": reviews,
   "sync": sync
 };
 

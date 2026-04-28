@@ -6,13 +6,14 @@
 // Known keys (used by the integration API routes):
 //   - hospitable_api_key      → Hospitable Public API token
 //   - pricelabs_api_key       → PriceLabs API key
+//   - resend_api_key          → Resend transactional email API key
 //
 // IMPORTANT: this route does NOT return raw key values to the client.
 // The admin UI only sees masked status (e.g. "•••• abcd").
 
 import { getDb, ensureSchema, listSecretMeta, setSecret, deleteSecret } from "../../lib/db.js";
 
-const KNOWN = ["hospitable_api_key", "pricelabs_api_key"];
+const KNOWN = ["hospitable_api_key", "pricelabs_api_key", "resend_api_key"];
 
 export default async function handler(req, res) {
   if (!getDb()) {

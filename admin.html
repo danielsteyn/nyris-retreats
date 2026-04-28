@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=23"/>
-<script src="/js/theme.js?v=23"></script>
+<link rel="stylesheet" href="/css/styles.css?v=67"/>
+<script src="/js/theme.js?v=67"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -46,7 +46,6 @@
         <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 0;">Welcome back, Sheena.</h1>
       </div>
       <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-ghost btn-sm" onclick="resetAll()">Reset all settings</button>
         <button class="btn btn-outline btn-sm" onclick="adminLogout()">Sign out</button>
       </div>
     </div>
@@ -59,18 +58,31 @@
       <div class="stat-card"><div class="lbl">Guest favorites</div><div class="num" id="stFavs">—</div><div class="sub">Top 1% homes</div></div>
     </div>
 
-    <!-- Tabs -->
-    <div style="border-bottom: 1px solid var(--color-line); margin-bottom: 2rem; display:flex; gap: 0.25rem; overflow-x: auto;">
-      <button class="tab-btn active" data-tab="hero">Homepage</button>
-      <button class="tab-btn" data-tab="branding">Branding & theme</button>
-      <button class="tab-btn" data-tab="photos">Photos</button>
-      <button class="tab-btn" data-tab="properties">Property details</button>
-      <button class="tab-btn" data-tab="destinations">Destinations</button>
-      <button class="tab-btn" data-tab="experiences">Experiences</button>
-      <button class="tab-btn" data-tab="order">Featured order</button>
-      <button class="tab-btn" data-tab="discounts">Promo codes</button>
-      <button class="tab-btn" data-tab="hospitable">Hospitable API</button>
-      <button class="tab-btn" data-tab="pricelabs">PriceLabs</button>
+    <!-- Tabs (grouped into sections) -->
+    <div class="tab-bar" id="tabBar" data-active-section="content">
+      <div class="tab-section-bar" role="tablist" aria-label="Tab sections">
+        <button class="tab-section-btn active" type="button" data-section="content">Site content</button>
+        <button class="tab-section-btn" type="button" data-section="catalog">Catalog</button>
+        <button class="tab-section-btn" type="button" data-section="integrations">Integrations</button>
+      </div>
+      <div class="tab-row">
+        <button class="tab-btn active" data-tab="hero" data-section="content">Homepage</button>
+        <button class="tab-btn" data-tab="host" data-section="content">Meet your host</button>
+        <button class="tab-btn" data-tab="experiencesPage" data-section="content">Experiences page</button>
+        <button class="tab-btn" data-tab="contact" data-section="content">Contact info</button>
+        <button class="tab-btn" data-tab="branding" data-section="content">Branding & theme</button>
+        <button class="tab-btn" data-tab="order" data-section="content">Featured order</button>
+        <button class="tab-btn" data-tab="destinations" data-section="content">Destinations</button>
+        <button class="tab-btn" data-tab="photos" data-section="catalog">Photos</button>
+        <button class="tab-btn" data-tab="properties" data-section="catalog">Property details</button>
+        <button class="tab-btn" data-tab="experiences" data-section="catalog">Experiences</button>
+        <button class="tab-btn" data-tab="discounts" data-section="catalog">Promo codes</button>
+        <button class="tab-btn" data-tab="bookings" data-section="catalog">Bookings <span class="inbox-badge" id="bookingsBadge" hidden>0</span></button>
+        <button class="tab-btn" data-tab="inbox" data-section="catalog">Inbox <span class="inbox-badge" id="inboxBadge" hidden>0</span></button>
+        <button class="tab-btn" data-tab="bookings-payments" data-section="integrations">Bookings &amp; Payments</button>
+        <button class="tab-btn" data-tab="hospitable" data-section="integrations">Hospitable API</button>
+        <button class="tab-btn" data-tab="pricelabs" data-section="integrations">PriceLabs</button>
+      </div>
     </div>
 
     <!-- Hero tab -->
@@ -108,10 +120,176 @@
       </div>
     </div>
 
+    <!-- Meet your host tab -->
+    <div class="tab-panel" id="tab-host" style="display:none;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="two-col">
+        <div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Meet your host</h2>
+          <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Edit the host introduction block on the homepage. Body fields accept simple HTML such as <code>&lt;em&gt;</code> for italics.</p>
+
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Eyebrow text</label><input class="form-control" id="aMHEyebrow"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Headline</label><input class="form-control" id="aMHTitle"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Body paragraph 1</label><textarea class="form-control" id="aMHBody1" rows="5" style="resize: vertical;"></textarea></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Body paragraph 2</label><textarea class="form-control" id="aMHBody2" rows="3" style="resize: vertical;"></textarea></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div><label class="form-label">Button label</label><input class="form-control" id="aMHBtnText"/></div>
+            <div><label class="form-label">Button link</label><input class="form-control" id="aMHBtnLink"/></div>
+          </div>
+          <div style="margin-bottom: 1.5rem;">
+            <label class="form-label">Host image</label>
+            <div style="display:flex; gap: 0.5rem;">
+              <input class="form-control" id="aMHImage" placeholder="Paste a URL or click Upload"/>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openHostUpload()">Upload</button>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Portrait orientation works best (4:5). At least 800×1000.</p>
+          </div>
+          <div style="display:flex; gap: 0.75rem;">
+            <button class="btn btn-primary" onclick="saveHost()">Save changes</button>
+            <button class="btn btn-ghost" onclick="resetHost()">Reset</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Live preview</label>
+          <div id="hostPreview" style="background: var(--color-primary); color: var(--color-cream); border-radius: 18px; padding: 1.5rem; position: sticky; top: 90px;">
+            <div style="display:grid; grid-template-columns: 1fr 1.4fr; gap: 1.25rem; align-items:center;">
+              <div style="border-radius: 12px; overflow:hidden; aspect-ratio: 4/5; background:#222;">
+                <img id="phHostImage" alt="Host" style="width:100%; height:100%; object-fit:cover; display:block;"/>
+              </div>
+              <div>
+                <span id="phHostEyebrow" style="font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-accent);"></span>
+                <h2 id="phHostTitle" style="font-size: clamp(1rem, 2vw, 1.4rem); margin: 0.4rem 0 0.6rem; color: var(--color-cream); line-height: 1.15;"></h2>
+                <p id="phHostBody1" style="font-size: 0.78rem; line-height: 1.55; opacity: 0.9; margin: 0 0 0.6rem;"></p>
+                <p id="phHostBody2" style="font-size: 0.78rem; line-height: 1.55; opacity: 0.9; margin: 0 0 0.9rem;"></p>
+                <a id="phHostBtn" class="btn btn-accent btn-sm" href="#" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;"></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Experiences page tab -->
+    <div class="tab-panel" id="tab-experiencesPage" style="display:none;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="two-col">
+        <div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Experiences page</h2>
+          <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Edit the top intro and the bottom call-to-action on the public Experiences page. The middle region-by-region section is auto-built from your <strong>Destinations</strong> and per-property <strong>Experiences</strong> tabs. Subtitle fields accept simple HTML such as <code>&lt;em&gt;</code>.</p>
+
+          <h3 style="font-size: 1rem; margin: 1.25rem 0 1rem;">Top intro</h3>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Eyebrow text</label><input class="form-control" id="aEPEyebrow"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Headline</label><input class="form-control" id="aEPTitle"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Subtitle</label><textarea class="form-control" id="aEPSub" rows="3" style="resize: vertical;"></textarea></div>
+
+          <h3 style="font-size: 1rem; margin: 2rem 0 1rem;">Bottom call-to-action</h3>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Headline</label><input class="form-control" id="aEPCtaTitle"/></div>
+          <div style="margin-bottom: 1.25rem;"><label class="form-label">Subtitle</label><textarea class="form-control" id="aEPCtaSub" rows="3" style="resize: vertical;"></textarea></div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div><label class="form-label">Button label</label><input class="form-control" id="aEPCtaText"/></div>
+            <div><label class="form-label">Button link</label><input class="form-control" id="aEPCtaLink"/></div>
+          </div>
+
+          <div style="display:flex; gap: 0.75rem;">
+            <button class="btn btn-primary" onclick="saveExpPage()">Save changes</button>
+            <button class="btn btn-ghost" onclick="resetExpPage()">Reset</button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Live preview</label>
+          <div id="expPagePreview" style="border: 1px solid var(--color-line); border-radius: 18px; overflow: hidden; position: sticky; top: 90px; background: white;">
+            <div style="background: var(--color-cream-dark); padding: 1.75rem 1.25rem; text-align:center;">
+              <span id="phEPEyebrow" style="display:inline-block; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-stone); margin-bottom: 0.5rem;"></span>
+              <h2 id="phEPTitle" style="font-size: clamp(1.1rem, 2vw, 1.5rem); margin: 0 0 0.5rem; line-height: 1.15;"></h2>
+              <p id="phEPSub" style="font-size: 0.78rem; color: var(--color-stone); margin: 0; line-height: 1.5;"></p>
+            </div>
+            <div style="padding: 1.5rem 1.25rem; text-align: center; color: var(--color-stone); font-style: italic; font-size: 0.78rem; border-bottom: 1px solid var(--color-line); border-top: 1px solid var(--color-line);">…region-by-region content from Destinations + per-property Experiences…</div>
+            <div style="background: var(--color-sand); padding: 1.5rem 1.25rem; text-align:center; border-radius: 12px; margin: 1rem;">
+              <h2 id="phEPCtaTitle" style="font-size: clamp(1rem, 1.7vw, 1.3rem); margin: 0 0 0.5rem;"></h2>
+              <p id="phEPCtaSub" style="font-size: 0.78rem; color: var(--color-stone); margin: 0 0 0.85rem; line-height: 1.5;"></p>
+              <a id="phEPCtaBtn" href="#" class="btn btn-primary" style="font-size: 0.78rem; padding: 0.4rem 0.9rem;"></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact info tab -->
+    <div class="tab-panel" id="tab-contact" style="display:none;">
+      <div style="max-width: 640px;">
+        <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Contact info</h2>
+        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Update the email address and phone number used across the public site — the footer on every page and the Direct contact card on <a href="/contact.html" target="_blank" rel="noopener">/contact.html</a>. Leave blank to fall back to defaults from <code>data.js</code>.</p>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label class="form-label">Public email address</label>
+          <input class="form-control" id="aContactEmail" type="email" placeholder="stay@nyrisretreats.com"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Shown on every page footer and on the contact page.</p>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label class="form-label">Public phone number</label>
+          <input class="form-control" id="aContactPhone" type="tel" placeholder="+1 (817) 555-0142"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Free-form — formatting is preserved (e.g., parentheses, dashes).</p>
+        </div>
+
+        <div style="background: var(--color-cream-dark); padding: 1.25rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+          <strong style="display:block; margin-bottom: 0.5rem; font-size: 0.92rem;">Live preview</strong>
+          <div style="line-height: 1.7;">
+            <span id="phContactEmail" style="font-size: 0.95rem;"></span><br/>
+            <span id="phContactPhone" style="font-size: 0.95rem;"></span>
+          </div>
+        </div>
+
+        <div style="display:flex; gap: 0.75rem;">
+          <button class="btn btn-primary" onclick="saveContact()">Save changes</button>
+          <button class="btn btn-ghost" onclick="resetContact()">Reset</button>
+        </div>
+
+        <hr style="margin: 2.5rem 0; border: 0; border-top: 1px solid var(--color-line);"/>
+
+        <h3 style="font-size: 1.1rem; margin: 0 0 0.4rem;">Email notifications</h3>
+        <p style="color: var(--color-stone); margin: 0 0 1.25rem;">When the contact form is submitted, the message is saved in your <strong>Inbox</strong> and emailed to the address below. Email delivery uses <a href="https://resend.com" target="_blank" rel="noopener">Resend</a>.</p>
+
+        <div style="margin-bottom: 1.25rem;">
+          <label class="form-label">Resend API key</label>
+          <div style="display:flex; gap: 0.5rem; align-items: center;">
+            <input class="form-control" id="aResendKey" type="password" placeholder="re_..." autocomplete="off"/>
+            <button class="btn btn-outline btn-sm" type="button" onclick="saveResendKey()">Save key</button>
+          </div>
+          <p id="aResendKeyMeta" style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Get a free key at resend.com. Stored encrypted in Turso.</p>
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label class="form-label">Notification recipient (where alerts go)</label>
+          <input class="form-control" id="aNotifyTo" type="email" placeholder="Same as Public email above"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Leave blank to send to the Public email address above.</p>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label class="form-label">Sender ("From" address)</label>
+          <input class="form-control" id="aNotifyFrom" placeholder="Nyris Retreats <onboarding@resend.dev>"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Defaults to Resend's sandbox sender (works without domain verification). Once you verify a domain in Resend, switch to e.g. <code>Nyris Retreats &lt;hello@yourdomain.com&gt;</code>.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label class="form-label">Hospitable forwarding address <span style="font-weight: 400; color: var(--color-stone);">(optional)</span></label>
+          <input class="form-control" id="aNotifyHospitable" type="email" placeholder="inbox+xxxxxxxx@hospitable.com"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Find this in Hospitable → Inbox → <em>Email forwarding</em>. When set, every contact form submission is also emailed here so it lands in your Hospitable Inbox alongside Airbnb/Vrbo messages. The guest's email goes in <code>Reply-To</code> so replies from Hospitable land back in their inbox. Leave blank to skip.</p>
+        </div>
+
+        <div style="display:flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="saveNotifications()">Save notifications</button>
+          <button class="btn btn-outline" onclick="sendTestEmail('host')" type="button">Send test → host</button>
+          <button class="btn btn-outline" onclick="sendTestEmail('hospitable')" type="button">Send test → Hospitable</button>
+        </div>
+        <div id="testEmailResult" style="margin-top: 1rem;"></div>
+      </div>
+    </div>
+
     <!-- Branding tab -->
     <div class="tab-panel" id="tab-branding" style="display:none;">
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 3rem;" class="two-col">
         <div>
+          <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">Theme template</h2>
+          <p style="color: var(--color-stone); margin: 0 0 0.75rem; font-size: 0.92rem;">Pick a starting look. Switching templates replaces the colors, fonts, and structural styling below — your brand name, tagline, and logo stay put.</p>
+          <select class="form-control" id="bTemplate" onchange="applyTemplate(this.value)" style="margin-bottom: 0.5rem;"></select>
+          <p id="bTemplateDesc" style="color: var(--color-stone); font-size: 0.85rem; margin: 0 0 2.25rem; min-height: 1em;"></p>
+
           <h2 style="font-size: 1.4rem; margin: 0 0 1.5rem;">Brand identity</h2>
 
           <div style="margin-bottom: 1.25rem;"><label class="form-label">Brand name</label><input class="form-control" id="bBrandName"/></div>
@@ -171,20 +349,27 @@
 
     <!-- Photos tab -->
     <div class="tab-panel" id="tab-photos" style="display:none;">
-      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Photo management</h2>
-      <p style="color: var(--color-stone); margin: 0 0 1rem;">Choose a property to manage its photos. Drag to reorder, click to mark as cover, remove unwanted ones, or add custom URLs.</p>
-      <div style="display:flex; align-items: center; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap;">
+      <div class="tab-h2-row">
+        <h2 style="font-size: 1.4rem; margin: 0;">Photo management</h2>
+        <span class="current-property-chip" data-tab-chip="photos" hidden></span>
+      </div>
+      <p style="color: var(--color-stone); margin: 0.4rem 0 1rem;">Choose a property to manage its photos. Drag to reorder, click to mark as cover, remove unwanted ones, or add custom URLs.</p>
+      <div style="display:flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
         <select class="form-control" id="photoPropSelect" style="max-width: 320px;"></select>
         <button class="btn btn-outline btn-sm" onclick="syncPropertyPhotos()">Refresh from Hospitable</button>
         <span id="photoSyncStatus" style="color: var(--color-stone); font-size: 0.85rem;"></span>
       </div>
+      <div id="photoCrossLinks" class="cross-tab-links"></div>
       <div id="photoBoard"></div>
     </div>
 
     <!-- Property details tab -->
     <div class="tab-panel" id="tab-properties" style="display:none;">
-      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Property overrides</h2>
-      <p style="color: var(--color-stone); margin: 0 0 2rem;">Override displayed names, taglines, or starting prices. Leave blank to keep the source-of-truth from Hospitable.</p>
+      <div class="tab-h2-row">
+        <h2 style="font-size: 1.4rem; margin: 0;">Property overrides</h2>
+        <span class="current-property-chip" data-tab-chip="properties" hidden></span>
+      </div>
+      <p style="color: var(--color-stone); margin: 0.4rem 0 2rem;">Override displayed names, taglines, or starting prices. Leave blank to keep the source-of-truth from Hospitable.</p>
       <div id="propOverrides"></div>
     </div>
 
@@ -197,7 +382,10 @@
 
     <!-- Experiences tab -->
     <div class="tab-panel" id="tab-experiences" style="display:none;">
-      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Experiences</h2>
+      <div class="tab-h2-row">
+        <h2 style="font-size: 1.4rem; margin: 0;">Experiences</h2>
+        <span class="current-property-chip" data-tab-chip="experiences" hidden></span>
+      </div>
       <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Curated activities shown on each property's detail page and on the Experiences page. Add, edit, reorder, or remove items per property.</p>
       <div style="display:flex; align-items:center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
         <select class="form-control" id="expPropSelect" style="max-width: 320px;"></select>
@@ -270,6 +458,117 @@
           </div>
           <div id="dcList"><p style="color: var(--color-stone); font-size: 0.9rem; margin: 0;">Loading…</p></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Bookings tab -->
+    <div class="tab-panel" id="tab-bookings" style="display:none;">
+      <div class="tab-h2-row">
+        <h2 style="font-size: 1.4rem; margin: 0;">Bookings</h2>
+        <span class="current-property-chip" id="bookingsCount" hidden></span>
+      </div>
+      <p style="color: var(--color-stone); margin: 0.4rem 0 1rem;">Direct booking requests from your <a href="/property.html" target="_blank" rel="noopener">property pages</a>. Each is saved here, emailed to your notification address, and forwarded to your Hospitable Inbox if a forwarding address is set. <strong>Phase 1:</strong> requests are price-quoted but not yet paid — confirm by sending a payment link from Hospitable. Stripe-powered instant booking is the next phase.</p>
+      <div style="display:flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center;">
+        <label style="display:inline-flex; align-items:center; gap: 0.4rem; font-size: 0.9rem;"><input type="checkbox" id="bookingsShowArchived"/> Show archived</label>
+        <button class="btn btn-ghost btn-sm" onclick="loadBookings()" type="button">Refresh</button>
+        <span id="bookingsStatus" style="color: var(--color-stone); font-size: 0.85rem;"></span>
+      </div>
+      <div id="bookingsList"></div>
+    </div>
+
+    <!-- Inbox tab -->
+    <div class="tab-panel" id="tab-inbox" style="display:none;">
+      <div class="tab-h2-row">
+        <h2 style="font-size: 1.4rem; margin: 0;">Inbox</h2>
+        <span class="current-property-chip" id="inboxCount" hidden></span>
+      </div>
+      <p style="color: var(--color-stone); margin: 0.4rem 0 1rem;">Submissions from your public <a href="/contact.html" target="_blank" rel="noopener">/contact</a> page. Each is saved here, emailed to your notification address, and (if a Hospitable forwarding address is set in Contact info) emailed into your Hospitable Inbox.</p>
+      <div style="display:flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center;">
+        <label style="display:inline-flex; align-items:center; gap: 0.4rem; font-size: 0.9rem;"><input type="checkbox" id="inboxShowArchived"/> Show archived</label>
+        <button class="btn btn-ghost btn-sm" onclick="loadInbox()" type="button">Refresh</button>
+        <span id="inboxStatus" style="color: var(--color-stone); font-size: 0.85rem;"></span>
+      </div>
+      <div id="inboxList"></div>
+    </div>
+
+    <!-- Bookings & Payments tab -->
+    <div class="tab-panel" id="tab-bookings-payments" style="display:none;">
+      <h2 style="font-size: 1.4rem; margin: 0 0 0.5rem;">Bookings &amp; Payments</h2>
+      <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Choose how guests book and pay when they click <strong>Reserve</strong> on a property page. You can switch any time.</p>
+
+      <div class="provider-toggle" id="paymentProviderToggle">
+        <label class="provider-card" data-provider="stripe">
+          <input type="radio" name="paymentProvider" value="stripe"/>
+          <div class="provider-card-body">
+            <strong style="display:block; font-size: 1.05rem; margin-bottom: 0.35rem;">Stripe checkout</strong>
+            <p style="color: var(--color-stone); font-size: 0.92rem; margin: 0; line-height: 1.55;">Custom checkout page with your branding, live Hospitable pricing, and Stripe Elements for card collection. Maximum control over UX. Requires a Stripe publishable key + Hospitable Direct Booking enabled.</p>
+          </div>
+        </label>
+        <label class="provider-card" data-provider="hospitable">
+          <input type="radio" name="paymentProvider" value="hospitable"/>
+          <div class="provider-card-body">
+            <strong style="display:block; font-size: 1.05rem; margin-bottom: 0.35rem;">Hospitable Direct widget</strong>
+            <p style="color: var(--color-stone); font-size: 0.92rem; margin: 0; line-height: 1.55;">Hospitable's hosted booking page handles calendar, quote, payment, and reservation creation end-to-end. Lowest implementation effort. Reserve buttons open the Hospitable URL you configure below.</p>
+          </div>
+        </label>
+      </div>
+
+      <!-- Stripe sub-panel -->
+      <div id="providerPanelStripe" class="provider-panel">
+        <h3 style="font-size: 1.05rem; margin: 1.5rem 0 0.5rem;">Stripe configuration</h3>
+        <p style="color: var(--color-stone); margin: 0 0 1.25rem;">The publishable key is safe to expose in the browser by design — that's how Stripe Elements works. Find it at <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">Stripe Dashboard → Developers → API keys</a>.</p>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label class="form-label">Stripe publishable key</label>
+          <input class="form-control" id="aPaymentsStripePub" type="text" placeholder="pk_live_… or pk_test_…" autocomplete="off" style="font-family: ui-monospace, monospace; font-size: 0.88rem;"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">The matching <em>secret</em> key (<code>sk_…</code>) belongs in Hospitable's Stripe Connect setup, never here.</p>
+        </div>
+      </div>
+
+      <!-- Hospitable widget sub-panel -->
+      <div id="providerPanelHospitable" class="provider-panel">
+        <h3 style="font-size: 1.05rem; margin: 1.5rem 0 0.5rem;">Hospitable Direct widget</h3>
+        <p style="color: var(--color-stone); margin: 0 0 1.25rem;">Paste the URL pattern Hospitable gave you for direct bookings. Use <code>{propertyId}</code> as a placeholder for the per-property ID — we'll substitute it on each Reserve click and append <code>checkin</code>, <code>checkout</code>, and <code>guests</code> as query params.</p>
+
+        <div style="margin-bottom: 1rem;">
+          <label class="form-label">Booking URL template</label>
+          <input class="form-control" id="aPaymentsHospUrl" type="text" placeholder="https://booking.hospitable.com/{propertyId}" autocomplete="off" style="font-family: ui-monospace, monospace; font-size: 0.88rem;"/>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">If your account uses a different scheme (e.g. <code>https://yourbrand.hospitable.com/{slug}</code>), just paste it with the <code>{propertyId}</code> or <code>{slug}</code> placeholder where the per-property piece goes.</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display:flex; align-items:center; gap: 0.5rem; font-size: 0.92rem; cursor: pointer;">
+            <input type="checkbox" id="aPaymentsHospNewTab"/> Open in a new tab
+          </label>
+          <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Keeps your site open in the original tab. If unchecked, the Reserve button replaces the current page with Hospitable's booking page.</p>
+        </div>
+
+        <div style="display:flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button class="btn btn-outline" type="button" onclick="testHospitableBookingUrl()">Test with first property</button>
+        </div>
+        <div id="hospUrlTestResult" style="margin-top: 0.85rem; font-size: 0.88rem;"></div>
+      </div>
+
+      <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--color-line);"/>
+
+      <h3 style="font-size: 1.05rem; margin: 0 0 0.5rem;">Inline Hospitable widget on property pages</h3>
+      <p style="color: var(--color-stone); margin: 0 0 1rem;">When the provider above is set to <strong>Hospitable Direct widget</strong>, the per-property snippet you paste in <strong>Catalog → Property details</strong> replaces the default Reserve widget on that property's page (calendar, dates, payment all inline).</p>
+
+      <div style="background: var(--color-cream-dark); border: 1px solid var(--color-line); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; line-height: 1.55;">
+        <strong style="display:block; margin-bottom: 0.4rem;">Where to get the snippet (Hospitable's flow)</strong>
+        Hospitable issues a <em>unique snippet per property</em> — there's no single template. In Hospitable: <strong>Direct Bookings</strong> tab → <strong>Website</strong> sub-tab → <em>Create a site</em> → choose <em>"I already have a site"</em> → check the property → three-dot menu → <em>Copy widget code</em>. Repeat per property. Paste each one into its own row in <strong>Catalog → Property details → "Hospitable booking widget snippet (this property)"</strong>.
+        <br/><br/>
+        <strong>Prerequisites:</strong> active Hospitable Direct plan, Stripe Connect linked, valid HTTPS site, payout method configured. The widget container reserves <code>320 × 900</code> px minimum (Hospitable's spec); the height auto-adjusts via <code>postMessage</code> resize events once their iframe announces its content height.
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label class="form-label">Site-wide shared snippet <span style="font-weight: 400; color: var(--color-stone);">(optional)</span></label>
+        <textarea class="form-control" id="aPaymentsHospEmbed" rows="5" placeholder="Paste any Hospitable script that's the same on every property page — typically the dynamic-height postMessage listener from their docs. The per-property iframe goes in Property details, not here." style="font-family: ui-monospace, monospace; font-size: 0.82rem; resize: vertical;"></textarea>
+        <p style="font-size: 0.82rem; color: var(--color-stone); margin: 0.4rem 0 0;">Hospitable's embed is two parts: a shared <strong>listener script</strong> (here) and a unique <strong>iframe per property</strong> (in Property details). On each property page we render <em>both</em>, in order — listener first so it catches the iframe's resize <code>postMessage</code> events.</p>
+      </div>
+
+      <div style="display:flex; gap: 0.75rem; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-line);">
+        <button class="btn btn-primary" onclick="savePayments()">Save settings</button>
       </div>
     </div>
 
@@ -367,6 +666,182 @@
 <footer id="site-footer"></footer>
 
 <style>
+/* Grouped tab bar — section pills above the existing tab row */
+.tab-bar {
+  position: relative;
+  margin-bottom: 2rem;
+}
+.tab-section-bar {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0 0 0.75rem;
+}
+.tab-section-btn {
+  padding: 0.4rem 0.95rem; border-radius: 999px;
+  background: transparent; color: var(--color-stone);
+  border: 1px solid var(--color-line);
+  font-size: 0.82rem; font-weight: 600; letter-spacing: 0.02em;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.tab-section-btn:hover { color: var(--color-charcoal); border-color: var(--color-stone); }
+.tab-section-btn.active {
+  background: var(--color-primary); color: var(--color-cream);
+  border-color: var(--color-primary);
+}
+.tab-row {
+  border-bottom: 1px solid var(--color-line);
+  display: flex; gap: 0.25rem; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* Hide tabs not in the active section. */
+.tab-bar[data-active-section="content"] .tab-btn:not([data-section="content"]),
+.tab-bar[data-active-section="catalog"] .tab-btn:not([data-section="catalog"]),
+.tab-bar[data-active-section="integrations"] .tab-btn:not([data-section="integrations"]) {
+  display: none;
+}
+/* Scroll-hint gradient on the right edge for tablets / phones. */
+.tab-bar::after {
+  content: ""; position: absolute; right: 0; bottom: 1px;
+  width: 32px; height: calc(100% - 56px);
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, white);
+}
+@media (min-width: 960px) { .tab-bar::after { display: none; } }
+
+/* H2 row with optional "current property" chip alongside */
+.tab-h2-row {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+  margin: 0 0 0.4rem;
+}
+.current-property-chip {
+  display: inline-flex; align-items: center;
+  background: var(--color-cream-dark); color: var(--color-primary);
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em;
+  border: 1px solid var(--color-sand);
+}
+.current-property-chip[hidden] { display: none; }
+
+/* Cross-tab shortcut links rendered under property selectors */
+.cross-tab-links {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  margin: 0 0 1.25rem;
+  align-items: center;
+}
+.cross-tab-links:empty { display: none; }
+.cross-tab-links-label {
+  color: var(--color-stone); font-size: 0.85rem; margin-right: 0.25rem;
+}
+.cross-tab-link {
+  padding: 0.35rem 0.75rem; border-radius: 999px;
+  background: transparent; color: var(--color-primary);
+  border: 1px solid var(--color-line);
+  font-size: 0.85rem; font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cross-tab-link:hover {
+  background: var(--color-cream-dark); border-color: var(--color-primary);
+}
+
+/* Property details: highlight the card matching the current property */
+[data-prop-card].is-current-property {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 3px rgba(194,132,86,0.15);
+}
+
+/* Tab-pill unread badge (used by Inbox) */
+.inbox-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 0.4rem; min-width: 18px; height: 18px;
+  padding: 0 6px; border-radius: 999px;
+  background: var(--color-danger); color: white;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0;
+}
+.inbox-badge[hidden] { display: none; }
+
+/* Inbox list */
+.inbox-row {
+  background: white; border: 1px solid var(--color-line); border-radius: 12px;
+  padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+  display: grid; grid-template-columns: 1fr auto; gap: 0.75rem 1rem;
+  align-items: start;
+}
+.inbox-row.is-unread { border-left: 3px solid var(--color-accent); }
+.inbox-row.is-archived { opacity: 0.65; }
+.inbox-row .inbox-from { font-weight: 600; font-size: 0.95rem; }
+.inbox-row .inbox-meta { color: var(--color-stone); font-size: 0.85rem; }
+.inbox-row .inbox-meta a { color: var(--color-primary); }
+.inbox-row .inbox-msg {
+  white-space: pre-wrap; line-height: 1.55;
+  font-size: 0.92rem; color: var(--color-charcoal);
+  background: var(--color-cream-dark); border-radius: 8px;
+  padding: 0.75rem 0.95rem;
+  grid-column: 1 / -1;
+  max-height: 240px; overflow-y: auto;
+}
+.inbox-row .inbox-status {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  font-size: 0.75rem; grid-column: 1 / -1;
+}
+.inbox-pill {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.2rem 0.55rem; border-radius: 999px;
+  background: var(--color-cream-dark); color: var(--color-stone);
+  border: 1px solid var(--color-line);
+}
+.inbox-pill.is-ok { background: rgba(44,122,90,0.1); color: var(--color-success); border-color: rgba(44,122,90,0.3); }
+.inbox-pill.is-fail { background: rgba(177,74,63,0.1); color: var(--color-danger); border-color: rgba(177,74,63,0.3); }
+.inbox-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.inbox-actions .btn { font-size: 0.78rem; padding: 0.35rem 0.7rem; }
+
+/* Booking status badges (per-row top-right) */
+.booking-status-pill {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.25rem 0.7rem; border-radius: 999px;
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em;
+  border: 1px solid;
+}
+.booking-status-pill.s-pending { background: var(--color-cream-dark); color: var(--color-stone); border-color: var(--color-line); }
+.booking-status-pill.s-confirmed { background: rgba(44,122,90,0.12); color: var(--color-success); border-color: rgba(44,122,90,0.3); }
+.booking-status-pill.s-declined,
+.booking-status-pill.s-cancelled { background: rgba(177,74,63,0.1); color: var(--color-danger); border-color: rgba(177,74,63,0.3); }
+
+/* Bookings & Payments — provider toggle */
+.provider-toggle {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 720px) { .provider-toggle { grid-template-columns: 1fr; } }
+.provider-card {
+  display: flex; gap: 0.85rem; align-items: flex-start;
+  padding: 1.25rem 1.4rem; border-radius: 14px;
+  border: 2px solid var(--color-line); background: white;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.provider-card:hover { border-color: var(--color-stone); }
+.provider-card input[type="radio"] {
+  margin-top: 0.2rem; flex-shrink: 0;
+  width: 18px; height: 18px; accent-color: var(--color-primary);
+}
+.provider-card.is-active {
+  border-color: var(--color-primary);
+  background: linear-gradient(180deg, var(--color-cream-dark), white);
+  box-shadow: 0 0 0 3px rgba(31,61,43,0.08);
+}
+.provider-panel { display: none; }
+.provider-panel.is-active { display: block; }
+
+.booking-trip-table {
+  width: 100%; border-collapse: collapse; margin: 0.5rem 0 0.85rem;
+  font-size: 0.92rem;
+}
+.booking-trip-table td {
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--color-line);
+}
+.booking-trip-table td:first-child { color: var(--color-stone); width: 110px; }
+.booking-trip-table tr:last-child td { border-bottom: 0; }
+
 .tab-btn {
   padding: 0.85rem 1.25rem; font-weight: 500; font-size: 0.92rem;
   border-bottom: 2px solid transparent; color: var(--color-stone);
@@ -439,6 +914,9 @@
 @media (max-width: 960px) {
   .stats-grid { grid-template-columns: 1fr 1fr !important; }
   .two-col { grid-template-columns: 1fr !important; }
+  /* Sticky live previews (Host / Branding right column) shouldn't stick
+     when stacked under the editor — they push the form off-screen. */
+  #hostPreview, #brandPreview { position: static !important; top: auto !important; }
 }
 
 /* Destinations editor */
@@ -490,8 +968,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=23"></script>
-<script src="/js/app.js?v=23"></script>
-<script src="/js/admin.js?v=23"></script>
+<script src="/js/data.js?v=67"></script>
+<script src="/js/app.js?v=67"></script>
+<script src="/js/admin.js?v=67"></script>
 </body>
 </html>

@@ -1,12 +1,39 @@
 // Home page logic
 
-(function() {
+(async function() {
+  // Wait for the server-side overrides fetch kicked off by app.js so visitors
+  // on devices that haven't seen admin edits before get fresh data, not the
+  // defaults baked into data.js.
+  if (window.__overridesReady) await window.__overridesReady;
+
+  // Apply admin overrides up-front. This IIFE runs before DOMContentLoaded
+  // (where app.js also calls applyOverrides), so without this call the
+  // destination grid + dropdown render with un-overridden NYRIS.destinations.
+  // applyOverrides is idempotent — re-running it on DOMContentLoaded is safe.
+  if (typeof applyOverrides === "function" && typeof NYRIS !== "undefined") {
+    NYRIS.properties = applyOverrides(NYRIS.properties);
+  }
   // Apply admin overrides
   const o = Overrides.get();
   if (o.heroTitle) document.getElementById('heroTitle').textContent = o.heroTitle;
   if (o.heroSubtitle) document.getElementById('heroSubtitle').textContent = o.heroSubtitle;
   if (o.heroEyebrow) document.getElementById('heroEyebrow').textContent = o.heroEyebrow;
   if (o.heroImage) document.getElementById('heroImg').style.backgroundImage = `url('${o.heroImage}')`;
+
+  // Meet-your-host section overrides. Body fields accept simple HTML (e.g. <em>).
+  if (o.host) {
+    const h = o.host;
+    if (h.image) document.getElementById('hostImage')?.setAttribute('src', h.image);
+    if (h.eyebrow) document.getElementById('hostEyebrow').textContent = h.eyebrow;
+    if (h.title) document.getElementById('hostTitle').textContent = h.title;
+    if (h.body1) document.getElementById('hostBody1').innerHTML = h.body1;
+    if (h.body2) document.getElementById('hostBody2').innerHTML = h.body2;
+    const btn = document.getElementById('hostButton');
+    if (btn) {
+      if (h.buttonText) btn.textContent = h.buttonText;
+      if (h.buttonLink) btn.setAttribute('href', h.buttonLink);
+    }
+  }
 
   // Stats
   document.getElementById('statRating').textContent = NYRIS.brand.avgRating.toFixed(1);

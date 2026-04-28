@@ -6,6 +6,7 @@
   const THEME_KEY = "nyris.theme";
 
   const DEFAULTS = {
+    templateId: "default",
     brandName: "Nyris Retreats",
     brandTagline: "Top 1% Guest Favorite stays. Curated by a Superhost.",
     logoUrl: "", // empty -> use default SVG mark
@@ -28,6 +29,44 @@
       danger: "#B14A3F"
     },
     radius: { card: "16px", button: "999px" }
+  };
+
+  // Templates bundle a complete look (colors + fonts + structural CSS hooks
+  // via `data-template`). Picking a template overwrites the saved theme;
+  // tweaks made after picking remain part of the template's saved state.
+  const TEMPLATES = {
+    default: {
+      name: "Default — Cormorant & Cream",
+      description: "Warm cream backgrounds, serif display type, classic editorial feel.",
+      theme: {
+        fontDisplay: "Cormorant Garamond",
+        fontBody: "Inter",
+        colors: {
+          primary: "#1F3D2B", primaryDark: "#15291D", primaryLight: "#2C5639",
+          accent: "#C28456", accentDark: "#A66B40",
+          cream: "#FAF6EE", creamDark: "#F2EBDC", sand: "#E8DDC9",
+          charcoal: "#1A1A1A", stone: "#6B7568",
+          success: "#2C7A5A", danger: "#B14A3F"
+        },
+        radius: { card: "16px", button: "999px" }
+      }
+    },
+    modern: {
+      name: "Modern — Airbnb-style",
+      description: "Sans-serif throughout, coral accents, clean white surfaces, tighter radii.",
+      theme: {
+        fontDisplay: "Inter",
+        fontBody: "Inter",
+        colors: {
+          primary: "#222222", primaryDark: "#000000", primaryLight: "#484848",
+          accent: "#FF7B5C", accentDark: "#E5634A",
+          cream: "#FFFFFF", creamDark: "#F7F7F7", sand: "#FAF5EC",
+          charcoal: "#222222", stone: "#717171",
+          success: "#008A05", danger: "#C13515"
+        },
+        radius: { card: "12px", button: "10px" }
+      }
+    }
   };
 
   const PRESETS = {
@@ -66,7 +105,7 @@
   };
 
   const Theme = {
-    DEFAULTS, PRESETS, FONT_OPTIONS,
+    DEFAULTS, PRESETS, FONT_OPTIONS, TEMPLATES,
     get() {
       try {
         const stored = JSON.parse(localStorage.getItem(THEME_KEY) || "{}");
@@ -81,9 +120,26 @@
       try { localStorage.removeItem(THEME_KEY); } catch {}
       this.apply(DEFAULTS);
     },
+    // Replace the saved theme with a template's bundled colors+fonts+radii,
+    // preserving brand-identity fields (name, tagline, logo) so picking a
+    // template doesn't wipe the customer's wordmark or uploaded logo.
+    applyTemplate(key) {
+      const tpl = TEMPLATES[key] || TEMPLATES.default;
+      const cur = this.get();
+      const next = deepMerge(structuredClone(DEFAULTS), structuredClone(tpl.theme));
+      next.templateId = key;
+      next.brandName = cur.brandName;
+      next.brandTagline = cur.brandTagline;
+      next.logoUrl = cur.logoUrl;
+      next.logoSvg = cur.logoSvg;
+      this.set(next);
+      return next;
+    },
     apply(theme = null) {
       const t = theme || this.get();
       const root = document.documentElement;
+      // Template hook — drives structural CSS overrides ([data-template="…"]).
+      root.dataset.template = t.templateId || "default";
       // Colors
       root.style.setProperty("--color-primary", t.colors.primary);
       root.style.setProperty("--color-primary-dark", t.colors.primaryDark);
