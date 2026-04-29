@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=84"/>
-<script src="/js/theme.js?v=84"></script>
+<link rel="stylesheet" href="/css/styles.css?v=85"/>
+<script src="/js/theme.js?v=85"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -33,54 +33,80 @@
 </section>
 
 <!-- Dashboard -->
-<section class="section" id="dashboard" style="display:none; padding-top: 2rem; padding-bottom: 3rem;">
-  <div class="container">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;">
-      <div>
+<section id="dashboard" class="admin-shell" style="display:none;">
+  <!-- Slim top bar — visible on all viewports. Hamburger only shows below
+       the sidebar breakpoint. Right-side actions: View site, Sign out. -->
+  <header class="admin-header">
+    <button class="admin-hamburger" type="button" onclick="openAdminSidebar()" aria-label="Open admin menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span class="admin-active-tab-label" id="adminActiveTabLabel">Dashboard</span>
+    <div class="admin-header-actions">
+      <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener" title="Open the public site in a new tab">View site ↗</a>
+      <button class="btn btn-outline btn-sm" type="button" onclick="adminLogout()">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Backdrop only renders when the sidebar drawer is open on mobile. -->
+  <div class="admin-sidebar-backdrop" id="adminSidebarBackdrop" onclick="closeAdminSidebar()"></div>
+
+  <aside class="admin-sidebar" id="adminSidebar" aria-label="Admin navigation">
+    <div class="admin-sidebar-brand">
+      <span id="adminBrandMark"></span>
+      <button class="admin-sidebar-close" type="button" onclick="closeAdminSidebar()" aria-label="Close menu">×</button>
+    </div>
+    <nav class="admin-nav">
+      <div class="admin-nav-section">
+        <h4>Pages</h4>
+        <a class="admin-nav-link" data-tab="home" href="#home">Dashboard</a>
+        <a class="admin-nav-link" data-tab="hero" href="#hero">Homepage</a>
+        <a class="admin-nav-link" data-tab="host" href="#host">Meet your host</a>
+        <a class="admin-nav-link" data-tab="whyBook" href="#whyBook">Why book direct</a>
+        <a class="admin-nav-link" data-tab="aboutPage" href="#aboutPage">Our Story</a>
+        <a class="admin-nav-link" data-tab="experiencesPage" href="#experiencesPage">Experiences page</a>
+        <a class="admin-nav-link" data-tab="order" href="#order">Featured order</a>
+        <a class="admin-nav-link" data-tab="destinations" href="#destinations">Destinations</a>
+      </div>
+      <div class="admin-nav-section">
+        <h4>Catalog</h4>
+        <a class="admin-nav-link" data-tab="photos" href="#photos">Photos</a>
+        <a class="admin-nav-link" data-tab="properties" href="#properties">Property details</a>
+        <a class="admin-nav-link" data-tab="experiences" href="#experiences">Experiences</a>
+        <a class="admin-nav-link" data-tab="discounts" href="#discounts">Promo codes</a>
+        <a class="admin-nav-link" data-tab="bookings" href="#bookings">Bookings <span class="inbox-badge" id="bookingsBadge" hidden>0</span></a>
+        <a class="admin-nav-link" data-tab="inbox" href="#inbox">Inbox <span class="inbox-badge" id="inboxBadge" hidden>0</span></a>
+      </div>
+      <div class="admin-nav-section">
+        <h4>Integrations</h4>
+        <a class="admin-nav-link" data-tab="bookings-payments" href="#bookings-payments">Bookings &amp; Payments</a>
+        <a class="admin-nav-link" data-tab="hospitable" href="#hospitable">Hospitable API</a>
+        <a class="admin-nav-link" data-tab="pricelabs" href="#pricelabs">PriceLabs</a>
+      </div>
+      <div class="admin-nav-section">
+        <h4>Settings</h4>
+        <a class="admin-nav-link" data-tab="branding" href="#branding">Branding &amp; theme</a>
+        <a class="admin-nav-link" data-tab="contact" href="#contact">Contact info</a>
+        <a class="admin-nav-link" data-tab="account" href="#account">Admin account</a>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="admin-content">
+    <!-- Dashboard / home tab — was the welcome banner + stats grid that
+         used to sit above the tab bar; now its own panel reachable from
+         the sidebar's first item or via /admin#home. -->
+    <div class="tab-panel" id="tab-home">
+      <div style="margin-bottom: 2rem;">
         <span class="section-eyebrow">Host dashboard</span>
-        <h1 style="font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 0;">Welcome back, Sheena.</h1>
+        <h1 style="font-size: clamp(1.6rem, 2.6vw, 2.2rem); margin: 0.4rem 0 0;">Welcome back, Sheena.</h1>
       </div>
-      <div style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-outline btn-sm" onclick="adminLogout()">Sign out</button>
+      <div class="stats-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+        <div class="stat-card"><div class="lbl">Properties</div><div class="num" id="stProps">—</div><div class="sub">Live on direct site</div></div>
+        <div class="stat-card"><div class="lbl">Avg rating</div><div class="num" id="stRating">—</div><div class="sub">Across portfolio</div></div>
+        <div class="stat-card"><div class="lbl">Reviews</div><div class="num" id="stReviews">—</div><div class="sub">All five-star</div></div>
+        <div class="stat-card"><div class="lbl">Guest favorites</div><div class="num" id="stFavs">—</div><div class="sub">Top 1% homes</div></div>
       </div>
-    </div>
-
-    <!-- Stats -->
-    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 3rem;" class="stats-grid">
-      <div class="stat-card"><div class="lbl">Properties</div><div class="num" id="stProps">—</div><div class="sub">Live on direct site</div></div>
-      <div class="stat-card"><div class="lbl">Avg rating</div><div class="num" id="stRating">—</div><div class="sub">Across portfolio</div></div>
-      <div class="stat-card"><div class="lbl">Reviews</div><div class="num" id="stReviews">—</div><div class="sub">All five-star</div></div>
-      <div class="stat-card"><div class="lbl">Guest favorites</div><div class="num" id="stFavs">—</div><div class="sub">Top 1% homes</div></div>
-    </div>
-
-    <!-- Tabs (grouped into sections) -->
-    <div class="tab-bar" id="tabBar" data-active-section="content">
-      <div class="tab-section-bar" role="tablist" aria-label="Tab sections">
-        <button class="tab-section-btn active" type="button" data-section="content">Site content</button>
-        <button class="tab-section-btn" type="button" data-section="catalog">Catalog</button>
-        <button class="tab-section-btn" type="button" data-section="integrations">Integrations</button>
-      </div>
-      <div class="tab-row">
-        <button class="tab-btn active" data-tab="hero" data-section="content">Homepage</button>
-        <button class="tab-btn" data-tab="host" data-section="content">Meet your host</button>
-        <button class="tab-btn" data-tab="whyBook" data-section="content">Why book direct</button>
-        <button class="tab-btn" data-tab="aboutPage" data-section="content">Our Story</button>
-        <button class="tab-btn" data-tab="experiencesPage" data-section="content">Experiences page</button>
-        <button class="tab-btn" data-tab="contact" data-section="content">Contact info</button>
-        <button class="tab-btn" data-tab="branding" data-section="content">Branding & theme</button>
-        <button class="tab-btn" data-tab="account" data-section="content">Admin account</button>
-        <button class="tab-btn" data-tab="order" data-section="content">Featured order</button>
-        <button class="tab-btn" data-tab="destinations" data-section="content">Destinations</button>
-        <button class="tab-btn" data-tab="photos" data-section="catalog">Photos</button>
-        <button class="tab-btn" data-tab="properties" data-section="catalog">Property details</button>
-        <button class="tab-btn" data-tab="experiences" data-section="catalog">Experiences</button>
-        <button class="tab-btn" data-tab="discounts" data-section="catalog">Promo codes</button>
-        <button class="tab-btn" data-tab="bookings" data-section="catalog">Bookings <span class="inbox-badge" id="bookingsBadge" hidden>0</span></button>
-        <button class="tab-btn" data-tab="inbox" data-section="catalog">Inbox <span class="inbox-badge" id="inboxBadge" hidden>0</span></button>
-        <button class="tab-btn" data-tab="bookings-payments" data-section="integrations">Bookings &amp; Payments</button>
-        <button class="tab-btn" data-tab="hospitable" data-section="integrations">Hospitable API</button>
-        <button class="tab-btn" data-tab="pricelabs" data-section="integrations">PriceLabs</button>
-      </div>
+      <p style="color: var(--color-stone); margin: 0; font-size: 0.95rem;">Pick a section from the sidebar to start editing — pages, catalog, integrations, settings. Every tab deep-links: copy the URL to bookmark or share a specific section.</p>
     </div>
 
     <!-- Hero tab -->
@@ -804,7 +830,7 @@
       </div>
     </div>
 
-  </div>
+  </main>
 </section>
 
 </main>
@@ -812,47 +838,156 @@
 <footer id="site-footer"></footer>
 
 <style>
-/* Grouped tab bar — section pills above the existing tab row */
-.tab-bar {
-  position: relative;
-  margin-bottom: 2rem;
+/* === Admin shell ===
+   Desktop: fixed left sidebar + scrolling main column. Mobile: drawer
+   slides in from the left over a backdrop. Slim header strip on top of
+   the main column on every viewport — hosts the View site / Sign out
+   actions, the active-tab label, and (on mobile) the hamburger. */
+.admin-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: 56px 1fr;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar content";
+  min-height: 100vh;
+  background: var(--color-cream);
 }
-.tab-section-bar {
-  display: flex; gap: 0.5rem; flex-wrap: wrap;
-  padding: 0 0 0.75rem;
-}
-.tab-section-btn {
-  padding: 0.4rem 0.95rem; border-radius: 999px;
-  background: transparent; color: var(--color-stone);
-  border: 1px solid var(--color-line);
-  font-size: 0.82rem; font-weight: 600; letter-spacing: 0.02em;
-  cursor: pointer; font-family: inherit;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.tab-section-btn:hover { color: var(--color-charcoal); border-color: var(--color-stone); }
-.tab-section-btn.active {
-  background: var(--color-primary); color: var(--color-cream);
-  border-color: var(--color-primary);
-}
-.tab-row {
+.admin-shell .admin-header { grid-area: header; }
+.admin-shell .admin-sidebar { grid-area: sidebar; }
+.admin-shell .admin-content { grid-area: content; }
+
+.admin-header {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0 1.5rem;
+  background: white;
   border-bottom: 1px solid var(--color-line);
-  display: flex; gap: 0.25rem; overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  position: sticky; top: 0; z-index: 5;
 }
-/* Hide tabs not in the active section. */
-.tab-bar[data-active-section="content"] .tab-btn:not([data-section="content"]),
-.tab-bar[data-active-section="catalog"] .tab-btn:not([data-section="catalog"]),
-.tab-bar[data-active-section="integrations"] .tab-btn:not([data-section="integrations"]) {
+.admin-active-tab-label {
+  font-weight: 600; font-size: 0.95rem; color: var(--color-charcoal);
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.admin-hamburger {
   display: none;
+  width: 40px; height: 40px; border-radius: 999px;
+  background: transparent; color: var(--color-charcoal);
+  align-items: center; justify-content: center;
+  border: 0; cursor: pointer;
 }
-/* Scroll-hint gradient on the right edge for tablets / phones. */
-.tab-bar::after {
-  content: ""; position: absolute; right: 0; bottom: 1px;
-  width: 32px; height: calc(100% - 56px);
+.admin-hamburger:hover { background: rgba(0,0,0,0.05); }
+
+.admin-sidebar {
+  background: white;
+  border-right: 1px solid var(--color-line);
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh;
+}
+.admin-sidebar-brand {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-line);
+  min-height: 64px;
+}
+.admin-sidebar-brand .brand-mark { color: var(--color-primary); font-size: 1.1rem; }
+.admin-sidebar-close {
+  display: none;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: transparent; color: var(--color-charcoal);
+  align-items: center; justify-content: center;
+  border: 0; cursor: pointer; font-size: 1.4rem; line-height: 1;
+}
+.admin-sidebar-close:hover { background: rgba(0,0,0,0.05); }
+
+.admin-nav {
+  padding: 0.75rem 0.6rem;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+.admin-nav-section h4 {
+  font-family: var(--font-body);
+  font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--color-stone); font-weight: 600;
+  margin: 0 0 0.4rem;
+  padding: 0 0.7rem;
+}
+.admin-nav-link {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.92rem; color: var(--color-charcoal);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.admin-nav-link:hover { background: var(--color-cream-dark); color: var(--color-primary); }
+.admin-nav-link.active {
+  background: var(--color-primary);
+  color: var(--color-cream);
+  font-weight: 500;
+}
+.admin-nav-link.active:hover { color: var(--color-cream); }
+
+/* Backdrop only used on mobile — invisible on desktop where the sidebar
+   is permanent. */
+.admin-sidebar-backdrop {
+  display: none;
+  position: fixed; inset: 0; z-index: 99;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
   pointer-events: none;
-  background: linear-gradient(to right, transparent, white);
+  transition: opacity 0.2s ease;
 }
-@media (min-width: 960px) { .tab-bar::after { display: none; } }
+.admin-sidebar-backdrop.open {
+  opacity: 1; pointer-events: auto;
+}
+
+.admin-content {
+  padding: 1.5rem 2rem 4rem;
+  min-width: 0; /* allow grid item to shrink so wide editor content can scroll */
+  overflow-x: hidden;
+}
+
+/* === Mobile / tablet — sidebar becomes a drawer === */
+@media (max-width: 960px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px 1fr;
+    grid-template-areas:
+      "header"
+      "content";
+  }
+  .admin-hamburger { display: inline-flex; }
+  .admin-sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: min(85vw, 300px); height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s var(--ease-out), visibility 0s linear 0.3s;
+    visibility: hidden;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.1);
+  }
+  .admin-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.3s var(--ease-out), visibility 0s linear 0s;
+  }
+  .admin-sidebar-backdrop { display: block; }
+  .admin-sidebar-close { display: inline-flex; }
+  .admin-content { padding: 1.25rem 1.25rem 3rem; }
+}
+
+/* The site-header element rendered by app.js is the public-site header;
+   admin uses its own header strip, so hide both header and footer when the
+   admin shell is visible. JS toggles body.admin-active in showDashboard /
+   adminLogout — using a class is more reliable than parsing inline style. */
+body.admin-active > header#site-header,
+body.admin-active > footer#site-footer { display: none; }
+body.admin-active > main { padding: 0; margin: 0; }
+body.admin-active { background: var(--color-cream); }
 
 /* H2 row with optional "current property" chip alongside */
 .tab-h2-row {
@@ -1114,8 +1249,8 @@
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=84"></script>
-<script src="/js/app.js?v=84"></script>
-<script src="/js/admin.js?v=84"></script>
+<script src="/js/data.js?v=85"></script>
+<script src="/js/app.js?v=85"></script>
+<script src="/js/admin.js?v=85"></script>
 </body>
 </html>
