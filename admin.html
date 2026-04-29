@@ -56,7 +56,7 @@
 
   <aside class="admin-sidebar" id="adminSidebar" aria-label="Admin navigation">
     <div class="admin-sidebar-brand">
-      <span id="adminBrandMark"></span>
+      <a id="adminBrandMark" href="/" title="Go to the public home page" aria-label="Go to the public home page"></a>
       <button class="admin-sidebar-close" type="button" onclick="closeAdminSidebar()" aria-label="Close menu">×</button>
     </div>
     <nav class="admin-nav">
@@ -929,9 +929,9 @@
 }
 .admin-sidebar-brand {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 1rem 1.25rem;
+  padding: 0 1.25rem;
   border-bottom: 1px solid var(--color-line);
-  min-height: 64px;
+  height: 56px; /* match the 56px header row so the bottom borders line up */
   gap: 0.5rem;
   overflow: hidden; /* hard guarantee against logo bleeding past the sidebar */
 }
