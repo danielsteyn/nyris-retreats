@@ -48,6 +48,13 @@
       }
     }).catch(() => {});
   }
+  // When the admin hasn't curated overrides for this property, the static
+  // data.js list often holds far fewer photos than Hospitable has on file
+  // (e.g. data.js ships 12 but Hospitable has 70+). Fetch the full set
+  // from /api/hospitable/property and merge in any additional photos so
+  // the gallery + grid view reflect the host's full library. Skipped when
+  // admin overrides exist — that's an explicit curation we should respect.
+  upgradePhotosFromHospitable(p);
 
   // Build the page
   root.innerHTML = `
@@ -568,6 +575,49 @@ function buildHospitableBookingUrl(template, property, checkin, checkout, guests
   if (checkout) params.push(`checkout=${encodeURIComponent(checkout)}`);
   if (guests) params.push(`guests=${encodeURIComponent(guests)}`);
   return params.length ? url + sep + params.join('&') : url;
+}
+
+// Fetches the full Hospitable image list for a property and merges any
+// additional photos into the gallery + grid view. Runs after first paint
+// so a slow Hospitable response never blocks render. Skips when admin
+// overrides exist (the host has curated their gallery and we shouldn't
+// dilute that with Hospitable's full set). Also skips when the static
+// data.js images already cover Hospitable's count.
+async function upgradePhotosFromHospitable(property) {
+  if (!property || !property.id) return;
+  // Wait for the admin-overrides cache to settle so we can skip when an
+  // explicit curation exists.
+  try {
+    if (PhotoOverrides && !PhotoOverrides._data) await PhotoOverrides.load();
+  } catch { /* fall through — treat as no overrides */ }
+  const hasAdminOverrides = !!(PhotoOverrides?._data?.[property.id]?.length);
+  if (hasAdminOverrides) return;
+
+  let hospitableUrls = [];
+  try {
+    const r = await fetch(`/api/hospitable/property?uuid=${encodeURIComponent(property.id)}`);
+    const j = await r.json();
+    if (!j || !j.ok || !Array.isArray(j.images)) return;
+    hospitableUrls = j.images.map(i => i && i.url).filter(Boolean);
+  } catch {
+    return;
+  }
+  if (!hospitableUrls.length) return;
+
+  // Preserve the static data.js cover by keeping its order: any photo
+  // already in property.images stays in place; Hospitable's extra photos
+  // get appended in their reported order.
+  const seen = new Set(property.images || []);
+  const merged = [...(property.images || [])];
+  for (const url of hospitableUrls) {
+    if (!seen.has(url)) { merged.push(url); seen.add(url); }
+  }
+  if (merged.length === (property.images || []).length) return;
+
+  property.images = merged;
+  if (typeof window.applyOverridesToGallery === 'function') {
+    window.applyOverridesToGallery(merged);
+  }
 }
 
 // Fetches the property's channel listings (Airbnb, Vrbo, …) from Hospitable
