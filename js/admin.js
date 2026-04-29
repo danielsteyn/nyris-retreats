@@ -192,64 +192,83 @@ function adminLogout() {
   localStorage.removeItem(ADMIN.authKey);
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
+  document.body.classList.remove('admin-active');
   toast("Signed out.");
 }
 
 // =============================================================================
-// Tab switcher
+// Tab switcher — sidebar-driven, hash-routed.
+// Source of truth is location.hash (e.g. #hero, #bookings). Sidebar links
+// have href="#tabId" so the browser updates the hash for free; we listen
+// for hashchange and render the matching panel. On a fresh load with no
+// hash we land on #home.
 // =============================================================================
+function _validTabId(id) {
+  if (!id) return false;
+  return !!document.getElementById('tab-' + id);
+}
+function _renderActiveTab(tabId) {
+  if (!_validTabId(tabId)) tabId = 'home';
+  document.querySelectorAll('.tab-panel').forEach(t => t.style.display = 'none');
+  const panel = document.getElementById('tab-' + tabId);
+  if (panel) panel.style.display = 'block';
+  document.querySelectorAll('.admin-nav-link').forEach(a => {
+    const isActive = a.dataset.tab === tabId;
+    a.classList.toggle('active', isActive);
+    if (isActive) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  // Header label mirrors the active link's text so the user always knows
+  // where they are when scrolled inside a long panel.
+  const activeLink = document.querySelector(`.admin-nav-link[data-tab="${tabId}"]`);
+  const label = document.getElementById('adminActiveTabLabel');
+  if (label) label.textContent = activeLink ? activeLink.textContent.trim() : tabId;
+  // Close the mobile drawer after switching (no-op on desktop).
+  closeAdminSidebar();
+  // Scroll the content area to the top so each tab feels like its own page.
+  const content = document.querySelector('.admin-content');
+  if (content) content.scrollTo({ top: 0, behavior: 'auto' });
+}
+function _tabIdFromHash() {
+  // Accepts #foo or #foo/slug (the slug form is reserved for the future
+  // global property picker; PR 1 ignores it but doesn't choke on it).
+  const raw = (location.hash || '').replace(/^#/, '');
+  return raw.split('/')[0] || '';
+}
 function bindTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.tab-panel').forEach(t => t.style.display = 'none');
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('tab-' + tab).style.display = 'block';
-      btn.classList.add('active');
-    });
-  });
+  // Initial render based on the current hash, fall back to home.
+  _renderActiveTab(_tabIdFromHash() || 'home');
+  // Browser back/forward + clicks on .admin-nav-link both fire hashchange.
+  window.addEventListener('hashchange', () => _renderActiveTab(_tabIdFromHash() || 'home'));
 }
 
-// Section bar above the tab row — toggles which group of tabs is visible
-// without changing data-tab values or the existing bindTabs() behavior.
-// CSS does the hiding via [data-active-section]; JS only sets the attribute
-// and ensures the active sub-tab belongs to the active section.
-function bindTabSections() {
-  const bar = document.getElementById('tabBar');
-  if (!bar) return;
-  document.querySelectorAll('.tab-section-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const section = btn.dataset.section;
-      bar.dataset.activeSection = section;
-      document.querySelectorAll('.tab-section-btn').forEach(b => b.classList.toggle('active', b === btn));
-      // If the currently active sub-tab isn't in this section, switch to the
-      // first tab in the new section so we never show an orphan panel.
-      const activeBtn = bar.querySelector('.tab-btn.active');
-      if (!activeBtn || activeBtn.dataset.section !== section) {
-        const firstInSection = bar.querySelector(`.tab-btn[data-section="${section}"]`);
-        if (firstInSection) firstInSection.click();
-      }
-    });
-  });
-}
+// Kept for forward compatibility — PR 2 collapsible-section behavior will
+// hook in here. PR 1 has no per-section state to bind.
+function bindTabSections() { /* no-op in sidebar layout */ }
 
-// Switch to a tab by data-tab value, optionally setting the property context
-// for property-scoped tabs. Called by cross-tab shortcut links.
+// Programmatic tab switch used by cross-tab shortcuts. Updates the hash
+// (which triggers _renderActiveTab via hashchange) and optionally sets
+// the shared property context first.
 function gotoTab(tabId, slug) {
   if (slug) PropertyContext.set(slug);
-  // Make sure the section containing the target tab is active first, so the
-  // .tab-btn we click isn't display:none.
-  const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-  if (!targetBtn) return;
-  const section = targetBtn.dataset.section;
-  if (section) {
-    const bar = document.getElementById('tabBar');
-    if (bar) bar.dataset.activeSection = section;
-    document.querySelectorAll('.tab-section-btn').forEach(b => b.classList.toggle('active', b.dataset.section === section));
+  if (location.hash !== '#' + tabId) {
+    location.hash = '#' + tabId;
+  } else {
+    // Same hash — hashchange won't fire; force a re-render.
+    _renderActiveTab(tabId);
   }
-  targetBtn.click();
-  const panel = document.getElementById('tab-' + tabId);
-  if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// =============================================================================
+// Admin sidebar drawer (mobile only — desktop sidebar is permanent).
+// =============================================================================
+function openAdminSidebar() {
+  document.getElementById('adminSidebar')?.classList.add('open');
+  document.getElementById('adminSidebarBackdrop')?.classList.add('open');
+}
+function closeAdminSidebar() {
+  document.getElementById('adminSidebar')?.classList.remove('open');
+  document.getElementById('adminSidebarBackdrop')?.classList.remove('open');
 }
 
 // Update every "current property" chip on the page. Called by
@@ -291,13 +310,39 @@ function renderPhotoCrossLinks(slug) {
 // =============================================================================
 async function showDashboard() {
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'block';
+  // Display value matches the CSS layout — admin-shell is a CSS grid on
+  // desktop and a single-column flow on mobile. 'grid' so the grid-area
+  // tracks engage; mobile media query also defines grid-template-columns
+  // for stacked behavior.
+  document.getElementById('dashboard').style.display = 'grid';
+  // Body class is the contract for hiding the public site-header / footer
+  // when the admin shell takes over — see admin.html <style> block.
+  document.body.classList.add('admin-active');
+
+  // Sidebar brand mark mirrors the login mark — custom logos replace the
+  // wordmark, the default falls back to the SVG icon plus brand name.
+  const t = Theme.get();
+  const customLogo = !!(t.logoUrl || t.logoSvg);
+  const brandEl = document.getElementById('adminBrandMark');
+  if (brandEl) {
+    brandEl.className = `brand-mark${customLogo ? ' brand-mark-custom' : ''}`;
+    brandEl.innerHTML = customLogo
+      ? Theme.logoMark(t)
+      : `${Theme.logoMark(t)}<span data-brand-name>${escapeHtml(t.brandName || 'Admin')}</span>`;
+  }
 
   // Stats
   document.getElementById('stProps').textContent = NYRIS.properties.length;
   document.getElementById('stRating').textContent = NYRIS.brand.avgRating.toFixed(1);
   document.getElementById('stReviews').textContent = NYRIS.brand.totalReviews + '+';
   document.getElementById('stFavs').textContent = NYRIS.properties.filter(p => p.isGuestFavorite).length;
+
+  // Re-render active panel + nav state once the dashboard is visible — if
+  // bindTabs ran before login (DOMContentLoaded), the panel selection is
+  // already correct, but the header label / nav highlight need a refresh.
+  if (typeof _renderActiveTab === 'function') {
+    _renderActiveTab(_tabIdFromHash() || 'home');
+  }
 
   // Probe remote — show indicator
   const remote = await RemoteStore.probe();
