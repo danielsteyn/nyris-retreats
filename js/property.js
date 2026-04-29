@@ -672,13 +672,11 @@ function applyBookingSurface(property) {
   const perPropertyEmbed = (property.hospitableEmbed || '').trim();
   const siteWideEmbed = (pay.hospitableWidgetEmbed || '').trim();
   if (!perPropertyEmbed && !siteWideEmbed) {
-    mount.innerHTML = ''; mount.style.minHeight = '';
+    mount.innerHTML = '';
     if (directRow) directRow.hidden = true;
     syncRequestToBookPanel();
     return;
   }
-
-  mount.style.minHeight = '900px';
 
   try {
     const html = mergeHospitableEmbeds(siteWideEmbed, perPropertyEmbed)
@@ -692,11 +690,16 @@ function applyBookingSurface(property) {
       if (oldScript.textContent) newScript.text = oldScript.textContent;
       oldScript.parentNode.replaceChild(newScript, oldScript);
     });
+    // Seed the iframe with a sensible initial height so it doesn't render
+    // as the default 150px tall. Hospitable's resize message updates this
+    // once the widget reports its actual content height.
+    const iframe = mount.querySelector('iframe');
+    if (iframe && !iframe.style.height) iframe.style.height = '900px';
     if (directRow) directRow.hidden = false;
     syncRequestToBookPanel();
   } catch (e) {
     console.warn('[booking] Hospitable embed failed to mount:', e);
-    mount.innerHTML = ''; mount.style.minHeight = '';
+    mount.innerHTML = '';
     if (directRow) directRow.hidden = true;
     syncRequestToBookPanel();
   }
@@ -704,7 +707,8 @@ function applyBookingSurface(property) {
   // Hospitable's widget posts a height to the parent window so the host can
   // resize the iframe to fit the content. Listen for any of the common
   // shapes (Hospitable's snippets vary slightly across plan tiers) and
-  // adjust mount min-height + the iframe height accordingly.
+  // resize the iframe accordingly. The wrapper has no min-height of its own,
+  // so it shrinks/grows to match the iframe — no white space below.
   if (!window.__hospResizeWired) {
     window.__hospResizeWired = true;
     window.addEventListener('message', (ev) => {
@@ -718,7 +722,6 @@ function applyBookingSurface(property) {
       if (!h || h < 200) return;
       const m = document.getElementById('hospInlineWidget');
       if (!m) return;
-      m.style.minHeight = h + 'px';
       const iframe = m.querySelector('iframe');
       if (iframe) iframe.style.height = h + 'px';
     });
