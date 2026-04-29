@@ -1,0 +1,44 @@
+# Triggers /api/cron/sync-hospitable-reviews once per day to pull the
+# latest review count + average rating for each property from Hospitable
+# and persist them into the overrides settings blob.
+#
+# Required GitHub repository secrets (same ones used by the PriceLabs cron):
+#   - SITE_URL    : production URL (e.g. https://nyris-retreats.vercel.app)
+#   - CRON_SECRET : same value as the CRON_SECRET env var set in Vercel
+
+name: Hospitable review sync
+
+on:
+  schedule:
+    # Daily at 06:00 UTC. GitHub Actions schedules can run with a few
+    # minutes of jitter; that's fine for a daily refresh.
+    - cron: "0 6 * * *"
+  workflow_dispatch: # manual trigger via the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Trigger Hospitable review sync
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -e
+          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::SITE_URL and CRON_SECRET secrets must be set in repository settings"
+            exit 1
+          fi
+          response=$(curl -sS -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json" \
+            "${SITE_URL%/}/api/cron/sync-hospitable-reviews")
+          body=$(echo "$response" | head -n -1)
+          code=$(echo "$response" | tail -n 1)
+          echo "HTTP $code"
+          echo "$body" | head -c 4096
+          if [ "$code" != "200" ]; then
+            echo "::error::Sync endpoint returned $code"
+            exit 1
+          fi

@@ -124,6 +124,19 @@ function applyOverrides(props) {
     if (o.contact.phone) NYRIS.brand.phone = o.contact.phone;
   }
 
+  // Hospitable-synced review counts + average ratings. Cron at
+  // /api/cron/sync-hospitable-reviews refreshes these daily, keyed by
+  // Hospitable property UUID. Apply before the broader o.props loop so
+  // an admin override (e.g. manually-set rating) can still win below.
+  if (o.reviewCounts) {
+    for (const p of props) {
+      const rc = o.reviewCounts[p.id];
+      if (!rc) continue;
+      if (typeof rc.count === 'number') p.reviewCount = rc.count;
+      if (typeof rc.avgRating === 'number' && rc.avgRating > 0) p.rating = rc.avgRating;
+    }
+  }
+
   // Per-property field overrides (name, tagline, basePrice, cleaningFee, experiences, …)
   if (o.props) {
     for (const p of props) {
