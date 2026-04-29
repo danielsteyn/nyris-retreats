@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="/css/styles.css?v=85"/>
-<script src="/js/theme.js?v=85"></script>
+<link rel="stylesheet" href="/css/styles.css?v=86"/>
+<script src="/js/theme.js?v=86"></script>
 </head>
 <body>
 <header id="site-header"></header>
@@ -42,6 +42,10 @@
     </button>
     <span class="admin-active-tab-label" id="adminActiveTabLabel">Dashboard</span>
     <div class="admin-header-actions">
+      <a class="admin-bell" href="#inbox" id="adminBell" title="Inbox" aria-label="Inbox">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="admin-bell-dot" id="adminBellDot" hidden></span>
+      </a>
       <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener" title="Open the public site in a new tab">View site ↗</a>
       <button class="btn btn-outline btn-sm" type="button" onclick="adminLogout()">Sign out</button>
     </div>
@@ -56,38 +60,51 @@
       <button class="admin-sidebar-close" type="button" onclick="closeAdminSidebar()" aria-label="Close menu">×</button>
     </div>
     <nav class="admin-nav">
-      <div class="admin-nav-section">
-        <h4>Pages</h4>
-        <a class="admin-nav-link" data-tab="home" href="#home">Dashboard</a>
-        <a class="admin-nav-link" data-tab="hero" href="#hero">Homepage</a>
-        <a class="admin-nav-link" data-tab="host" href="#host">Meet your host</a>
-        <a class="admin-nav-link" data-tab="whyBook" href="#whyBook">Why book direct</a>
-        <a class="admin-nav-link" data-tab="aboutPage" href="#aboutPage">Our Story</a>
-        <a class="admin-nav-link" data-tab="experiencesPage" href="#experiencesPage">Experiences page</a>
-        <a class="admin-nav-link" data-tab="order" href="#order">Featured order</a>
-        <a class="admin-nav-link" data-tab="destinations" href="#destinations">Destinations</a>
-      </div>
-      <div class="admin-nav-section">
-        <h4>Catalog</h4>
-        <a class="admin-nav-link" data-tab="photos" href="#photos">Photos</a>
-        <a class="admin-nav-link" data-tab="properties" href="#properties">Property details</a>
-        <a class="admin-nav-link" data-tab="experiences" href="#experiences">Experiences</a>
-        <a class="admin-nav-link" data-tab="discounts" href="#discounts">Promo codes</a>
-        <a class="admin-nav-link" data-tab="bookings" href="#bookings">Bookings <span class="inbox-badge" id="bookingsBadge" hidden>0</span></a>
-        <a class="admin-nav-link" data-tab="inbox" href="#inbox">Inbox <span class="inbox-badge" id="inboxBadge" hidden>0</span></a>
-      </div>
-      <div class="admin-nav-section">
-        <h4>Integrations</h4>
-        <a class="admin-nav-link" data-tab="bookings-payments" href="#bookings-payments">Bookings &amp; Payments</a>
-        <a class="admin-nav-link" data-tab="hospitable" href="#hospitable">Hospitable API</a>
-        <a class="admin-nav-link" data-tab="pricelabs" href="#pricelabs">PriceLabs</a>
-      </div>
-      <div class="admin-nav-section">
-        <h4>Settings</h4>
-        <a class="admin-nav-link" data-tab="branding" href="#branding">Branding &amp; theme</a>
-        <a class="admin-nav-link" data-tab="contact" href="#contact">Contact info</a>
-        <a class="admin-nav-link" data-tab="account" href="#account">Admin account</a>
-      </div>
+      <details class="admin-nav-section" data-section="pages" open>
+        <summary><span>Pages</span><span class="admin-nav-chev" aria-hidden="true">▾</span></summary>
+        <div class="admin-nav-links">
+          <a class="admin-nav-link" data-tab="home" href="#home">Dashboard</a>
+          <a class="admin-nav-link" data-tab="hero" href="#hero">Homepage</a>
+          <a class="admin-nav-link" data-tab="host" href="#host">Meet your host</a>
+          <a class="admin-nav-link" data-tab="whyBook" href="#whyBook">Why book direct</a>
+          <a class="admin-nav-link" data-tab="aboutPage" href="#aboutPage">Our Story</a>
+          <a class="admin-nav-link" data-tab="experiencesPage" href="#experiencesPage">Experiences page</a>
+          <a class="admin-nav-link" data-tab="order" href="#order">Featured order</a>
+          <a class="admin-nav-link" data-tab="destinations" href="#destinations">Destinations</a>
+        </div>
+      </details>
+      <details class="admin-nav-section" data-section="bookings" open>
+        <summary><span>Bookings &amp; Inquiries</span><span class="admin-nav-chev" aria-hidden="true">▾</span></summary>
+        <div class="admin-nav-links">
+          <a class="admin-nav-link" data-tab="inbox" href="#inbox">Inbox <span class="inbox-badge" id="inboxBadge" hidden>0</span></a>
+          <a class="admin-nav-link" data-tab="bookings" href="#bookings">Bookings <span class="inbox-badge" id="bookingsBadge" hidden>0</span></a>
+          <a class="admin-nav-link" data-tab="discounts" href="#discounts">Promo codes</a>
+        </div>
+      </details>
+      <details class="admin-nav-section" data-section="catalog" open>
+        <summary><span>Catalog</span><span class="admin-nav-chev" aria-hidden="true">▾</span></summary>
+        <div class="admin-nav-links">
+          <a class="admin-nav-link" data-tab="photos" href="#photos">Photos</a>
+          <a class="admin-nav-link" data-tab="properties" href="#properties">Property details</a>
+          <a class="admin-nav-link" data-tab="experiences" href="#experiences">Experiences</a>
+        </div>
+      </details>
+      <details class="admin-nav-section" data-section="integrations">
+        <summary><span>Integrations</span><span class="admin-nav-chev" aria-hidden="true">▾</span></summary>
+        <div class="admin-nav-links">
+          <a class="admin-nav-link" data-tab="bookings-payments" href="#bookings-payments">Bookings &amp; Payments</a>
+          <a class="admin-nav-link" data-tab="hospitable" href="#hospitable">Hospitable API</a>
+          <a class="admin-nav-link" data-tab="pricelabs" href="#pricelabs">PriceLabs</a>
+        </div>
+      </details>
+      <details class="admin-nav-section" data-section="settings">
+        <summary><span>Settings</span><span class="admin-nav-chev" aria-hidden="true">▾</span></summary>
+        <div class="admin-nav-links">
+          <a class="admin-nav-link" data-tab="branding" href="#branding">Branding &amp; theme</a>
+          <a class="admin-nav-link" data-tab="contact" href="#contact">Contact info</a>
+          <a class="admin-nav-link" data-tab="account" href="#account">Admin account</a>
+        </div>
+      </details>
     </nav>
   </aside>
 
@@ -505,16 +522,21 @@
     <div class="tab-panel" id="tab-account" style="display:none;">
       <div style="max-width: 560px;">
         <h2 style="font-size: 1.4rem; margin: 0 0 0.4rem;">Admin account</h2>
-        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Set the email that signs into <code>/admin</code>. Saves through the same overrides pipeline as the rest of the site, so the change applies across every device.</p>
+        <p style="color: var(--color-stone); margin: 0 0 1.5rem;">Email + password used to sign into <code>/admin</code>. Email saves through the overrides pipeline; the password is stored as a salted scrypt hash in the encrypted secrets table.</p>
 
-        <div style="margin-bottom: 1.5rem;"><label class="form-label">Sign-in email</label><input class="form-control" type="email" id="aAccountEmail"/></div>
-
-        <div style="display:flex; gap: 0.75rem;">
+        <h3 style="font-size: 1rem; margin: 1.5rem 0 0.75rem;">Sign-in email</h3>
+        <div style="margin-bottom: 1rem;"><input class="form-control" type="email" id="aAccountEmail"/></div>
+        <div style="display:flex; gap: 0.75rem; margin-bottom: 2rem;">
           <button class="btn btn-primary" onclick="saveAdminAccount()">Save email</button>
         </div>
 
-        <div style="margin-top: 2rem; padding: 1rem 1.25rem; background: var(--color-cream-dark); border-radius: 10px; font-size: 0.88rem; color: var(--color-stone); line-height: 1.55;">
-          <strong style="color: var(--color-charcoal);">Heads-up about the password.</strong> Auth is currently a client-side check (the password lives in <code>js/admin.js</code>). Anyone who reads the source can find it. Rotating the password securely needs server-side hash storage — it's on the roadmap. For now the email change makes guessing harder, but please don't rely on this for true security.
+        <h3 style="font-size: 1rem; margin: 2rem 0 0.75rem;">Change password</h3>
+        <p style="color: var(--color-stone); margin: 0 0 1rem; font-size: 0.9rem;">Minimum 10 characters. New password is hashed with scrypt + a per-password salt and stored in the encrypted secrets table — the plaintext never sits anywhere we can reach. <span id="aPwdStatus" style="display:none; font-weight: 500; color: var(--color-success);"></span></p>
+        <div style="margin-bottom: 0.85rem;"><label class="form-label">Current password</label><input class="form-control" type="password" id="aPwdCurrent" autocomplete="current-password"/></div>
+        <div style="margin-bottom: 0.85rem;"><label class="form-label">New password</label><input class="form-control" type="password" id="aPwdNew" autocomplete="new-password"/></div>
+        <div style="margin-bottom: 1rem;"><label class="form-label">Confirm new password</label><input class="form-control" type="password" id="aPwdConfirm" autocomplete="new-password"/></div>
+        <div style="display:flex; gap: 0.75rem;">
+          <button class="btn btn-primary" onclick="changeAdminPassword()" id="aPwdSubmit">Update password</button>
         </div>
       </div>
     </div>
@@ -870,6 +892,25 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .admin-header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.admin-bell {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 999px;
+  color: var(--color-stone);
+  transition: background 0.15s, color 0.15s;
+}
+.admin-bell:hover { background: var(--color-cream-dark); color: var(--color-charcoal); }
+/* Lit state — primary color + accent dot — when there's at least one
+   unread message in the inbox. JS toggles `.has-unread` on .admin-bell. */
+.admin-bell.has-unread { color: var(--color-primary); }
+.admin-bell-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 9px; height: 9px; border-radius: 999px;
+  background: var(--color-danger);
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px var(--color-danger);
+}
+.admin-bell-dot[hidden] { display: none; }
 .admin-hamburger {
   display: none;
   width: 40px; height: 40px; border-radius: 999px;
@@ -891,8 +932,23 @@
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--color-line);
   min-height: 64px;
+  gap: 0.5rem;
+  overflow: hidden; /* hard guarantee against logo bleeding past the sidebar */
 }
-.admin-sidebar-brand .brand-mark { color: var(--color-primary); font-size: 1.1rem; }
+.admin-sidebar-brand .brand-mark {
+  color: var(--color-primary); font-size: 1.1rem;
+  min-width: 0; flex: 1 1 auto; overflow: hidden;
+}
+/* The public-site brand-mark-img / brand-mark-svg sizing (48px tall, up
+   to 360px wide) is too big for the 260px admin sidebar — cap to fit
+   without overflow. */
+.admin-sidebar-brand .brand-mark-img,
+.admin-sidebar-brand .brand-mark-svg svg {
+  height: 36px;
+  max-width: 100%;
+  width: auto;
+  object-fit: contain;
+}
 .admin-sidebar-close {
   display: none;
   width: 32px; height: 32px; border-radius: 999px;
@@ -904,14 +960,37 @@
 
 .admin-nav {
   padding: 0.75rem 0.6rem;
-  display: flex; flex-direction: column; gap: 1.25rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
 }
-.admin-nav-section h4 {
+/* Accordion sections — uses native <details>/<summary> so toggle state
+   is browser-managed and no JS is required to expand/collapse. JS only
+   persists per-section open/closed state across reloads. */
+.admin-nav-section {
+  border-radius: 8px;
+}
+.admin-nav-section > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.7rem;
   font-family: var(--font-body);
   font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--color-stone); font-weight: 600;
-  margin: 0 0 0.4rem;
-  padding: 0 0.7rem;
+  border-radius: 8px;
+  user-select: none;
+  transition: background 0.12s, color 0.12s;
+}
+.admin-nav-section > summary:hover { background: var(--color-cream-dark); color: var(--color-charcoal); }
+.admin-nav-section > summary::-webkit-details-marker { display: none; }
+.admin-nav-chev {
+  font-size: 0.85rem; color: var(--color-stone);
+  transition: transform 0.18s ease;
+  letter-spacing: 0;
+}
+.admin-nav-section[open] > summary > .admin-nav-chev { transform: rotate(180deg); }
+.admin-nav-links {
+  display: flex; flex-direction: column;
+  padding: 0.15rem 0 0.5rem;
 }
 .admin-nav-link {
   display: flex; align-items: center; gap: 0.5rem;
@@ -1249,8 +1328,8 @@ body.admin-active { background: var(--color-cream); }
 .dc-actions { display:flex; gap: 0.25rem; flex-shrink: 0; flex-wrap: wrap; }
 </style>
 
-<script src="/js/data.js?v=85"></script>
-<script src="/js/app.js?v=85"></script>
-<script src="/js/admin.js?v=85"></script>
+<script src="/js/data.js?v=86"></script>
+<script src="/js/app.js?v=86"></script>
+<script src="/js/admin.js?v=86"></script>
 </body>
 </html>

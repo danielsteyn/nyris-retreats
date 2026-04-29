@@ -2,9 +2,11 @@
 // Consolidating to one Serverless Function to stay within Vercel Hobby's 12-function limit.
 
 import bookings from "./_bookings.js";
+import changePassword from "./_change-password.js";
 import cronStatus from "./_cron-status.js";
 import discounts from "./_discounts.js";
 import inbox from "./_inbox.js";
+import login from "./_login.js";
 import overrides from "./_overrides.js";
 import photos from "./_photos.js";
 import secrets from "./_secrets.js";
@@ -17,9 +19,11 @@ import setupVercel from "./setup/_vercel.js";
 
 const ROUTES = {
   "bookings": bookings,
+  "change-password": changePassword,
   "cron-status": cronStatus,
   "discounts": discounts,
   "inbox": inbox,
+  "login": login,
   "overrides": overrides,
   "photos": photos,
   "secrets": secrets,

@@ -166,10 +166,31 @@ async function adminLogin(e) {
   e.preventDefault();
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pass = document.getElementById('loginPass').value;
-  // Pull the admin email from server overrides if set, falling back to the
-  // baked-in demo email so first-time logins still work. The remote probe
-  // is best-effort — if the API is unreachable, fall back to overrides
-  // already cached locally and finally to the demo email.
+  // Server-side check via /api/admin/login. The endpoint validates the
+  // email against o.adminEmail and the password against the stored
+  // scrypt hash (admin_password_hash secret). When the server isn't
+  // reachable (Turso not configured locally, network blip), fall back
+  // to the legacy client-side check so the dev/local flow still works.
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j && j.ok) {
+      Storage.set(ADMIN.authKey, { email, expires: Date.now() + 1000 * 60 * 60 * 8 });
+      await showDashboard();
+      if (j.mustChangePassword) {
+        toast("You're using the default password — change it under Site content → Admin account.");
+      }
+      return;
+    }
+    if (j && j.error) { toast(j.error); return; }
+  } catch {
+    // Network/server unreachable — fall through to legacy client-side check.
+  }
+  // Legacy fallback: matches the original demo-credentials flow.
   let allowedEmail = ADMIN.demoEmail;
   try {
     const o = await Store.getOverrides();
@@ -242,9 +263,28 @@ function bindTabs() {
   window.addEventListener('hashchange', () => _renderActiveTab(_tabIdFromHash() || 'home'));
 }
 
-// Kept for forward compatibility — PR 2 collapsible-section behavior will
-// hook in here. PR 1 has no per-section state to bind.
-function bindTabSections() { /* no-op in sidebar layout */ }
+// Persist sidebar section open/closed state across reloads. Each
+// <details data-section="..."> remembers its state under a single
+// JSON blob in localStorage. Default open state is whatever the HTML
+// declares — we only override when the user has explicitly toggled.
+function bindTabSections() {
+  const KEY = 'nyris.admin.navSections';
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch {}
+  document.querySelectorAll('.admin-nav-section[data-section]').forEach(sec => {
+    const id = sec.dataset.section;
+    if (Object.prototype.hasOwnProperty.call(saved, id)) {
+      if (saved[id]) sec.setAttribute('open', '');
+      else sec.removeAttribute('open');
+    }
+    sec.addEventListener('toggle', () => {
+      let s = {};
+      try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch {}
+      s[id] = sec.open;
+      try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+    });
+  });
+}
 
 // Programmatic tab switch used by cross-tab shortcuts. Updates the hash
 // (which triggers _renderActiveTab via hashchange) and optionally sets
@@ -342,6 +382,16 @@ async function showDashboard() {
   // already correct, but the header label / nav highlight need a refresh.
   if (typeof _renderActiveTab === 'function') {
     _renderActiveTab(_tabIdFromHash() || 'home');
+  }
+  // Bell starts dim and lights up as soon as the inbox count comes back.
+  // Refresh the count on a slow interval and whenever the tab regains
+  // focus so the bell reflects submissions that arrived since last check.
+  refreshInboxBell();
+  if (!window.__inboxBellInterval) {
+    window.__inboxBellInterval = setInterval(refreshInboxBell, 2 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshInboxBell();
+    });
   }
 
   // Probe remote — show indicator
@@ -1121,6 +1171,52 @@ async function saveAdminAccount() {
   await Store.saveOverrides(o);
   toast("Admin email saved. Sign in with it next time.");
 }
+
+// Change-password flow — POSTs to /api/admin/change-password which
+// validates the current password against the stored hash (or the legacy
+// fallback for first-time rotation), hashes the new one with scrypt,
+// and writes it through setSecret so it sits encrypted-at-rest. The
+// client never sees the hash; it just gets ok/error back.
+async function changeAdminPassword() {
+  const cur = document.getElementById('aPwdCurrent').value;
+  const next = document.getElementById('aPwdNew').value;
+  const confirm = document.getElementById('aPwdConfirm').value;
+  const status = document.getElementById('aPwdStatus');
+  if (status) { status.style.display = 'none'; status.textContent = ''; }
+  if (!cur || !next || !confirm) {
+    toast("Fill in all three password fields.");
+    return;
+  }
+  if (next !== confirm) {
+    toast("New password and confirmation don't match.");
+    return;
+  }
+  if (next.length < 10) {
+    toast("New password must be at least 10 characters.");
+    return;
+  }
+  const btn = document.getElementById('aPwdSubmit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const r = await fetch('/api/admin/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword: cur, newPassword: next })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j && j.ok) {
+      ['aPwdCurrent','aPwdNew','aPwdConfirm'].forEach(id => { document.getElementById(id).value = ''; });
+      if (status) { status.textContent = '✓ Password updated.'; status.style.display = 'inline'; }
+      toast("Password updated. Use the new one next sign-in.");
+    } else {
+      toast((j && j.error) || "Couldn't update the password.");
+    }
+  } catch (e) {
+    toast("Couldn't reach the server. Try again in a moment.");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Update password'; }
+  }
+}
 function openHostUpload() {
   openUploadDialog({
     title: "Upload host portrait",
@@ -1504,14 +1600,34 @@ async function loadInbox() {
   }
 }
 function updateInboxBadge(unread) {
+  const n = Number(unread) || 0;
   const badge = document.getElementById('inboxBadge');
-  if (!badge) return;
-  if (unread > 0) {
-    badge.textContent = String(unread);
-    badge.hidden = false;
-  } else {
-    badge.hidden = true;
+  if (badge) {
+    if (n > 0) { badge.textContent = String(n); badge.hidden = false; }
+    else { badge.hidden = true; }
   }
+  // Bell state in the admin header — lit when there's at least one
+  // unread inbox message, dim otherwise. Bell is visible on every tab,
+  // so the host always sees pending guest messages without going to the
+  // Inbox tab first.
+  const bell = document.getElementById('adminBell');
+  const dot = document.getElementById('adminBellDot');
+  if (bell) bell.classList.toggle('has-unread', n > 0);
+  if (dot) dot.hidden = n === 0;
+  // Title text used for hover tooltip + screen readers.
+  if (bell) bell.title = n > 0 ? `Inbox — ${n} unread` : 'Inbox';
+}
+
+// Lightweight refresh used by the bell — pulls inbox counts without
+// re-rendering the list. Called on dashboard load + every 2 minutes +
+// when the tab regains focus, so the bell reflects new submissions
+// even when the user isn't on the Inbox tab.
+async function refreshInboxBell() {
+  try {
+    const r = await fetch('/api/admin/inbox?limit=1', { cache: 'no-store' });
+    const j = await r.json();
+    if (j && j.ok) updateInboxBadge(j.counts?.unread || 0);
+  } catch { /* silent — bell stays in its current state on transient failures */ }
 }
 function renderInboxRow(s) {
   const fullName = [s.firstName, s.lastName].filter(Boolean).join(' ') || '(no name)';
