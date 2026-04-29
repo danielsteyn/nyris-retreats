@@ -537,14 +537,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .booking-form .date-trigger:hover { background: rgba(31,61,43,0.04); }
 .booking-form .date-trigger:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
-/* Hospitable Direct embed — force the rendered iframe to fill its wrapper
-   so the booking card lines up with the sibling perks/channel cards in the
-   right column. Without this, Hospitable's snippet lays the iframe out
-   narrower than the column and the booking card looks inset against the
-   Direct-booking perks below. */
+/* Hospitable Direct embed — Hospitable's widget renders its calendar /
+   Guests / Reserve content in a narrow ~285px column left-aligned inside
+   the iframe regardless of iframe width. Cap the iframe at 320px and use
+   margin: 0 auto so the actual booking UI sits centered inside the
+   Request-to-book panel on every viewport (it was left-aligned on
+   desktop when the iframe filled the full column width). */
 #hospInlineWidget,
 #hospInlineWidget > * { width: 100%; }
-#hospInlineWidget iframe { display: block; width: 100% !important; max-width: 100%; border: 0; margin: 0 auto; }
+#hospInlineWidget iframe { display: block; width: 100% !important; max-width: 320px !important; border: 0; margin: 0 auto; }
 
 /* "Request to book" panel — wraps the Book Direct accordion + per-channel
    buttons (Airbnb / Vrbo / Booking). Same outer card styling as the prior
@@ -575,16 +576,6 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 #rtbDirectToggle.is-open .rtb-chev { transform: rotate(180deg); }
 .rtb-expand { padding: 0; }
 #hospInlineWidget { display: block; }
-
-/* On mobile, Hospitable renders the calendar / Guests / Reserve column
-   left-aligned inside the iframe at ~285px regardless of the iframe's
-   actual width — leaving visible whitespace on the right when the iframe
-   spans the full column. We can't reach across the iframe boundary to
-   recenter their CSS, so cap the iframe width to match their content and
-   center it; the perks card below stays full-width below as before. */
-@media (max-width: 640px) {
-  #hospInlineWidget iframe { max-width: 320px !important; }
-}
 
 /* Always-on-top floating calendar — JS sets exact top/left via fixed-positioning
    anchored to the trigger button. z-index sits above the sticky header (50)
