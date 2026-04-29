@@ -562,16 +562,19 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   margin-bottom: 0.65rem;
   color: var(--color-charcoal);
 }
-.rtb-buttons { display: flex; flex-direction: column; gap: 0.5rem; }
+/* All buttons in the panel stack tight with no gap so Book Direct touches
+   Book on Airbnb the same way Book on Airbnb touches Book on Vrbo. */
+.rtb-buttons { display: flex; flex-direction: column; gap: 0; }
 .rtb-btn { width: 100%; justify-content: center; }
-.rtb-direct { display: flex; flex-direction: column; gap: 0.5rem; }
+.rtb-direct { display: flex; flex-direction: column; gap: 0; }
 .rtb-chev {
   display: inline-block;
   margin-left: 0.5rem;
   transition: transform 0.2s var(--ease-out);
 }
 #rtbDirectToggle.is-open .rtb-chev { transform: rotate(180deg); }
-.rtb-expand { padding-top: 0.25rem; }
+.rtb-expand { padding: 0; }
+#hospInlineWidget { display: block; }
 
 /* On mobile, Hospitable renders the calendar / Guests / Reserve column
    left-aligned inside the iframe at ~285px regardless of the iframe's

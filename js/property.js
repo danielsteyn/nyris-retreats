@@ -646,6 +646,14 @@ function mergeHospitableEmbeds(siteWide, perProperty) {
 // Stripe → show the default Reserve widget. Anything else (Hospitable) → keep
 // the Reserve widget hidden and mount the embed in its place. The Reserve
 // widget starts hidden in the template so it never flashes during render.
+// Holds the unsanitized embed HTML between applyBookingSurface (decides we
+// need it) and toggleBookDirect (lazy-injects on first expand). Lazy
+// injection guarantees Hospitable's widget initializes in a visible context
+// so it can measure correctly and post the right resize height — running it
+// while the rtb-expand container is `hidden` left the iframe at the seed
+// height with empty space inside.
+let _pendingHospitableEmbed = null;
+
 function applyBookingSurface(property) {
   const mount = document.getElementById('hospInlineWidget');
   const reserveWidget = document.querySelector('.booking-widget');
@@ -658,6 +666,7 @@ function applyBookingSurface(property) {
     if (mount) { mount.innerHTML = ''; mount.style.minHeight = ''; }
     if (reserveWidget) reserveWidget.hidden = false;
     if (directRow) directRow.hidden = true;
+    _pendingHospitableEmbed = null;
     syncRequestToBookPanel();
     return;
   }
@@ -674,63 +683,56 @@ function applyBookingSurface(property) {
   if (!perPropertyEmbed && !siteWideEmbed) {
     mount.innerHTML = '';
     if (directRow) directRow.hidden = true;
+    _pendingHospitableEmbed = null;
     syncRequestToBookPanel();
     return;
   }
 
   try {
-    const html = mergeHospitableEmbeds(siteWideEmbed, perPropertyEmbed)
+    _pendingHospitableEmbed = mergeHospitableEmbeds(siteWideEmbed, perPropertyEmbed)
       .replace(/\{propertyId\}/g, property.id)
       .replace(/\{slug\}/g, property.slug);
-    mount.innerHTML = html;
-
-    mount.querySelectorAll('script').forEach(oldScript => {
-      const newScript = document.createElement('script');
-      for (const a of oldScript.attributes) newScript.setAttribute(a.name, a.value);
-      if (oldScript.textContent) newScript.text = oldScript.textContent;
-      oldScript.parentNode.replaceChild(newScript, oldScript);
-    });
-    // Seed the iframe with a sensible initial height so it doesn't render
-    // as the default 150px tall. Hospitable's resize message updates this
-    // once the widget reports its actual content height.
-    const iframe = mount.querySelector('iframe');
-    if (iframe && !iframe.style.height) iframe.style.height = '900px';
+    mount.innerHTML = '';
     if (directRow) directRow.hidden = false;
     syncRequestToBookPanel();
   } catch (e) {
-    console.warn('[booking] Hospitable embed failed to mount:', e);
+    console.warn('[booking] Hospitable embed prep failed:', e);
     mount.innerHTML = '';
     if (directRow) directRow.hidden = true;
+    _pendingHospitableEmbed = null;
     syncRequestToBookPanel();
   }
 
-  // Hospitable's widget posts a height to the parent window so the host can
-  // resize the iframe to fit the content. Listen for any of the common
-  // shapes (Hospitable's snippets vary slightly across plan tiers) and
-  // resize the iframe accordingly. The wrapper has no min-height of its own,
-  // so it shrinks/grows to match the iframe — no white space below.
+  // Hospitable's widget posts a height back to the parent so we can resize
+  // the iframe to match its content. Two formats appear in the wild:
+  //   - { height: 743 } (or newHeight / iframeHeight)
+  //   - "[iFrameSizer]<id>:743:..." (string from iframe-resizer)
+  // Filter by ev.source === iframe.contentWindow so we ignore noise from
+  // unrelated iframes/extensions, regardless of origin.
   if (!window.__hospResizeWired) {
     window.__hospResizeWired = true;
     window.addEventListener('message', (ev) => {
-      const d = ev && ev.data;
-      if (!d || typeof d !== 'object') return;
-      const fromHospitable = (typeof ev.origin === 'string' && /hospitable/i.test(ev.origin)) ||
-                             (typeof d.source === 'string' && /hospitable/i.test(d.source));
-      if (!fromHospitable) return;
-      // Common payload field names: height | newHeight | iframeHeight
-      const h = Number(d.height || d.newHeight || d.iframeHeight || 0);
-      if (!h || h < 200) return;
       const m = document.getElementById('hospInlineWidget');
       if (!m) return;
       const iframe = m.querySelector('iframe');
-      if (iframe) iframe.style.height = h + 'px';
+      if (!iframe || ev.source !== iframe.contentWindow) return;
+      let h = 0;
+      const data = ev.data;
+      if (data && typeof data === 'object') {
+        h = Number(data.height || data.newHeight || data.iframeHeight || 0);
+      } else if (typeof data === 'string') {
+        const match = data.match(/^\[iFrameSizer\][^:]*:(\d+(?:\.\d+)?)/);
+        if (match) h = Math.ceil(Number(match[1]));
+      }
+      if (!h || h < 200) return;
+      iframe.style.height = h + 'px';
     });
   }
 }
 
 // Expand/collapse the Book Direct accordion that wraps the Hospitable iframe.
-// Defined on window because the Reserve button at the top of the page also
-// calls it when Hospitable mode is active.
+// On first expand, lazy-inject the embed so the widget initializes in a
+// visible context and can measure / post resize messages correctly.
 function toggleBookDirect(forceOpen) {
   const expand = document.getElementById('rtbDirectExpand');
   const toggle = document.getElementById('rtbDirectToggle');
@@ -739,6 +741,25 @@ function toggleBookDirect(forceOpen) {
   expand.hidden = !willOpen;
   toggle.setAttribute('aria-expanded', String(willOpen));
   toggle.classList.toggle('is-open', willOpen);
+
+  if (!willOpen) return;
+  const mount = document.getElementById('hospInlineWidget');
+  if (!mount || !_pendingHospitableEmbed) return;
+  mount.innerHTML = _pendingHospitableEmbed;
+  _pendingHospitableEmbed = null;
+  // Re-execute injected scripts (innerHTML doesn't run them).
+  mount.querySelectorAll('script').forEach(oldScript => {
+    const newScript = document.createElement('script');
+    for (const a of oldScript.attributes) newScript.setAttribute(a.name, a.value);
+    if (oldScript.textContent) newScript.text = oldScript.textContent;
+    oldScript.parentNode.replaceChild(newScript, oldScript);
+  });
+  // Seed iframe height so it doesn't render at the 150px default before
+  // Hospitable's resize message arrives. 600px is enough for a typical
+  // direct-booking widget without leaving a giant empty band underneath
+  // when the message never fires.
+  const iframe = mount.querySelector('iframe');
+  if (iframe && !iframe.style.height) iframe.style.height = '600px';
 }
 window.toggleBookDirect = toggleBookDirect;
 
