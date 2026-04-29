@@ -42,7 +42,11 @@
   } else if (PhotoOverrides) {
     PhotoOverrides.load().then(() => {
       const newImages = PhotoOverrides.imagesFor(p);
-      if (newImages[0] !== p.images[0]) {
+      // Compare both cover AND total count — admins frequently sync 70+ photos
+      // from Hospitable while the cover stays the same as the static data.js
+      // entry, so a cover-only check would skip the update and leave the
+      // gallery stuck at the static count.
+      if (newImages.length !== p.images.length || newImages[0] !== p.images[0]) {
         p.images = newImages;
         applyOverridesToGallery(newImages);
       }
