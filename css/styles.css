@@ -546,6 +546,33 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 #hospInlineWidget > * { width: 100%; }
 #hospInlineWidget iframe { display: block; width: 100% !important; max-width: 100%; border: 0; margin: 0 auto; }
 
+/* "Request to book" panel — wraps the Book Direct accordion + per-channel
+   buttons (Airbnb / Vrbo / Booking). Same outer card styling as the prior
+   "Also listed on" block. */
+.rtb-panel {
+  margin-top: 1.25rem;
+  padding: 1.1rem 1.25rem;
+  background: white;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+}
+.rtb-title {
+  display: block;
+  font-size: 0.92rem;
+  margin-bottom: 0.65rem;
+  color: var(--color-charcoal);
+}
+.rtb-buttons { display: flex; flex-direction: column; gap: 0.5rem; }
+.rtb-btn { width: 100%; justify-content: center; }
+.rtb-direct { display: flex; flex-direction: column; gap: 0.5rem; }
+.rtb-chev {
+  display: inline-block;
+  margin-left: 0.5rem;
+  transition: transform 0.2s var(--ease-out);
+}
+#rtbDirectToggle.is-open .rtb-chev { transform: rotate(180deg); }
+.rtb-expand { padding-top: 0.25rem; }
+
 /* On mobile, Hospitable renders the calendar / Guests / Reserve column
    left-aligned inside the iframe at ~285px regardless of the iframe's
    actual width — leaving visible whitespace on the right when the iframe
