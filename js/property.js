@@ -217,9 +217,6 @@
 
       <!-- Right: booking widget -->
       <aside>
-        <!-- Inline Hospitable Direct widget (admin-configurable). Renders
-             above the existing Reserve form so guests have both options. -->
-        <div id="hospInlineWidget" hidden style="margin-bottom: 1.25rem; max-width: 100%; overflow: hidden; isolation: isolate; contain: layout;"></div>
         <!-- Default Reserve widget — hidden by default. applyBookingSurface
              unhides it ONLY when admin → Bookings & Payments → provider is
              "stripe". For Hospitable mode the embed above is the only surface,
@@ -269,9 +266,26 @@
           </ul>
         </div>
 
-        <!-- Channel listings (Airbnb, Vrbo, etc.) — populated after render
-             from /api/hospitable/listings if Hospitable has them on file. -->
-        <div id="channelLinks" hidden style="margin-top: 1.25rem;"></div>
+        <!-- "Request to book" panel: Book Direct accordion (expands to the
+             Hospitable iframe) + channel buttons (Airbnb / Vrbo / Booking).
+             Channel buttons are populated by loadChannelLinks; the Book
+             Direct row is shown by applyBookingSurface only when a
+             Hospitable embed is configured. -->
+        <div id="requestToBookPanel" class="rtb-panel" hidden>
+          <strong class="rtb-title">Request to book</strong>
+          <div class="rtb-buttons">
+            <div id="rtbDirect" class="rtb-direct" hidden>
+              <button type="button" class="btn btn-accent rtb-btn" id="rtbDirectToggle" onclick="toggleBookDirect()" aria-expanded="false" aria-controls="rtbDirectExpand">
+                <span>Book Direct</span>
+                <span class="rtb-chev" aria-hidden="true">▾</span>
+              </button>
+              <div id="rtbDirectExpand" class="rtb-expand" hidden>
+                <div id="hospInlineWidget" style="max-width: 100%; overflow: hidden; isolation: isolate; contain: layout;"></div>
+              </div>
+            </div>
+            <div id="channelLinkButtons"></div>
+          </div>
+        </div>
 
         <!-- Compare button -->
         <button class="btn btn-outline" id="compareBtn" style="width: 100%; margin-top: 1rem;" onclick="toggleCompare('${p.id}')">+ Add to compare</button>
@@ -562,7 +576,7 @@ function buildHospitableBookingUrl(template, property, checkin, checkout, guests
 // isn't synced, etc.) — silent failure is the right behavior for an optional
 // secondary booking surface.
 async function loadChannelLinks(property) {
-  const slot = document.getElementById('channelLinks');
+  const slot = document.getElementById('channelLinkButtons');
   if (!slot) return;
 
   // Build the link map from two sources, in priority order:
@@ -574,17 +588,12 @@ async function loadChannelLinks(property) {
 
   const renderIfAny = (links) => {
     const order = ['airbnb', 'vrbo', 'booking'];
-    const labels = { airbnb: 'View on Airbnb', vrbo: 'View on Vrbo', booking: 'View on Booking.com' };
+    const labels = { airbnb: 'Book on Airbnb', vrbo: 'Book on Vrbo', booking: 'Book on Booking.com' };
     const visible = order.filter(k => typeof links[k] === 'string' && links[k]);
-    if (!visible.length) { slot.hidden = true; slot.innerHTML = ''; return; }
-    slot.innerHTML = `
-      <div style="padding: 1.1rem 1.25rem; background: white; border: 1px solid var(--color-line); border-radius: 14px;">
-        <strong style="display:block; font-size: 0.92rem; margin-bottom: 0.65rem; color: var(--color-charcoal);">Also listed on</strong>
-        <div style="display:flex; flex-direction: column; gap: 0.5rem;">
-          ${visible.map(k => `<a href="${escapeHtml(links[k])}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="width: 100%; justify-content: center;">${labels[k]} →</a>`).join('')}
-        </div>
-      </div>`;
-    slot.hidden = false;
+    slot.innerHTML = visible.map(k =>
+      `<a href="${escapeHtml(links[k])}" target="_blank" rel="noopener" class="btn btn-outline btn-sm rtb-btn">${labels[k]} →</a>`
+    ).join('');
+    syncRequestToBookPanel();
   };
 
   // First paint with admin overrides only (instant — no fetch needed).
@@ -640,13 +649,16 @@ function mergeHospitableEmbeds(siteWide, perProperty) {
 function applyBookingSurface(property) {
   const mount = document.getElementById('hospInlineWidget');
   const reserveWidget = document.querySelector('.booking-widget');
+  const directRow = document.getElementById('rtbDirect');
   const o = (typeof Overrides !== 'undefined') ? Overrides.get() : {};
   const pay = (o && o.payments) || {};
   const provider = pay.provider || 'stripe';
 
   if (provider === 'stripe') {
-    if (mount) { mount.hidden = true; mount.innerHTML = ''; mount.style.minHeight = ''; }
+    if (mount) { mount.innerHTML = ''; mount.style.minHeight = ''; }
     if (reserveWidget) reserveWidget.hidden = false;
+    if (directRow) directRow.hidden = true;
+    syncRequestToBookPanel();
     return;
   }
 
@@ -660,7 +672,9 @@ function applyBookingSurface(property) {
   const perPropertyEmbed = (property.hospitableEmbed || '').trim();
   const siteWideEmbed = (pay.hospitableWidgetEmbed || '').trim();
   if (!perPropertyEmbed && !siteWideEmbed) {
-    mount.hidden = true; mount.innerHTML = ''; mount.style.minHeight = '';
+    mount.innerHTML = ''; mount.style.minHeight = '';
+    if (directRow) directRow.hidden = true;
+    syncRequestToBookPanel();
     return;
   }
 
@@ -671,7 +685,6 @@ function applyBookingSurface(property) {
       .replace(/\{propertyId\}/g, property.id)
       .replace(/\{slug\}/g, property.slug);
     mount.innerHTML = html;
-    mount.hidden = false;
 
     mount.querySelectorAll('script').forEach(oldScript => {
       const newScript = document.createElement('script');
@@ -679,9 +692,13 @@ function applyBookingSurface(property) {
       if (oldScript.textContent) newScript.text = oldScript.textContent;
       oldScript.parentNode.replaceChild(newScript, oldScript);
     });
+    if (directRow) directRow.hidden = false;
+    syncRequestToBookPanel();
   } catch (e) {
     console.warn('[booking] Hospitable embed failed to mount:', e);
-    mount.hidden = true; mount.innerHTML = ''; mount.style.minHeight = '';
+    mount.innerHTML = ''; mount.style.minHeight = '';
+    if (directRow) directRow.hidden = true;
+    syncRequestToBookPanel();
   }
 
   // Hospitable's widget posts a height to the parent window so the host can
@@ -706,6 +723,50 @@ function applyBookingSurface(property) {
       if (iframe) iframe.style.height = h + 'px';
     });
   }
+}
+
+// Expand/collapse the Book Direct accordion that wraps the Hospitable iframe.
+// Defined on window because the Reserve button at the top of the page also
+// calls it when Hospitable mode is active.
+function toggleBookDirect(forceOpen) {
+  const expand = document.getElementById('rtbDirectExpand');
+  const toggle = document.getElementById('rtbDirectToggle');
+  if (!expand || !toggle) return;
+  const willOpen = (typeof forceOpen === 'boolean') ? forceOpen : expand.hidden;
+  expand.hidden = !willOpen;
+  toggle.setAttribute('aria-expanded', String(willOpen));
+  toggle.classList.toggle('is-open', willOpen);
+}
+window.toggleBookDirect = toggleBookDirect;
+
+// Mobile CTA → Reserve button. In Hospitable mode, expand the Book Direct
+// accordion and scroll to it; otherwise scroll to the Reserve widget.
+function reserveFromMobileCta() {
+  const directRow = document.getElementById('rtbDirect');
+  const reserveWidget = document.querySelector('.booking-widget');
+  if (directRow && !directRow.hidden) {
+    toggleBookDirect(true);
+    directRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  if (reserveWidget && !reserveWidget.hidden) {
+    reserveWidget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+window.reserveFromMobileCta = reserveFromMobileCta;
+
+// Hide the entire Request-to-book panel when there's nothing to show — i.e.
+// no channel buttons rendered AND no Book Direct row visible. Called from
+// loadChannelLinks and applyBookingSurface whenever their respective inputs
+// change so the panel doesn't render as an empty card.
+function syncRequestToBookPanel() {
+  const panel = document.getElementById('requestToBookPanel');
+  if (!panel) return;
+  const buttonSlot = document.getElementById('channelLinkButtons');
+  const directRow = document.getElementById('rtbDirect');
+  const hasChannels = !!(buttonSlot && buttonSlot.children.length);
+  const hasDirect = !!(directRow && !directRow.hidden);
+  panel.hidden = !(hasChannels || hasDirect);
 }
 
 function shareProperty() {
